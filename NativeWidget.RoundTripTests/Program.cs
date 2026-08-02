@@ -17,6 +17,8 @@ internal static class Program
         var imagePath = Path.Combine(Path.GetTempPath(), "nativewidget-markdown-test.png");
         File.WriteAllBytes(imagePath, Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+        var attachmentPath = Path.Combine(Path.GetTempPath(), "nativewidget-attachment-test.pdf");
+        File.WriteAllBytes(attachmentPath, "%PDF-1.4\n% NativeWidget attachment smoke"u8.ToArray());
 
         var document = new FlowDocument();
         document.Blocks.Add(Styled("heading1", new Run("Main heading")));
@@ -44,6 +46,10 @@ internal static class Program
         document.Blocks.Add(todo);
         document.Blocks.Add(Styled("quote", new Run("quoted")));
         document.Blocks.Add(Styled("code", new Run("var x = 1;\nreturn x;")));
+        document.Blocks.Add(new Paragraph(new Hyperlink(new Run("📎 sample.pdf"))
+        {
+            NavigateUri = new Uri(attachmentPath),
+        }));
 
         var markdown = FlowDocumentMarkdownConverter.ToMarkdown(document);
         var roundTrip = FlowDocumentMarkdownConverter.ToMarkdown(
@@ -58,7 +64,7 @@ internal static class Program
         {
             "# Main heading", "## Sub heading", "**bold**", "*italic*", "~~strike~~",
             "data-font=\"Georgia\"", "- bullet", "1. number", "- [x] done",
-            "> quoted", "```", "![](file:",
+            "> quoted", "```", "![](file:", "[📎 sample.pdf](file:",
         };
         foreach (var token in expectedTokens)
             if (!markdown.Contains(token, StringComparison.Ordinal))
@@ -73,6 +79,7 @@ internal static class Program
         AssertEqual(NotionSyncService.SyncResolution.PullRemoteWithLocalConflict,
             NotionSyncService.ResolveChanges(localChanged: true, remoteChanged: true),
             "Two-sided sync conflict resolution");
+        TestBareDomainLinkify();
 
         using var notionJson = JsonDocument.Parse("""
         [
@@ -85,11 +92,12 @@ internal static class Program
           {"id":"q","type":"quote","quote":{"rich_text":[{"plain_text":"quote","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
           {"id":"c","type":"code","code":{"rich_text":[{"plain_text":"code","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
           {"id":"i","type":"image","image":{"type":"external","external":{"url":"https://example.com/image.png"}}},
+          {"id":"f","type":"file","file":{"type":"external","external":{"url":"https://example.com/sample.pdf"},"name":"sample.pdf","caption":[{"plain_text":"📎 sample.pdf","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
           {"id":"u","type":"toggle","toggle":{"rich_text":[]}}
         ]
         """);
         var notionDocument = NotionMarkdownConverter.FromBlocks(notionJson.RootElement);
-        if (!notionDocument.HasUnsupportedBlocks || notionDocument.SupportedBlockIds.Count != 9 ||
+        if (!notionDocument.HasUnsupportedBlocks || notionDocument.SupportedBlockIds.Count != 10 ||
             !notionDocument.Markdown.Contains("2. number2", StringComparison.Ordinal))
             throw new InvalidOperationException("Notion unsupported-block preservation metadata failed.");
         var notionRoundTripJson = JsonSerializer.Serialize(
@@ -97,11 +105,17 @@ internal static class Program
         foreach (var token in new[]
                  {
                      "heading_1", "bulleted_list_item", "numbered_list_item", "to_do",
-                     "quote", "code", "image", "\"bold\":true", "\"italic\":true",
+                     "quote", "code", "image", "\"type\":\"file\"", "\"bold\":true", "\"italic\":true",
                      "\"strikethrough\":true",
                  })
             if (!notionRoundTripJson.Contains(token, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Notion round-trip missing token: {token}");
+
+        var uploadedAttachmentJson = JsonSerializer.Serialize(NotionMarkdownConverter.ToBlocks(markdown,
+            new Dictionary<string, string> { [new Uri(attachmentPath).AbsoluteUri] = "upload-id" }));
+        if (!uploadedAttachmentJson.Contains("\"file_upload\"", StringComparison.Ordinal) ||
+            !uploadedAttachmentJson.Contains("\"upload-id\"", StringComparison.Ordinal))
+            throw new InvalidOperationException("Local attachment did not map to a Notion file-upload block.");
 
         var realNotePaths = args.Where(File.Exists).ToArray();
         foreach (var path in realNotePaths)
@@ -132,6 +146,16 @@ internal static class Program
         if (tag == "quote") paragraph.Margin = new System.Windows.Thickness(14, 4, 0, 4);
         if (tag == "code") paragraph.FontFamily = new FontFamily("Consolas");
         return paragraph;
+    }
+
+    private static void TestBareDomainLinkify()
+    {
+        var targets = LinkDetection.Find("vincea.space and vincea.com")
+            .Select(link => link.Target.AbsoluteUri).ToArray();
+        AssertEqual("https://vincea.space/", targets.ElementAtOrDefault(0) ?? "",
+            "Bare .space link detection");
+        AssertEqual("https://vincea.com/", targets.ElementAtOrDefault(1) ?? "",
+            "Bare .com link detection");
     }
 
     private static void TestStorageMigration(string sourceXaml)

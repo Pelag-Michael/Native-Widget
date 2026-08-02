@@ -142,9 +142,13 @@ authoritative and the local version is retained as `<id>.conflict-<timestamp>.md
 silently replacing either user's work.
 
 The note body lives as real Notion blocks. Supported mappings are paragraph, heading 1/2,
-bulleted/numbered list item, to-do, quote, code, bold/italic/strikethrough rich-text
-annotations and image. Local images use Notion's file-upload API; pulled remote images are
-downloaded to `notes\images`. Replacing a body appends the new supported blocks first,
+bulleted/numbered list item, to-do, quote, code, bold/italic/strikethrough rich-text,
+image, and generic file attachments. Any regular file up to Notion's 20 MB single-part limit
+can be added through the attachment button, Explorer paste, or drag-and-drop. Attachments are
+copied under `notes\attachments\<note-id>`, represented as `📎` Markdown hyperlinks, opened
+with the OS default application, and synced as Notion file blocks. Local files use Notion's
+file-upload API; pulled remote images/files are downloaded locally so temporary signed URLs
+never become the source of truth. Replacing a body appends the new supported blocks first,
 then archives only old supported blocks. Unsupported blocks such as toggles/embeds remain
 untouched, so a failed request can produce duplicates but cannot empty the page. **No
 delete propagation either direction** remains the safety rule.

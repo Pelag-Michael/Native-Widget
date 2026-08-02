@@ -27,6 +27,8 @@ internal static class NotionSmoke
         Directory.CreateDirectory(Path.Combine(testRoot, "notes"));
         Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", testRoot);
         var noteId = "smoke-" + Guid.NewGuid().ToString("N");
+        var attachmentPath = Path.Combine(testRoot, "smoke.pdf");
+        File.WriteAllBytes(attachmentPath, "%PDF-1.4\n% NativeWidget generic attachment"u8.ToArray());
         var markdown = string.Join('\n',
             "# Smoke heading",
             "Paragraph with **bold**, *italic* and ~~strike~~.",
@@ -37,7 +39,8 @@ internal static class NotionSmoke
             "```",
             "var smoke = true;",
             "```",
-            $"![]({new Uri(imagePath).AbsoluteUri})");
+            $"![]({new Uri(imagePath).AbsoluteUri})",
+            $"[📎 smoke.pdf]({new Uri(attachmentPath).AbsoluteUri})");
         File.WriteAllText(Path.Combine(testRoot, "notes", noteId + ".md"), markdown);
         File.WriteAllText(Path.Combine(testRoot, "notes", "index.json"), JsonSerializer.Serialize(
             new List<NoteMeta>
@@ -69,7 +72,7 @@ internal static class NotionSmoke
             var pageId = await GetOnlyPageId(config);
             var initialBlocks = await GetBlocks(config, pageId);
             RequireTypes(initialBlocks, "heading_1", "paragraph", "bulleted_list_item",
-                "numbered_list_item", "to_do", "quote", "code", "image");
+                "numbered_list_item", "to_do", "quote", "code", "image", "file");
 
             await Call(config, HttpMethod.Patch, $"/blocks/{pageId}/children", new
             {
@@ -93,14 +96,15 @@ internal static class NotionSmoke
             await NotionSyncService.SyncOnceAsync(config);
             var pulled = NotesService.GetMarkdown(noteId);
             if (!pulled.Contains("## Remote edit", StringComparison.Ordinal) ||
-                !pulled.Contains("![](file:", StringComparison.Ordinal))
-                throw new InvalidOperationException("Remote block/image pull did not localize correctly.");
+                !pulled.Contains("![](file:", StringComparison.Ordinal) ||
+                !pulled.Contains("[📎 smoke.pdf](file:", StringComparison.Ordinal))
+                throw new InvalidOperationException("Remote block/image/attachment pull did not localize correctly.");
 
             NotesService.ApplyRemoteUpdate(noteId, meta.Title, pulled + "\n> Local edit",
                 DateTimeOffset.UtcNow.ToUnixTimeSeconds());
             await NotionSyncService.SyncOnceAsync(config);
             var finalBlocks = await GetBlocks(config, pageId);
-            RequireTypes(finalBlocks, "toggle", "quote", "image");
+            RequireTypes(finalBlocks, "toggle", "quote", "image", "file");
             var finalText = string.Join(' ', finalBlocks.Select(BlockText));
             if (!finalText.Contains("Local edit", StringComparison.Ordinal) ||
                 !finalText.Contains("Keep this unsupported block", StringComparison.Ordinal))
