@@ -1,4 +1,5 @@
 using System.IO;
+using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -26,9 +27,13 @@ public static partial class NotionSyncService
     private const string NotionVersion = "2026-03-11";
     private static readonly HttpClient Http = new();
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = null };
+    private static readonly ConcurrentDictionary<string, string> RemoteAssetHashCache = new();
 
     [GeneratedRegex(@"!\[\]\(([^)]+)\)")]
     private static partial Regex ImageMarkdownRegex();
+
+    [GeneratedRegex(@"\[(📎 [^\]]+)\]\(([^)]+)\)")]
+    private static partial Regex AttachmentMarkdownRegex();
 
     private static HttpRequestMessage Req(HttpMethod method, string path, object? body = null)
     {
@@ -223,7 +228,7 @@ public static partial class NotionSyncService
 
     private static async Task<object[]> BuildBlocksAsync(AppConfig config, string markdown)
     {
-        var uploads = await UploadLocalImagesAsync(config, markdown);
+        var uploads = await UploadLocalFilesAsync(config, markdown);
         return NotionMarkdownConverter.ToBlocks(markdown, uploads);
     }
 
@@ -332,7 +337,7 @@ public static partial class NotionSyncService
             }
             else
             {
-                var localized = await LocalizeRemoteImagesAsync(remoteBody.Markdown);
+                var localized = await LocalizeRemoteFilesAsync(remoteBody.Markdown);
                 var localizedHash = await CanonicalHashAsync(localized);
                 NotesService.ApplyRemoteUpdate(meta.Id, match.Title, localized,
                     match.UpdatedAtUnix, localizedHash,
@@ -344,7 +349,7 @@ public static partial class NotionSyncService
         {
             if (page.LocalId.Length > 0 && localIds.Contains(page.LocalId)) continue;
             var body = await GetPageBodyAsync(config, page.PageId);
-            var localized = await LocalizeRemoteImagesAsync(body.Markdown);
+            var localized = await LocalizeRemoteFilesAsync(body.Markdown);
             var hash = await CanonicalHashAsync(localized);
             NotesService.CreateNoteFromRemote(page.PageId, page.Title, localized,
                 page.UpdatedAtUnix, hash);
@@ -352,20 +357,22 @@ public static partial class NotionSyncService
         }
     }
 
-    private static async Task<Dictionary<string, string>> UploadLocalImagesAsync(
+    private static async Task<Dictionary<string, string>> UploadLocalFilesAsync(
         AppConfig config, string markdown)
     {
         var uploads = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (Match match in ImageMarkdownRegex().Matches(markdown))
+        var sources = ImageMarkdownRegex().Matches(markdown).Select(match => match.Groups[1].Value)
+            .Concat(AttachmentMarkdownRegex().Matches(markdown).Select(match => match.Groups[2].Value))
+            .Distinct(StringComparer.Ordinal);
+        foreach (var source in sources)
         {
-            var source = match.Groups[1].Value;
             if (uploads.ContainsKey(source) || !Uri.TryCreate(source, UriKind.Absolute, out var uri) ||
                 !uri.IsFile || !File.Exists(uri.LocalPath))
                 continue;
 
             var info = new FileInfo(uri.LocalPath);
             if (info.Length > 20 * 1024 * 1024)
-                throw new InvalidOperationException($"Ảnh quá lớn để tải lên Notion: {info.Name}");
+                throw new InvalidOperationException($"File quá lớn để tải lên Notion: {info.Name}");
             var contentType = ContentType(uri.LocalPath);
             var created = await CallAsync(config, HttpMethod.Post, "/file_uploads", new
             {
@@ -378,6 +385,12 @@ public static partial class NotionSyncService
             uploads[source] = uploadId;
         }
         return uploads;
+    }
+
+    private static async Task<string> LocalizeRemoteFilesAsync(string markdown)
+    {
+        markdown = await LocalizeRemoteImagesAsync(markdown);
+        return await LocalizeRemoteAttachmentsAsync(markdown);
     }
 
     private static async Task<string> LocalizeRemoteImagesAsync(string markdown)
@@ -413,6 +426,39 @@ public static partial class NotionSyncService
         return output.ToString();
     }
 
+    private static async Task<string> LocalizeRemoteAttachmentsAsync(string markdown)
+    {
+        var matches = AttachmentMarkdownRegex().Matches(markdown);
+        if (matches.Count == 0) return markdown;
+        var output = new StringBuilder();
+        var offset = 0;
+        foreach (Match match in matches)
+        {
+            output.Append(markdown, offset, match.Index - offset);
+            var label = match.Groups[1].Value;
+            var source = match.Groups[2].Value;
+            if (Uri.TryCreate(source, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+            {
+                try
+                {
+                    var (bytes, contentType) = await DownloadAsync(uri);
+                    var extension = Extension(contentType, uri.AbsolutePath);
+                    var name = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant() + extension;
+                    var folder = Path.Combine(AppConfig.TokenPath("notes"), "attachments", "remote");
+                    Directory.CreateDirectory(folder);
+                    var path = Path.Combine(folder, name);
+                    if (!File.Exists(path)) await File.WriteAllBytesAsync(path, bytes);
+                    source = new Uri(path).AbsoluteUri;
+                }
+                catch { }
+            }
+            output.Append($"[{label}]({source})");
+            offset = match.Index + match.Length;
+        }
+        output.Append(markdown, offset, markdown.Length - offset);
+        return output.ToString();
+    }
+
     private static async Task<string> CanonicalHashAsync(string markdown)
     {
         // Font family/size are retained in local Markdown as private span extensions, but
@@ -420,33 +466,50 @@ public static partial class NotionSyncService
         // so an otherwise-equal remote body never strips local typography.
         var comparable = Regex.Replace(markdown,
             @"</?span(?:\s+data-font=""[^""]*"")?(?:\s+data-size=""[^""]*"")?>", "");
-        var matches = ImageMarkdownRegex().Matches(comparable);
+        comparable = await CanonicalizeAssetsAsync(comparable, ImageMarkdownRegex(), 1,
+            (match, hash) => $"![](sha256:{hash})");
+        comparable = await CanonicalizeAssetsAsync(comparable, AttachmentMarkdownRegex(), 2,
+            (match, hash) => $"[{match.Groups[1].Value}](sha256:{hash})");
+        var normalized = Regex.Replace(
+            comparable.Replace("\r\n", "\n", StringComparison.Ordinal),
+            "\\n+", "\n").Trim('\n');
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))
+            .ToLowerInvariant();
+    }
+
+    private static async Task<string> CanonicalizeAssetsAsync(string markdown, Regex regex,
+        int sourceGroup, Func<Match, string, string> replacement)
+    {
+        var matches = regex.Matches(markdown);
         var canonical = new StringBuilder();
         var offset = 0;
         foreach (Match match in matches)
         {
-            canonical.Append(comparable, offset, match.Index - offset);
-            var source = match.Groups[1].Value;
-            byte[]? bytes = null;
+            canonical.Append(markdown, offset, match.Index - offset);
+            var source = match.Groups[sourceGroup].Value;
+            string? hash = null;
             try
             {
                 if (Uri.TryCreate(source, UriKind.Absolute, out var uri))
-                    bytes = uri.IsFile && File.Exists(uri.LocalPath)
-                        ? await File.ReadAllBytesAsync(uri.LocalPath)
-                        : uri.Scheme is "http" or "https" ? (await DownloadAsync(uri)).Bytes : null;
+                {
+                    if (uri.IsFile && File.Exists(uri.LocalPath))
+                        hash = Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(uri.LocalPath)));
+                    else if (uri.Scheme is "http" or "https")
+                    {
+                        if (!RemoteAssetHashCache.TryGetValue(source, out hash))
+                        {
+                            hash = Convert.ToHexString(SHA256.HashData((await DownloadAsync(uri)).Bytes));
+                            RemoteAssetHashCache[source] = hash;
+                        }
+                    }
+                }
             }
             catch { }
-            canonical.Append(bytes == null
-                ? $"\n![]({source})\n"
-                : $"\n![](sha256:{Convert.ToHexString(SHA256.HashData(bytes))})\n");
+            canonical.Append(hash == null ? match.Value : replacement(match, hash));
             offset = match.Index + match.Length;
         }
-        canonical.Append(comparable, offset, comparable.Length - offset);
-        var normalized = Regex.Replace(
-            canonical.ToString().Replace("\r\n", "\n", StringComparison.Ordinal),
-            "\\n+", "\n").Trim('\n');
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalized)))
-            .ToLowerInvariant();
+        canonical.Append(markdown, offset, markdown.Length - offset);
+        return canonical.ToString();
     }
 
     private static async Task<(byte[] Bytes, string? ContentType)> DownloadAsync(Uri uri)
@@ -460,9 +523,18 @@ public static partial class NotionSyncService
     private static string ContentType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {
         ".jpg" or ".jpeg" => "image/jpeg",
+        ".png" => "image/png",
         ".gif" => "image/gif",
         ".webp" => "image/webp",
-        _ => "image/png",
+        ".pdf" => "application/pdf",
+        ".txt" or ".md" => "text/plain",
+        ".csv" => "text/csv",
+        ".json" => "application/json",
+        ".zip" => "application/zip",
+        ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        _ => "application/octet-stream",
     };
 
     private static string Extension(string? contentType, string sourcePath) => contentType switch
@@ -471,6 +543,14 @@ public static partial class NotionSyncService
         "image/gif" => ".gif",
         "image/webp" => ".webp",
         "image/svg+xml" => ".svg",
+        "application/pdf" => ".pdf",
+        "text/plain" => ".txt",
+        "text/csv" => ".csv",
+        "application/json" => ".json",
+        "application/zip" => ".zip",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => ".docx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => ".xlsx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation" => ".pptx",
         _ => Path.GetExtension(sourcePath) is { Length: > 0 and <= 5 } ext ? ext : ".png",
     };
 }

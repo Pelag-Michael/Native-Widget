@@ -58,6 +58,7 @@ public static class NotionMarkdownConverter
                 "quote" => "> " + RichTextMarkdown(block.GetProperty("quote").GetProperty("rich_text")),
                 "code" => "```\n" + RichTextMarkdown(block.GetProperty("code").GetProperty("rich_text")) + "\n```",
                 "image" => ImageMarkdown(block.GetProperty("image")),
+                "file" => FileMarkdown(block.GetProperty("file")),
                 _ => null,
             };
 
@@ -115,6 +116,8 @@ public static class NotionMarkdownConverter
             output.Add(TextBlock(type, richText));
             foreach (var image in paragraph.Inlines.OfType<InlineUIContainer>().Select(i => i.Child).OfType<Image>())
                 if (ImageBlock(image, uploadedFiles) is { } imageBlock) output.Add(imageBlock);
+            foreach (var link in paragraph.Inlines.OfType<Hyperlink>())
+                if (FileBlock(link, uploadedFiles) is { } fileBlock) output.Add(fileBlock);
             return;
         }
 
@@ -161,6 +164,31 @@ public static class NotionMarkdownConverter
         return null;
     }
 
+    private static object? FileBlock(Hyperlink link,
+        IReadOnlyDictionary<string, string>? uploadedFiles)
+    {
+        var source = link.NavigateUri?.AbsoluteUri;
+        var label = new TextRange(link.ContentStart, link.ContentEnd).Text.Trim();
+        if (source == null || !label.StartsWith("📎 ", StringComparison.Ordinal)) return null;
+        var caption = PlainRichText(label);
+        if (uploadedFiles != null && uploadedFiles.TryGetValue(source, out var uploadId))
+            return new
+            {
+                @object = "block",
+                type = "file",
+                file = new { type = "file_upload", file_upload = new { id = uploadId }, caption },
+            };
+        if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            source.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            return new
+            {
+                @object = "block",
+                type = "file",
+                file = new { type = "external", external = new { url = source }, caption },
+            };
+        return null;
+    }
+
     private static object[] RichText(InlineCollection inlines)
     {
         var segments = new List<RichSegment>();
@@ -174,6 +202,11 @@ public static class NotionMarkdownConverter
     private static void AddInline(Inline inline, List<RichSegment> output,
         bool bold, bool italic, bool strike, string? link)
     {
+        if (inline is Hyperlink attachment &&
+            new TextRange(attachment.ContentStart, attachment.ContentEnd).Text.Trim()
+                .StartsWith("📎 ", StringComparison.Ordinal))
+            return;
+
         var localWeight = inline.ReadLocalValue(TextElement.FontWeightProperty);
         var localStyle = inline.ReadLocalValue(TextElement.FontStyleProperty);
         var localDecorations = inline.ReadLocalValue(Inline.TextDecorationsProperty);
@@ -249,6 +282,23 @@ public static class NotionMarkdownConverter
             !value.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String)
             return null;
         return $"![]({url.GetString()})";
+    }
+
+    private static string? FileMarkdown(JsonElement file)
+    {
+        var type = file.GetProperty("type").GetString();
+        if (type == null || !file.TryGetProperty(type, out var value) ||
+            !value.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String)
+            return null;
+        var caption = file.TryGetProperty("caption", out var captionValue)
+            ? RichTextMarkdown(captionValue).Trim() : "";
+        var name = file.TryGetProperty("name", out var nameValue) && nameValue.ValueKind == JsonValueKind.String
+            ? nameValue.GetString() ?? "file" : "file";
+        const string attachmentPrefix = "📎 ";
+        var label = caption.StartsWith(attachmentPrefix, StringComparison.Ordinal)
+            ? caption[attachmentPrefix.Length..] : name;
+        label = label.Replace(']', ')');
+        return $"[📎 {label}]({url.GetString()})";
     }
 
     private static string Escape(string text) => text

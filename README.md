@@ -14,7 +14,7 @@ what should be a handful of lightweight panels.
 |---|---|
 | **Calendar** | Google Calendar, 2-way — view a 14-day agenda grouped by day, create events (with optional daily/weekly/monthly recurrence), delete, per-event color tags |
 | **Tasks** | Google Tasks, 2-way — multiple task lists, one level of subtasks, due dates with a day countdown, collapsible subtask groups, completed tasks sink below a divider, per-list window tint, pop out a list into its own window |
-| **Notes** | Multi-note rich text (font/size/bold/italic/strikethrough, pasted images, auto-linkified URLs), color tags, free-form labels, reminders that show up in the Timers widget, optional 2-way Notion sync |
+| **Notes** | Multi-note rich text (font/size/bold/italic/strikethrough, pasted images, generic file attachments, auto-linkified URLs and bare domains), color tags, free-form labels, reminders that show up in the Timers widget, optional 2-way Notion sync |
 | **Timers** | Named countdowns created as a duration *or* an exact deadline. Stores an absolute deadline, so a timer keeps counting while the app — or the machine — is off |
 | **Focus** | Minimal Pomodoro-style focus session |
 | **Projects** | "What am I focused on" tracker; one current project shown large, others in a list, each optionally linked to a folder that opens in Explorer |
@@ -73,9 +73,10 @@ All credentials are entered in the app's own **Settings** widget and stored in
 
 The app creates a `NativeWidget Notes` database under that page and syncs every 15s.
 
-> Notes sync both ways with headings, lists, to-dos, quotes, code, bold/italic/strike and
-> images. Local files are uploaded through Notion's file-upload API; remote images are
-> cached under the note images folder. Unsupported Notion blocks are left untouched, and
+> Notes sync both ways with headings, lists, to-dos, quotes, code, bold/italic/strike,
+> images, and generic attachments up to 20 MB. Attach files with the paperclip button,
+> Explorer paste, or drag-and-drop. Local files are uploaded through Notion's file-upload
+> API; remote assets are cached locally. Unsupported Notion blocks are left untouched, and
 > note deletion still does not propagate in either direction.
 
 ## Keyboard shortcuts

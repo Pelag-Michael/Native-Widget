@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using NativeWidget.Models;
 using NativeWidget.Services;
 
@@ -16,8 +17,9 @@ namespace NativeWidget;
 
 public partial class NotesWindow : Window
 {
-    private static readonly Regex UrlRegex = new(@"https?://[^\s]+", RegexOptions.Compiled);
+    private const long MaxNotionAttachmentBytes = 20L * 1024 * 1024;
     private readonly Dictionary<object, string> _cardIds = new();
+    private readonly HashSet<Hyperlink> _wiredHyperlinks = new();
     private string? _currentId;
     private readonly string? _openDirectlyId;
     private string _searchText = "";
@@ -95,6 +97,7 @@ public partial class NotesWindow : Window
                     {
                         NoteText.Document = diskDocument;
                         Linkify();
+                        WireHyperlinks();
                         _editorBaselineMarkdown = CurrentEditorMarkdown();
                     }
                 }
@@ -416,6 +419,7 @@ public partial class NotesWindow : Window
         _currentId = id;
         NoteText.Document = NotesService.LoadNote(id);
         Linkify();
+        WireHyperlinks();
         _editorBaselineMarkdown = CurrentEditorMarkdown();
 
         ListPanel.Visibility = Visibility.Collapsed;
@@ -587,6 +591,9 @@ public partial class NotesWindow : Window
 
     private void NoteText_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (Keyboard.Modifiers == ModifierKeys.None && e.Key is Key.Space or Key.Enter)
+            Dispatcher.BeginInvoke(LinkifyPreservingCaret, DispatcherPriority.Background);
+
         if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt) && e.Key is Key.D1 or Key.NumPad1)
         {
             ApplyParagraphStyle("heading1");
@@ -639,6 +646,30 @@ public partial class NotesWindow : Window
     private bool EditorHasUnsavedChanges() => _currentId != null &&
         !string.Equals(CurrentEditorMarkdown(), _editorBaselineMarkdown, StringComparison.Ordinal);
 
+    private void LinkifyPreservingCaret()
+    {
+        var characterOffset = new TextRange(NoteText.Document.ContentStart, NoteText.CaretPosition).Text.Length;
+        Linkify();
+        NoteText.CaretPosition = TextPositionAtOffset(characterOffset);
+    }
+
+    private TextPointer TextPositionAtOffset(int characterOffset)
+    {
+        var position = NoteText.Document.ContentStart;
+        while (position != null && position.CompareTo(NoteText.Document.ContentEnd) < 0)
+        {
+            if (position.GetPointerContext(LogicalDirection.Forward) == TextPointerContext.Text)
+            {
+                var text = position.GetTextInRun(LogicalDirection.Forward);
+                if (characterOffset <= text.Length)
+                    return position.GetPositionAtOffset(characterOffset, LogicalDirection.Forward) ?? position;
+                characterOffset -= text.Length;
+            }
+            position = position.GetNextContextPosition(LogicalDirection.Forward);
+        }
+        return NoteText.Document.ContentEnd;
+    }
+
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
         if (_currentId == null) return;
@@ -667,32 +698,118 @@ public partial class NotesWindow : Window
         BackBtn.Visibility = Visibility.Collapsed;
     }
 
-    // Turns any plain http(s):// text into clickable hyperlinks. Runs on open/save
-    // (not on every keystroke, to keep the caret/formatting stable while typing).
+    // Turns http(s), www and bare domains into clickable hyperlinks on open/save. Only
+    // top-level Runs are split, so unrelated formatting and existing attachment links stay intact.
     private void Linkify()
     {
         foreach (var block in NoteText.Document.Blocks.ToList())
         {
             if (block is not Paragraph para) continue;
-            var plain = new TextRange(para.ContentStart, para.ContentEnd).Text;
-            if (!UrlRegex.IsMatch(plain)) continue;
-
-            para.Inlines.Clear();
-            var lastIndex = 0;
-            foreach (Match m in UrlRegex.Matches(plain))
+            foreach (var run in para.Inlines.OfType<Run>().ToList())
             {
-                if (m.Index > lastIndex) para.Inlines.Add(new Run(plain[lastIndex..m.Index]));
-                var link = new Hyperlink(new Run(m.Value)) { NavigateUri = new Uri(m.Value) };
-                link.RequestNavigate += (_, args) =>
+                var text = run.Text;
+                var matches = LinkDetection.Find(text);
+                if (matches.Count == 0) continue;
+                var lastIndex = 0;
+                foreach (var match in matches)
                 {
-                    Process.Start(new ProcessStartInfo(args.Uri.ToString()) { UseShellExecute = true });
-                    args.Handled = true;
-                };
-                para.Inlines.Add(link);
-                lastIndex = m.Index + m.Length;
+                    if (match.Index > lastIndex)
+                        para.Inlines.InsertBefore(run, StyledRun(run, text[lastIndex..match.Index]));
+                    var link = new Hyperlink(StyledRun(run, match.Text)) { NavigateUri = match.Target };
+                    WireHyperlink(link);
+                    para.Inlines.InsertBefore(run, link);
+                    lastIndex = match.Index + match.Length;
+                }
+                if (lastIndex < text.Length)
+                    para.Inlines.InsertBefore(run, StyledRun(run, text[lastIndex..]));
+                para.Inlines.Remove(run);
             }
-            if (lastIndex < plain.Length) para.Inlines.Add(new Run(plain[lastIndex..]));
         }
+    }
+
+    private static Run StyledRun(Run source, string text) => new(text)
+    {
+        FontFamily = source.FontFamily,
+        FontSize = source.FontSize,
+        FontStyle = source.FontStyle,
+        FontWeight = source.FontWeight,
+        Foreground = source.Foreground,
+        TextDecorations = source.TextDecorations,
+    };
+
+    private void WireHyperlink(Hyperlink link)
+    {
+        if (!_wiredHyperlinks.Add(link)) return;
+        link.RequestNavigate += (_, args) =>
+        {
+            Process.Start(new ProcessStartInfo(args.Uri.ToString()) { UseShellExecute = true });
+            args.Handled = true;
+        };
+    }
+
+    private void WireHyperlinks()
+    {
+        foreach (var paragraph in NoteText.Document.Blocks.OfType<Paragraph>())
+            foreach (var link in paragraph.Inlines.OfType<Hyperlink>())
+                WireHyperlink(link);
+    }
+
+    private void AttachFile_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Đính kèm file",
+            Filter = "Tất cả file (*.*)|*.*",
+            Multiselect = true,
+        };
+        if (dialog.ShowDialog(this) == true) AttachFiles(dialog.FileNames);
+    }
+
+    private void NoteText_PreviewDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+            ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void NoteText_Drop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] paths) return;
+        AttachFiles(paths);
+        e.Handled = true;
+    }
+
+    private void AttachFiles(IEnumerable<string> paths)
+    {
+        if (_currentId == null) return;
+        var oversized = new List<string>();
+        foreach (var sourcePath in paths.Where(File.Exists))
+        {
+            var info = new FileInfo(sourcePath);
+            if (info.Length > MaxNotionAttachmentBytes)
+            {
+                oversized.Add(info.Name);
+                continue;
+            }
+
+            var folder = Path.Combine(AppConfig.TokenPath("notes"), "attachments", _currentId);
+            Directory.CreateDirectory(folder);
+            var targetPath = Path.Combine(folder, $"{Guid.NewGuid():N}{Path.GetExtension(sourcePath)}");
+            File.Copy(sourcePath, targetPath, overwrite: false);
+            var label = "📎 " + Path.GetFileName(sourcePath).Replace(']', ')');
+            var link = new Hyperlink(new Run(label), NoteText.CaretPosition)
+            {
+                NavigateUri = new Uri(targetPath),
+                ToolTip = targetPath,
+            };
+            WireHyperlink(link);
+            NoteText.CaretPosition = link.ElementEnd;
+            new LineBreak(NoteText.CaretPosition);
+        }
+        NoteText.Focus();
+        if (oversized.Count > 0)
+            MessageBox.Show("Notion chỉ nhận file tối đa 20 MB:\n" + string.Join("\n", oversized),
+                "Không thể đính kèm", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     // ---- Pasting images ----
@@ -701,6 +818,12 @@ public partial class NotesWindow : Window
     // points at it by URI - that round-trips through Save/Load like any other inline.
     private void NoteText_Pasting(object sender, DataObjectPastingEventArgs e)
     {
+        if (e.SourceDataObject.GetData(DataFormats.FileDrop) is string[] paths)
+        {
+            AttachFiles(paths);
+            e.CancelCommand();
+            return;
+        }
         if (!e.SourceDataObject.GetDataPresent(DataFormats.Bitmap)) return;
         if (e.SourceDataObject.GetData(DataFormats.Bitmap) is not BitmapSource bitmap) return;
 

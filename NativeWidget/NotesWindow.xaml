@@ -120,6 +120,7 @@
                     <RichTextBox x:Name="NoteText" Background="Transparent" Foreground="White" BorderThickness="0"
                                  FontFamily="Segoe UI" FontSize="12" CaretBrush="White"
                                  VerticalScrollBarVisibility="Auto" AcceptsTab="True"
+                                 AllowDrop="True" PreviewDragOver="NoteText_PreviewDragOver" Drop="NoteText_Drop"
                                  PreviewKeyDown="NoteText_PreviewKeyDown"/>
                 </Border>
 
@@ -128,6 +129,7 @@
                     <Button Content="&#xE8AC;" ToolTip="Đổi tên" Click="Rename_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE74E;" ToolTip="Lưu" Click="Save_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE8C8;" ToolTip="Copy" Click="Copy_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
+                    <Button Content="&#xE723;" ToolTip="Đính kèm file bất kỳ" Click="AttachFile_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE74D;" ToolTip="Xoá ghi chú này" Click="Delete_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                 </StackPanel>
             </Grid>
