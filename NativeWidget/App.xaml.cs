@@ -25,7 +25,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        _instanceLock = new Mutex(true, MutexName, out var createdNew);
+        var instanceSuffix = Environment.GetEnvironmentVariable("NATIVEWIDGET_INSTANCE_SUFFIX");
+        var mutexName = string.IsNullOrWhiteSpace(instanceSuffix)
+            ? MutexName : $"{MutexName}-{instanceSuffix}";
+        _instanceLock = new Mutex(true, mutexName, out var createdNew);
         if (!createdNew)
         {
             // Another copy is already running - surface the launcher instead of stacking
