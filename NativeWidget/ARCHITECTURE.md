@@ -29,7 +29,7 @@ NativeWidget/
   Services/
     GoogleCalendarService.cs  OAuth flow + Calendar API calls
     OAuthHelper.cs            Shared PKCE + loopback-redirect helper (reused if more OAuth added)
-    NotesService.cs           Multi-note index + per-note FlowDocument XAML files
+    NotesService.cs           Multi-note index + per-note Markdown files, XAML migration
     TimersService.cs          Countdown timer persistence (absolute deadlines)
     TimerNotifier.cs          App-wide watcher that announces finished timers exactly once
     AutoStartService.cs       HKCU Run-key toggle for "start with Windows"
@@ -107,11 +107,16 @@ that bubbles past it.
 ### Notes
 Google-Keep-style: a **list of notes** (title + preview) that opens into an editor, with
 back / new / rename / delete. Stored as `%AppData%\NativeWidget\notes\index.json` plus one
-`<id>.xaml` per note; older single-note formats (`notes.xaml`, `notes.txt`) are migrated
-into the first entry on first run.
+`<id>.md` per note. Markdown is an internal interchange format and is never shown in the
+editor. Existing per-note `.xaml` files are converted once and deliberately retained as
+backups; older single-note formats (`notes.xaml`, `notes.txt`) still migrate into the
+first entry on first run.
 
 A note's title is auto-derived from its first line **until** the user renames it by hand,
 at which point `TitleIsCustom` pins it so saving no longer overwrites the chosen name.
+List cards normalize title/preview whitespace and render each as one trimmed line; the full
+body remains untouched in storage. This keeps long or newline-heavy notes from expanding a
+single card until it pushes the rest of the scrollable list off-screen.
 
 **Free-form labels** — `NoteMeta.Tags` (`List<string>`), edited via a plain comma-separated
 `PromptDialog` (the `#` button on each card), rendered as small pill chips under the
@@ -129,32 +134,23 @@ clears `ReminderTimerId`.
 
 **Notion sync (experimental, off by default)** — `NotionSyncService`, polled every 15s from
 `NotesWindow`'s own timer (only the main list window polls, not pop-outs).
-**Title is 2-way; the note body is push-only (local → Notion) for a note that already
-exists locally.** This asymmetry is deliberate and was added after a real incident: pulling
-a body change back down used to overwrite the local `.xaml` file unconditionally — pasting
-an image into a note (which plain-text sync never captures, so Notion never receives it)
-followed by the next sync pass pulling Notion's image-less text back down **deleted the
-image from the local copy too**. A brand-new page created straight in Notion (no matching
-local note yet) still pulls its full body on first sight, since there's no local content to
-destroy at that point. Last-write-wins for title, comparing local `NoteMeta.UpdatedAt`
-against Notion's own `last_edited_time` — a >2s slack absorbs clock/write-timestamp jitter.
+Titles and bodies are both 2-way. A canonical Markdown SHA-256 stored in
+`NoteMeta.LastSyncedHash` identifies which side changed; simultaneous edits fall back to
+last-write-wins timestamps. Before a conflicting remote pull, the unsynced local Markdown
+is copied to `<id>.conflict-<timestamp>.md`.
 
-The note body lives as the Notion page's actual **block content** (paragraph blocks per
-line), not a database property — a property value only renders as a cramped table-cell
-string in Notion's UI. Only `Title` and `LocalId` are database properties.
-`NotionSyncService.HasExpectedSchemaAsync` self-heals: if the cached `NotionDatabaseId`
-doesn't have both those properties (e.g. a prior run created one with the wrong schema — see
-the JSON-casing bug below), a fresh database is created and cached instead of reusing the
-broken one forever.
+The note body lives as real Notion blocks. Supported mappings are paragraph, heading 1/2,
+bulleted/numbered list item, to-do, quote, code, bold/italic/strikethrough rich-text
+annotations and image. Local images use Notion's file-upload API; pulled remote images are
+downloaded to `notes\images`. Replacing a body appends the new supported blocks first,
+then archives only old supported blocks. Unsupported blocks such as toggles/embeds remain
+untouched, so a failed request can produce duplicates but cannot empty the page. **No
+delete propagation either direction** remains the safety rule.
 
-**Phase 1 scope, deliberately narrow**: plain text only, no bold/italic/images/toggles —
-Notion's block model doesn't map 1:1 onto the local `RichTextBox`/`FlowDocument` format,
-and `PushUpdateAsync`/`ReplacePageBodyAsync` **deletes all existing blocks on a Notion page
-before re-writing plain text** — any image, toggle, or other rich block added directly in
-Notion on a synced page is destroyed the next time that note is edited locally and pushed.
-Don't add rich content to a page under active sync. **No delete propagation either
-direction** — a note deleted on one side is never auto-deleted on the other; silently
-destroying data on a 15s timer is a worse failure mode than a stale copy sitting around.
+The service targets Notion API `2026-03-11`: `NotionDatabaseId` identifies the database
+container and `NotionDataSourceId` its queryable data source. Existing database IDs are
+upgraded by discovering and caching their first data source automatically. Only `Title`
+and `LocalId` are data-source properties.
 
 Mapping: a `LocalId` rich_text property on each Notion page stores the local note's ID
 directly — no separate lookup table. A page created straight in Notion (empty `LocalId`)
@@ -178,8 +174,10 @@ confirmed feasible, the experiment folder's test database/page were archived and
 did the real feature (this section) get built into the app.
 
 The editor is `RichTextBox`-based, not a plain `TextBox` — supports font family (3 fixed
-choices: serif/sans/mono), font size, bold/italic/strikethrough applied **to the current
-selection** (not typing-forward default).
+choices: serif/sans/mono), font size and bold/italic/strikethrough applied to the current
+selection. A wrapping toolbar also applies heading 1/2, bullet/number list, interactive
+checkbox, quote and code styles to the selected paragraphs or caret paragraph. The block
+shortcuts are `Ctrl+Alt+1/2`, `Ctrl+Shift+8/7/9/Q/C`; no Markdown syntax is exposed.
 Link auto-detection (`https?://…` → clickable `Hyperlink`) runs on load and on explicit Save
 — **not on every keystroke**. Live-as-you-type linkification was attempted and dropped: it
 requires rebuilding `Inline` runs mid-document, which fights the caret position and any

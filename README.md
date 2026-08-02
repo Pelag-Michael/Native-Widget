@@ -73,10 +73,10 @@ All credentials are entered in the app's own **Settings** widget and stored in
 
 The app creates a `NativeWidget Notes` database under that page and syncs every 15s.
 
-> **Notion sync is plain-text only.** Note *titles* sync both ways; note *bodies* only push
-> local → Notion, because pulling them back down would overwrite local-only rich content
-> (images, bold/italic) that plain-text sync never captured. Don't add images, toggles or
-> other rich blocks to a synced Notion page — the next push replaces the page body.
+> Notes sync both ways with headings, lists, to-dos, quotes, code, bold/italic/strike and
+> images. Local files are uploaded through Notion's file-upload API; remote images are
+> cached under the note images folder. Unsupported Notion blocks are left untouched, and
+> note deletion still does not propagate in either direction.
 
 ## Keyboard shortcuts
 

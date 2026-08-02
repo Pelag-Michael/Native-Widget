@@ -13,10 +13,13 @@ public class AppConfig
     /// as a child of this page the first time sync runs, then NotionDatabaseId is cached.
     public string NotionParentPageId { get; set; } = "";
     public string NotionDatabaseId { get; set; } = "";
+    public string NotionDataSourceId { get; set; } = "";
     public bool NotionSyncEnabled { get; set; }
 
     private static string FolderPath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NativeWidget");
+        Environment.GetEnvironmentVariable("NATIVEWIDGET_DATA_DIR") is { Length: > 0 } overridePath
+            ? overridePath
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NativeWidget");
 
     private static string FilePath => Path.Combine(FolderPath, "config.json");
 

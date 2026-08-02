@@ -14,6 +14,10 @@ public class NoteMeta
     public string Preview { get; set; } = "";
     public long UpdatedAt { get; set; }
 
+    /// SHA-256 of the canonical Markdown at the last successful Notion sync. This lets the
+    /// sync distinguish a one-sided edit from a true conflict without trusting clocks alone.
+    public string LastSyncedHash { get; set; } = "";
+
     /// True once the user has renamed the note by hand, which stops the title from being
     /// overwritten with the note's first line on every save.
     public bool TitleIsCustom { get; set; }
@@ -35,7 +39,8 @@ public static class NotesService
 {
     private static string NotesFolder => AppConfig.TokenPath("notes");
     private static string IndexPath => Path.Combine(NotesFolder, "index.json");
-    private static string DocPath(string id) => Path.Combine(NotesFolder, $"{id}.xaml");
+    private static string MarkdownPath(string id) => Path.Combine(NotesFolder, $"{id}.md");
+    private static string LegacyXamlPath(string id) => Path.Combine(NotesFolder, $"{id}.xaml");
 
     public static List<NoteMeta> LoadIndex()
     {
@@ -58,10 +63,14 @@ public static class NotesService
 
     public static FlowDocument LoadNote(string id)
     {
+        EnsureMigrated();
         try
         {
-            using var stream = File.OpenRead(DocPath(id));
-            if (XamlReader.Load(stream) is FlowDocument doc) return doc;
+            if (File.Exists(MarkdownPath(id)))
+                return FlowDocumentMarkdownConverter.FromMarkdown(File.ReadAllText(MarkdownPath(id)));
+
+            using var stream = File.OpenRead(LegacyXamlPath(id));
+            if (XamlReader.Load(stream) is FlowDocument legacy) return legacy;
         }
         catch { }
         return new FlowDocument(new Paragraph());
@@ -80,7 +89,7 @@ public static class NotesService
     public static void SaveNote(string id, FlowDocument doc)
     {
         Directory.CreateDirectory(NotesFolder);
-        File.WriteAllText(DocPath(id), XamlWriter.Save(doc));
+        File.WriteAllText(MarkdownPath(id), FlowDocumentMarkdownConverter.ToMarkdown(doc));
 
         var plain = new TextRange(doc.ContentStart, doc.ContentEnd).Text.Trim();
         var firstLine = plain.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
@@ -107,12 +116,27 @@ public static class NotesService
         return new TextRange(doc.ContentStart, doc.ContentEnd).Text.TrimEnd();
     }
 
+    public static string GetMarkdown(string id)
+    {
+        EnsureMigrated();
+        try { return File.ReadAllText(MarkdownPath(id)); }
+        catch { return FlowDocumentMarkdownConverter.ToMarkdown(LoadNote(id)); }
+    }
+
     /// Used by NotionSyncService to pull a change made on the Notion side. Unlike SaveNote,
     /// this does NOT recompute the title from the body's first line - the remote title is
     /// authoritative here, since it may already differ from the body (renamed on either side).
-    public static void ApplyRemoteUpdate(string id, string title, string plainBody, long updatedAtUnix)
+    public static void ApplyRemoteUpdate(string id, string title, string markdownBody, long updatedAtUnix,
+        string syncedHash = "", bool backupLocal = false)
     {
-        WritePlainTextBody(id, plainBody);
+        if (backupLocal && File.Exists(MarkdownPath(id)))
+        {
+            var backup = Path.Combine(NotesFolder,
+                $"{id}.conflict-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.md");
+            try { File.Copy(MarkdownPath(id), backup, overwrite: false); } catch { }
+        }
+        WriteMarkdownBody(id, markdownBody);
+        var plainBody = PlainText(markdownBody);
         var index = LoadIndex();
         var meta = index.FirstOrDefault(m => m.Id == id);
         if (meta == null) return;
@@ -120,14 +144,12 @@ public static class NotesService
         meta.TitleIsCustom = true;
         meta.Preview = plainBody.Length > 80 ? plainBody[..80] : plainBody;
         meta.UpdatedAt = updatedAtUnix;
+        if (syncedHash.Length > 0) meta.LastSyncedHash = syncedHash;
         SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
     }
 
-    /// Title-only counterpart to ApplyRemoteUpdate - used for a note that already exists
-    /// locally, where overwriting the body would destroy local-only rich content (images,
-    /// bold/italic) that never made it to Notion in the first place, since Notion sync is
-    /// plain-text-only. Renaming carries no such risk, so it stays 2-way; the body sync
-    /// direction was made push-only (local -> Notion) after exactly this happened once.
+    /// Title-only counterpart to ApplyRemoteUpdate, used when body hashes already match and
+    /// only the Notion title won the timestamp comparison.
     public static void ApplyRemoteTitle(string id, string title, long updatedAtUnix)
     {
         var index = LoadIndex();
@@ -142,14 +164,16 @@ public static class NotesService
     /// A page created directly in Notion (not yet known locally) becomes a new local note -
     /// reusing the Notion page ID as the local note ID keeps the two sides mapped 1:1 without
     /// a separate lookup table.
-    public static void CreateNoteFromRemote(string id, string title, string plainBody, long updatedAtUnix)
+    public static void CreateNoteFromRemote(string id, string title, string markdownBody, long updatedAtUnix,
+        string syncedHash = "")
     {
         var index = LoadIndex();
         if (index.Any(m => m.Id == id))
         {
-            ApplyRemoteUpdate(id, title, plainBody, updatedAtUnix);
+            ApplyRemoteUpdate(id, title, markdownBody, updatedAtUnix, syncedHash);
             return;
         }
+        var plainBody = PlainText(markdownBody);
         index.Insert(0, new NoteMeta
         {
             Id = id,
@@ -157,19 +181,24 @@ public static class NotesService
             TitleIsCustom = true,
             Preview = plainBody.Length > 80 ? plainBody[..80] : plainBody,
             UpdatedAt = updatedAtUnix,
+            LastSyncedHash = syncedHash,
         });
         SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
-        WritePlainTextBody(id, plainBody);
+        WriteMarkdownBody(id, markdownBody);
     }
 
-    private static void WritePlainTextBody(string id, string plainBody)
+    private static void WriteMarkdownBody(string id, string markdownBody)
     {
-        var doc = new FlowDocument();
-        var lines = plainBody.Length == 0 ? new[] { "" } : plainBody.Split('\n');
-        foreach (var line in lines) doc.Blocks.Add(new Paragraph(new Run(line.TrimEnd('\r'))));
         Directory.CreateDirectory(NotesFolder);
-        File.WriteAllText(DocPath(id), XamlWriter.Save(doc));
+        File.WriteAllText(MarkdownPath(id), markdownBody);
     }
+
+    private static string PlainText(string markdown)
+        => WpfSta.Run(() =>
+    {
+        var document = FlowDocumentMarkdownConverter.FromMarkdown(markdown);
+        return new TextRange(document.ContentStart, document.ContentEnd).Text.Trim();
+    });
 
     public static void RenameNote(string id, string title)
     {
@@ -179,11 +208,21 @@ public static class NotesService
         if (meta == null) return;
         meta.Title = title.Trim();
         meta.TitleIsCustom = true;
+        meta.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         SaveIndex(index);
     }
 
     public static string GetTitle(string id) =>
         LoadIndex().FirstOrDefault(m => m.Id == id)?.Title ?? "";
+
+    public static void MarkSynced(string id, string hash)
+    {
+        var index = LoadIndex();
+        var meta = index.FirstOrDefault(m => m.Id == id);
+        if (meta == null) return;
+        meta.LastSyncedHash = hash;
+        SaveIndex(index);
+    }
 
     public static void SetColor(string id, string hex)
     {
@@ -217,14 +256,20 @@ public static class NotesService
         var index = LoadIndex();
         index.RemoveAll(m => m.Id == id);
         SaveIndex(index);
-        try { File.Delete(DocPath(id)); } catch { }
+        try { File.Delete(MarkdownPath(id)); } catch { }
     }
 
     // Migrates the old single-note format (notes.xaml, or legacy notes.txt) into the
     // first entry of the new multi-note index, the first time this runs after upgrading.
     private static void EnsureMigrated()
     {
-        if (File.Exists(IndexPath)) return;
+        Directory.CreateDirectory(NotesFolder);
+        if (!File.Exists(IndexPath)) MigrateSingleLegacyNote();
+        MigrateXamlNotes();
+    }
+
+    private static void MigrateSingleLegacyNote()
+    {
         Directory.CreateDirectory(NotesFolder);
 
         FlowDocument? legacyDoc = null;
@@ -253,6 +298,29 @@ public static class NotesService
         else
         {
             SaveIndex(new List<NoteMeta>());
+        }
+    }
+
+    private static void MigrateXamlNotes()
+    {
+        List<NoteMeta> index;
+        try { index = JsonSerializer.Deserialize<List<NoteMeta>>(File.ReadAllText(IndexPath)) ?? new(); }
+        catch { return; }
+
+        // Existence of the .md is the migration marker, so an interrupted pass safely
+        // resumes next launch. The original .xaml remains a byte-for-byte backup.
+        foreach (var meta in index)
+        {
+            var markdownPath = MarkdownPath(meta.Id);
+            var xamlPath = LegacyXamlPath(meta.Id);
+            if (File.Exists(markdownPath) || !File.Exists(xamlPath)) continue;
+            try
+            {
+                using var stream = File.OpenRead(xamlPath);
+                if (XamlReader.Load(stream) is FlowDocument document)
+                    File.WriteAllText(markdownPath, FlowDocumentMarkdownConverter.ToMarkdown(document));
+            }
+            catch { }
         }
     }
 }

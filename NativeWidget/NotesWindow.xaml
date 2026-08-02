@@ -68,6 +68,7 @@
                            FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                 <ListBox x:Name="NotesList" Grid.Row="2" Background="Transparent" BorderThickness="0"
                          ScrollViewer.CanContentScroll="False"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          VirtualizingPanel.IsVirtualizing="False"
                          ItemContainerStyle="{StaticResource ListItemStyle}" MouseUp="NotesList_MouseUp"/>
@@ -82,7 +83,7 @@
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0" Background="{StaticResource ChipBg}" CornerRadius="10" Padding="4" Margin="0,0,0,8">
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel>
                         <ComboBox x:Name="FontFamilyCombo" Width="98" Margin="0,0,4,0" SelectionChanged="FontFamilyCombo_Changed">
                             <ComboBoxItem Content="Có chân" Tag="Georgia"/>
                             <ComboBoxItem Content="Không chân" Tag="Segoe UI" IsSelected="True"/>
@@ -105,13 +106,21 @@
                                 </Style>
                             </Button.Resources>
                         </Button>
-                    </StackPanel>
+                        <Button Content="H1" ToolTip="Tiêu đề (Ctrl+Alt+1)" Click="Heading1_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Segoe UI" FontWeight="Bold" Width="28"/>
+                        <Button Content="H2" ToolTip="Tiêu đề phụ (Ctrl+Alt+2)" Click="Heading2_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Segoe UI" FontWeight="Bold" Width="28"/>
+                        <Button Content="&#xE8FD;" ToolTip="Danh sách chấm (Ctrl+Shift+8)" Click="BulletList_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&#xE8EF;" ToolTip="Danh sách số (Ctrl+Shift+7)" Click="NumberList_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&#xE73A;" ToolTip="Việc cần làm (Ctrl+Shift+9)" Click="Todo_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&#xE90A;" ToolTip="Trích dẫn (Ctrl+Shift+Q)" Click="Quote_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&lt;/&gt;" ToolTip="Khối mã (Ctrl+Shift+C)" Click="Code_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Consolas" FontSize="10" Width="32"/>
+                    </WrapPanel>
                 </Border>
 
                 <Border Grid.Row="1" Background="{StaticResource ChipBg}" CornerRadius="12" Padding="8" Margin="0,0,0,10">
                     <RichTextBox x:Name="NoteText" Background="Transparent" Foreground="White" BorderThickness="0"
                                  FontFamily="Segoe UI" FontSize="12" CaretBrush="White"
-                                 VerticalScrollBarVisibility="Auto" AcceptsTab="True"/>
+                                 VerticalScrollBarVisibility="Auto" AcceptsTab="True"
+                                 PreviewKeyDown="NoteText_PreviewKeyDown"/>
                 </Border>
 
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">

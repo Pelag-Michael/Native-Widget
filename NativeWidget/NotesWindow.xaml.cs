@@ -24,6 +24,7 @@ public partial class NotesWindow : Window
     private readonly List<string?> _projectFilterIds = new();
     private readonly AppConfig _config;
     private readonly DispatcherTimer _notionSyncTimer = new() { Interval = TimeSpan.FromSeconds(15) };
+    private bool _notionSyncRunning;
 
     public NotesWindow(AppConfig config) : this(config, null) { }
 
@@ -63,7 +64,8 @@ public partial class NotesWindow : Window
     private async Task RunNotionSyncAsync()
     {
         Diag("tick, NotionSyncEnabled=" + _config.NotionSyncEnabled);
-        if (!_config.NotionSyncEnabled) return;
+        if (!_config.NotionSyncEnabled || _notionSyncRunning) return;
+        _notionSyncRunning = true;
         try
         {
             Diag("SyncOnceAsync starting");
@@ -78,6 +80,10 @@ public partial class NotesWindow : Window
             Diag("SYNC EXCEPTION: " + ex);
             // Best-effort background sync - a transient network/API error shouldn't surface
             // as a popup on a 15s timer; it just retries next tick.
+        }
+        finally
+        {
+            _notionSyncRunning = false;
         }
     }
 
@@ -214,16 +220,25 @@ public partial class NotesWindow : Window
             };
 
             var text = new StackPanel();
-            var title = new TextBlock { Text = note.Title, Foreground = Brushes.White, FontSize = 13, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+            var title = new TextBlock
+            {
+                Text = Regex.Replace(note.Title, @"\s+", " ").Trim(),
+                Foreground = Brushes.White,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                TextWrapping = TextWrapping.NoWrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
             text.Children.Add(title);
             if (!string.IsNullOrWhiteSpace(note.Preview))
             {
                 text.Children.Add(new TextBlock
                 {
-                    Text = note.Preview,
+                    Text = Regex.Replace(note.Preview, @"\s+", " ").Trim(),
                     Foreground = new SolidColorBrush(Color.FromRgb(0x9B, 0x9B, 0xA6)),
                     FontSize = 11,
-                    TextWrapping = TextWrapping.Wrap,
+                    TextWrapping = TextWrapping.NoWrap,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin = new Thickness(0, 2, 0, 0),
                 });
             }
@@ -448,6 +463,132 @@ public partial class NotesWindow : Window
         var isStruck = current == TextDecorations.Strikethrough;
         NoteText.Selection.ApplyPropertyValue(Inline.TextDecorationsProperty,
             isStruck ? null : TextDecorations.Strikethrough);
+    }
+
+    private IEnumerable<Paragraph> SelectedParagraphs()
+    {
+        var start = NoteText.Selection.Start.IsAtLineStartPosition
+            ? NoteText.Selection.Start
+            : NoteText.Selection.Start.GetLineStartPosition(0) ?? NoteText.Selection.Start;
+        var end = NoteText.Selection.End;
+        var seen = new HashSet<Paragraph>();
+        for (var position = start; position != null && position.CompareTo(end) <= 0;
+             position = position.GetNextContextPosition(LogicalDirection.Forward))
+        {
+            if (position.Paragraph is Paragraph paragraph && seen.Add(paragraph))
+                yield return paragraph;
+        }
+
+        if (seen.Count == 0 && NoteText.CaretPosition.Paragraph is Paragraph current)
+            yield return current;
+    }
+
+    private void ApplyParagraphStyle(string style)
+    {
+        foreach (var paragraph in SelectedParagraphs().ToList())
+        {
+            var remove = string.Equals(paragraph.Tag as string, style, StringComparison.Ordinal);
+            paragraph.Tag = remove ? null : style;
+            paragraph.FontSize = remove ? 12 : style == "heading1" ? 24 : style == "heading2" ? 18 : 12;
+            paragraph.FontWeight = !remove && style.StartsWith("heading", StringComparison.Ordinal)
+                ? FontWeights.Bold : FontWeights.Normal;
+            paragraph.FontFamily = !remove && style == "code"
+                ? new FontFamily("Consolas") : new FontFamily("Segoe UI");
+            paragraph.Margin = !remove && style == "quote"
+                ? new Thickness(14, 4, 0, 4) : new Thickness(0);
+            paragraph.Background = !remove && style == "code"
+                ? new SolidColorBrush(Color.FromArgb(0x44, 0x00, 0x00, 0x00)) : Brushes.Transparent;
+        }
+        NoteText.Focus();
+    }
+
+    private void Heading1_Click(object sender, RoutedEventArgs e) => ApplyParagraphStyle("heading1");
+    private void Heading2_Click(object sender, RoutedEventArgs e) => ApplyParagraphStyle("heading2");
+    private void Quote_Click(object sender, RoutedEventArgs e) => ApplyParagraphStyle("quote");
+    private void Code_Click(object sender, RoutedEventArgs e) => ApplyParagraphStyle("code");
+
+    private void BulletList_Click(object sender, RoutedEventArgs e)
+    {
+        EditingCommands.ToggleBullets.Execute(null, NoteText);
+        NoteText.Focus();
+    }
+
+    private void NumberList_Click(object sender, RoutedEventArgs e)
+    {
+        EditingCommands.ToggleNumbering.Execute(null, NoteText);
+        NoteText.Focus();
+    }
+
+    private void Todo_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var paragraph in SelectedParagraphs().ToList())
+        {
+            var existing = paragraph.Inlines.OfType<InlineUIContainer>()
+                .FirstOrDefault(i => i.Child is CheckBox && string.Equals(paragraph.Tag as string, "todo", StringComparison.Ordinal));
+            if (existing != null)
+            {
+                paragraph.Inlines.Remove(existing);
+                paragraph.Tag = null;
+                continue;
+            }
+
+            paragraph.FontSize = 12;
+            paragraph.FontWeight = FontWeights.Normal;
+            paragraph.FontFamily = new FontFamily("Segoe UI");
+            paragraph.Margin = new Thickness(0);
+            paragraph.Background = Brushes.Transparent;
+
+            var checkbox = new CheckBox
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0),
+                IsChecked = false,
+            };
+            var container = new InlineUIContainer(checkbox);
+            if (paragraph.Inlines.FirstInline == null) paragraph.Inlines.Add(container);
+            else paragraph.Inlines.InsertBefore(paragraph.Inlines.FirstInline, container);
+            paragraph.Tag = "todo";
+        }
+        NoteText.Focus();
+    }
+
+    private void NoteText_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt) && e.Key is Key.D1 or Key.NumPad1)
+        {
+            ApplyParagraphStyle("heading1");
+            e.Handled = true;
+        }
+        else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt) && e.Key is Key.D2 or Key.NumPad2)
+        {
+            ApplyParagraphStyle("heading2");
+            e.Handled = true;
+        }
+        else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.D8)
+        {
+            BulletList_Click(sender, e);
+            e.Handled = true;
+        }
+        else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.D7)
+        {
+            NumberList_Click(sender, e);
+            e.Handled = true;
+        }
+        else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.D9)
+        {
+            Todo_Click(sender, e);
+            e.Handled = true;
+        }
+        else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.Q)
+        {
+            Quote_Click(sender, e);
+            e.Handled = true;
+        }
+        else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.C)
+        {
+            Code_Click(sender, e);
+            e.Handled = true;
+        }
     }
 
     // ---- Toolbar actions ----

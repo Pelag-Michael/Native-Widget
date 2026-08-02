@@ -8,6 +8,7 @@ notion-sync-experiment/
 # app/ is the published, ready-to-run build (dotnet publish target). Ship it as a
 # GitHub Release attachment instead of committing binaries into the tree.
 app/
+app-pending/
 bin/
 obj/
 *.user
