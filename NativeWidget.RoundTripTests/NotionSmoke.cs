@@ -106,7 +106,35 @@ internal static class NotionSmoke
                 !finalText.Contains("Keep this unsupported block", StringComparison.Ordinal))
                 throw new InvalidOperationException("Push or unsupported-block preservation failed.");
 
-            Console.WriteLine("PASS live Notion throwaway push/pull, annotations, image and preservation smoke test");
+            // Change both sides from the same shared hash. The remote version must survive,
+            // while the local draft is retained as a conflict copy instead of overwriting it.
+            await Call(config, HttpMethod.Patch, $"/blocks/{pageId}/children", new
+            {
+                children = new object[]
+                {
+                    new
+                    {
+                        @object = "block",
+                        type = "paragraph",
+                        paragraph = new { rich_text = RichText("Remote conflict survives") },
+                    },
+                },
+            });
+            NotesService.ApplyRemoteUpdate(noteId, meta.Title, pulled + "\n> Local conflict retained",
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            await NotionSyncService.SyncOnceAsync(config);
+
+            var conflictResolved = NotesService.GetMarkdown(noteId);
+            if (!conflictResolved.Contains("Remote conflict survives", StringComparison.Ordinal) ||
+                conflictResolved.Contains("Local conflict retained", StringComparison.Ordinal))
+                throw new InvalidOperationException("Two-sided conflict did not preserve the remote version.");
+            var conflictCopy = Directory.GetFiles(Path.Combine(testRoot, "notes"),
+                noteId + ".conflict-*.md").SingleOrDefault();
+            if (conflictCopy == null ||
+                !File.ReadAllText(conflictCopy).Contains("Local conflict retained", StringComparison.Ordinal))
+                throw new InvalidOperationException("Two-sided conflict did not retain the local draft.");
+
+            Console.WriteLine("PASS live Notion throwaway push/pull, conflict, image and preservation smoke test");
         }
         finally
         {
