@@ -121,13 +121,14 @@
                                  FontFamily="Segoe UI" FontSize="12" CaretBrush="White"
                                  VerticalScrollBarVisibility="Auto" AcceptsTab="True"
                                  AllowDrop="True" PreviewDragOver="NoteText_PreviewDragOver" Drop="NoteText_Drop"
-                                 PreviewKeyDown="NoteText_PreviewKeyDown"/>
+                                 PreviewKeyDown="NoteText_PreviewKeyDown"
+                                 PreviewMouseLeftButtonUp="NoteText_PreviewMouseLeftButtonUp"/>
                 </Border>
 
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button x:Name="PopOutBtn" Content="&#xE8A7;" ToolTip="Mở note này ra cửa sổ riêng" Click="PopOut_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE8AC;" ToolTip="Đổi tên" Click="Rename_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
-                    <Button Content="&#xE74E;" ToolTip="Lưu" Click="Save_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
+                    <Button x:Name="SaveBtn" Content="&#xE74E;" ToolTip="Lưu và đồng bộ Notion (Ctrl+S)" Click="Save_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE8C8;" ToolTip="Copy" Click="Copy_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE723;" ToolTip="Đính kèm file bất kỳ" Click="AttachFile_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE74D;" ToolTip="Xoá ghi chú này" Click="Delete_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>

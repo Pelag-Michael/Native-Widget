@@ -17,6 +17,7 @@ namespace NativeWidget;
 
 public partial class NotesWindow : Window
 {
+    private static readonly SemaphoreSlim NotionSyncGate = new(1, 1);
     private const long MaxNotionAttachmentBytes = 20L * 1024 * 1024;
     private readonly Dictionary<object, string> _cardIds = new();
     private readonly HashSet<Hyperlink> _wiredHyperlinks = new();
@@ -26,7 +27,6 @@ public partial class NotesWindow : Window
     private readonly List<string?> _projectFilterIds = new();
     private readonly AppConfig _config;
     private readonly DispatcherTimer _notionSyncTimer = new() { Interval = TimeSpan.FromSeconds(15) };
-    private bool _notionSyncRunning;
     private string _editorBaselineMarkdown = "";
 
     public NotesWindow(AppConfig config) : this(config, null) { }
@@ -64,11 +64,14 @@ public partial class NotesWindow : Window
         }
     }
 
-    private async Task RunNotionSyncAsync()
+    private async Task<bool> RunNotionSyncAsync(bool reportErrors = false)
     {
         Diag("tick, NotionSyncEnabled=" + _config.NotionSyncEnabled);
-        if (!_config.NotionSyncEnabled || _notionSyncRunning) return;
-        _notionSyncRunning = true;
+        if (!_config.NotionSyncEnabled) return false;
+        if (reportErrors)
+            await NotionSyncGate.WaitAsync();
+        else if (!await NotionSyncGate.WaitAsync(0))
+            return false;
         try
         {
             Diag("SyncOnceAsync starting");
@@ -106,16 +109,21 @@ public partial class NotesWindow : Window
             // A no-op if an editor is open (see Refresh's own guard) - never yanks the user
             // out of what they're typing to show a background sync's result.
             Refresh();
+            return true;
         }
         catch (Exception ex)
         {
             Diag("SYNC EXCEPTION: " + ex);
             // Best-effort background sync - a transient network/API error shouldn't surface
             // as a popup on a 15s timer; it just retries next tick.
+            if (reportErrors)
+                MessageBox.Show(this, "Không thể đồng bộ Notion:\n" + ex.Message,
+                    "Lỗi đồng bộ", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
         }
         finally
         {
-            _notionSyncRunning = false;
+            NotionSyncGate.Release();
         }
     }
 
@@ -591,6 +599,13 @@ public partial class NotesWindow : Window
 
     private void NoteText_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.S)
+        {
+            Save_Click(sender, e);
+            e.Handled = true;
+            return;
+        }
+
         if (Keyboard.Modifiers == ModifierKeys.None && e.Key is Key.Space or Key.Enter)
             Dispatcher.BeginInvoke(LinkifyPreservingCaret, DispatcherPriority.Background);
 
@@ -632,12 +647,35 @@ public partial class NotesWindow : Window
     }
 
     // ---- Toolbar actions ----
-    private void Save_Click(object sender, RoutedEventArgs e)
+    private async void Save_Click(object sender, RoutedEventArgs e)
     {
         if (_currentId == null) return;
         Linkify();
         NotesService.SaveNote(_currentId, NoteText.Document);
         _editorBaselineMarkdown = CurrentEditorMarkdown();
+
+        if (!_config.NotionSyncEnabled)
+        {
+            SaveBtn.Content = "\uE74E";
+            SaveBtn.ToolTip = "Đã lưu local; đồng bộ Notion đang tắt (Ctrl+S)";
+            return;
+        }
+
+        SaveBtn.IsEnabled = false;
+        SaveBtn.Content = "\uE895";
+        SaveBtn.ToolTip = "Đang lưu và đồng bộ Notion…";
+        try
+        {
+            var synced = await RunNotionSyncAsync(reportErrors: true);
+            SaveBtn.Content = synced ? "\uE73E" : "\uEA39";
+            SaveBtn.ToolTip = synced
+                ? $"Đã lưu và đồng bộ lúc {DateTime.Now:HH:mm:ss} (Ctrl+S)"
+                : "Đã lưu local nhưng đồng bộ Notion thất bại (Ctrl+S)";
+        }
+        finally
+        {
+            SaveBtn.IsEnabled = true;
+        }
     }
 
     private string CurrentEditorMarkdown() =>
@@ -740,12 +778,34 @@ public partial class NotesWindow : Window
     private void WireHyperlink(Hyperlink link)
     {
         if (!_wiredHyperlinks.Add(link)) return;
+        link.Cursor = Cursors.Hand;
+        link.ToolTip ??= link.NavigateUri?.ToString();
         link.RequestNavigate += (_, args) =>
         {
-            Process.Start(new ProcessStartInfo(args.Uri.ToString()) { UseShellExecute = true });
+            OpenLink(args.Uri);
             args.Handled = true;
         };
     }
+
+    private void NoteText_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var position = NoteText.GetPositionFromPoint(e.GetPosition(NoteText), snapToText: false);
+        DependencyObject? current = position?.Parent;
+        while (current != null && current != NoteText)
+        {
+            if (current is Hyperlink { NavigateUri: not null } link)
+            {
+                OpenLink(link.NavigateUri);
+                e.Handled = true;
+                return;
+            }
+            current = current is FrameworkContentElement content
+                ? content.Parent : LogicalTreeHelper.GetParent(current);
+        }
+    }
+
+    private static void OpenLink(Uri uri) =>
+        Process.Start(new ProcessStartInfo(uri.ToString()) { UseShellExecute = true });
 
     private void WireHyperlinks()
     {
