@@ -134,6 +134,9 @@ clears `ReminderTimerId`.
 
 **Notion sync (experimental, off by default)** — `NotionSyncService`, polled every 15s from
 `NotesWindow`'s own timer (only the main list window polls, not pop-outs).
+The editor's Save button and `Ctrl+S` share one path: save Markdown locally, wait for any
+in-flight background pass, then run an immediate Notion sync with visible success/failure
+feedback. The 15s timer remains for receiving remote changes.
 Titles and bodies are both 2-way. A canonical Markdown SHA-256 stored in
 `NoteMeta.LastSyncedHash` identifies which side changed. A clean open editor follows remote
 changes on the next polling cycle; a dirty editor is excluded from that pass so its in-memory
@@ -183,11 +186,11 @@ The editor is `RichTextBox`-based, not a plain `TextBox` — supports font famil
 choices: serif/sans/mono), font size and bold/italic/strikethrough applied to the current
 selection. A wrapping toolbar also applies heading 1/2, bullet/number list, interactive
 checkbox, quote and code styles to the selected paragraphs or caret paragraph. The block
-shortcuts are `Ctrl+Alt+1/2`, `Ctrl+Shift+8/7/9/Q/C`; no Markdown syntax is exposed.
-Link auto-detection (`https?://…` → clickable `Hyperlink`) runs on load and on explicit Save
-— **not on every keystroke**. Live-as-you-type linkification was attempted and dropped: it
-requires rebuilding `Inline` runs mid-document, which fights the caret position and any
-formatting already applied to that paragraph.
+shortcuts are `Ctrl+Alt+1/2`, `Ctrl+Shift+8/7/9/Q/C`; `Ctrl+S` saves and syncs; no Markdown
+syntax is exposed. Link detection accepts `http(s)`, `www`, and bare domains, adds HTTPS when
+the scheme is omitted, and runs after Space/Enter plus load/save. A stored text offset restores
+the caret after a Run is split. A normal click opens the hyperlink or attachment through the
+Windows shell; Ctrl+click is not required inside the editable document.
 
 ### Projects
 Minimal "what am I focused on" tracker for the user's startup-style side projects, some

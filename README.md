@@ -71,7 +71,8 @@ All credentials are entered in the app's own **Settings** widget and stored in
    add that integration
 3. Paste the token + that page's ID into Settings and tick **Bật đồng bộ Notion**
 
-The app creates a `NativeWidget Notes` database under that page and syncs every 15s.
+The app creates a `NativeWidget Notes` database under that page and polls every 15s for
+remote changes. The Save button and `Ctrl+S` save locally and push to Notion immediately.
 
 > Notes sync both ways with headings, lists, to-dos, quotes, code, bold/italic/strike,
 > images, and generic attachments up to 20 MB. Attach files with the paperclip button,
@@ -85,6 +86,7 @@ The app creates a `NativeWidget Notes` database under that page and syncs every 
 |---|---|
 | `Ctrl+Alt+F` | Find the launcher — pulses a glow and briefly expands the icon row |
 | `Ctrl+Alt+G` | Un-ghost every widget (recovery if click-through was left on) |
+| `Ctrl+S` | Save the current note and sync it to Notion immediately |
 
 ## License
 
