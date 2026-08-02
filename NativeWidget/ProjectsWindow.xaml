@@ -1,0 +1,81 @@
+<Window x:Class="NativeWidget.ProjectsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:NativeWidget"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Projects" Width="320" Height="440" MinWidth="260" MinHeight="220"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
+        Left="760" Top="480" Closing="Window_Closing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Border Background="{StaticResource PanelBg}" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="14" ClipToBounds="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="&#xE8A5;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Text="Projects" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="AddBtn" Content="&#xE710;" ToolTip="Thêm dự án" Click="AddBtn_Click" Style="{StaticResource IconBtnStyle}"/>
+                    <local:WidgetHeaderControls x:Name="HeaderControls"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Currently focused project -->
+            <Border x:Name="CurrentCard" Grid.Row="1" Background="{StaticResource ChipBg}" CornerRadius="14" Padding="16" Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border x:Name="CurrentBar" Grid.Column="0" Width="4" CornerRadius="2"
+                            Background="{StaticResource AccentBrush}" Margin="0,2,12,2"/>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="ĐANG TẬP TRUNG" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                        <TextBlock x:Name="CurrentName" Text="Chưa chọn dự án" Foreground="White" FontSize="20" FontWeight="Bold" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="CurrentFolder" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,4,0,0"
+                                   Cursor="Hand" MouseLeftButtonUp="CurrentFolder_Click" Visibility="Collapsed" TextDecorations="Underline"/>
+                        <TextBlock x:Name="CurrentNote" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,4,0,0"
+                                   TextWrapping="Wrap" Visibility="Collapsed"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Top">
+                        <local:ColorTagButton x:Name="CurrentColorBtn"/>
+                        <Button x:Name="CurrentEditBtn" Content="&#xE70F;" ToolTip="Sửa" Click="EditCurrent_Click"
+                                Style="{StaticResource IconBtnStyle}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TextBlock Grid.Row="2" Text="DỰ ÁN KHÁC" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="4,0,0,6"/>
+
+            <!-- Other projects -->
+            <Grid Grid.Row="3">
+                <TextBlock x:Name="EmptyHint" Text="Chỉ có 1 dự án — bấm + để thêm dự án khác." Foreground="{StaticResource MutedBrush}"
+                           FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Visibility="Collapsed"/>
+                <ListBox x:Name="ProjectsList" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.CanContentScroll="False"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="False"
+                         ItemContainerStyle="{StaticResource ListItemStyle}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

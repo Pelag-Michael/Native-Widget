@@ -1,0 +1,99 @@
+<Window x:Class="NativeWidget.TasksWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:NativeWidget"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Tasks" Width="320" Height="460" MinWidth="260" MinHeight="220"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
+        Left="1090" Top="40" Closing="Window_Closing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Border x:Name="RootBorder" Background="{StaticResource PanelBg}" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="12" ClipToBounds="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Text="Tasks" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="PopOutBtn" Content="&#xE8A7;" ToolTip="Mở list này ra cửa sổ riêng" Click="PopOut_Click" Style="{StaticResource IconBtnStyle}"/>
+                    <local:WidgetHeaderControls x:Name="HeaderControls"/>
+                </StackPanel>
+            </Grid>
+
+            <StackPanel Grid.Row="1" Visibility="Collapsed" x:Name="Disconnected">
+                <TextBlock Text="Chưa kết nối Google (mở widget Calendar và Connect trước)." Foreground="{StaticResource MutedBrush}"
+                           FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <Grid Grid.Row="1" Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="ListSelect" Padding="8,5" SelectionChanged="ListSelect_Changed"/>
+                <local:ColorTagButton x:Name="ListColorBtn" Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="NewTaskInput" Style="{StaticResource InputStyle}" Padding="8,5" KeyDown="NewTaskInput_KeyDown"/>
+                <Button Grid.Column="1" Content="&#xE710;" FontFamily="Segoe MDL2 Assets" Padding="10,5" Margin="4,0,0,0"
+                        Click="AddTask_Click" Style="{StaticResource PrimaryBtnStyle}"/>
+            </Grid>
+
+            <Grid Grid.Row="3" Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="86"/>
+                </Grid.ColumnDefinitions>
+                <Grid Grid.Column="0" Margin="0,0,6,0">
+                    <TextBox x:Name="SearchBox" Style="{StaticResource InputStyle}" Padding="8,5" TextChanged="SearchBox_TextChanged"/>
+                    <TextBlock Text="Tìm task..." Foreground="{StaticResource MutedBrush}" FontSize="12"
+                               Margin="8,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+                <ComboBox x:Name="ProjectFilter" Grid.Column="1" Padding="8,5" ToolTip="Lọc theo dự án" SelectionChanged="ProjectFilter_Changed"/>
+            </Grid>
+
+            <Grid Grid.Row="4">
+                <TextBlock x:Name="EmptyHint" Text="List này chưa có task nào." Foreground="{StaticResource MutedBrush}"
+                           FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                <TextBlock x:Name="LoadingHint" Text="Đang tải..." Foreground="{StaticResource MutedBrush}"
+                           FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                <ListBox x:Name="TasksList" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.CanContentScroll="False"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="False"
+                         ItemContainerStyle="{StaticResource ListItemStyle}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

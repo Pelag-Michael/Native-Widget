@@ -1,0 +1,34 @@
+<Window x:Class="NativeWidget.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Widgets" Width="52" Height="52"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
+        MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave"
+        Left="40" Top="40">
+    <Border x:Name="RootBorder" Background="{StaticResource PanelBg}" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="8" ClipToBounds="False">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Width="30" Cursor="SizeAll" MouseLeftButtonDown="DragBar_MouseDown"
+                    Background="Transparent" Margin="0,0,4,0">
+                <TextBlock Text="⋮⋮" Foreground="{StaticResource MutedBrush}" FontSize="14"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+
+            <UniformGrid x:Name="IconsPanel" Grid.Column="1" Rows="1" Columns="8" Visibility="Collapsed">
+                <Button x:Name="BtnProjects" Content="&#xE8A5;" ToolTip="Projects" Click="ToggleWidget_Click" Tag="Projects" Style="{StaticResource TabIconStyle}"/>
+                <Button x:Name="BtnCalendar" Content="&#xE787;" ToolTip="Calendar (chuột phải: sự kiện nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddCalendar_Click" Tag="Calendar" Style="{StaticResource TabIconStyle}"/>
+                <Button x:Name="BtnTasks" Content="&#xE73A;" ToolTip="Tasks (chuột phải: task nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddTask_Click" Tag="Tasks" Style="{StaticResource TabIconStyle}"/>
+                <Button x:Name="BtnNotes" Content="&#xE70F;" ToolTip="Notes (chuột phải: ghi chú nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddNote_Click" Tag="Notes" Style="{StaticResource TabIconStyle}"/>
+                <Button x:Name="BtnTimers" Content="&#xE916;" ToolTip="Timers" Click="ToggleWidget_Click" Tag="Timers" Style="{StaticResource TabIconStyle}"/>
+                <Button x:Name="BtnFocus" Content="&#xE121;" ToolTip="Focus session" Click="ToggleWidget_Click" Tag="Focus" Style="{StaticResource TabIconStyle}"/>
+                <Button x:Name="BtnSettings" Content="&#xE713;" ToolTip="Settings" Click="ToggleWidget_Click" Tag="Settings" Style="{StaticResource TabIconStyle}"/>
+                <Button x:Name="BtnCloseAll" Content="&#xE711;" ToolTip="Đóng tất cả" Click="CloseAll_Click" Style="{StaticResource TabIconStyle}"/>
+            </UniformGrid>
+        </Grid>
+    </Border>
+</Window>

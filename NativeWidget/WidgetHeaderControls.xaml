@@ -1,0 +1,33 @@
+<UserControl x:Class="NativeWidget.WidgetHeaderControls"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel Orientation="Horizontal">
+        <Grid>
+            <Button x:Name="OpacityBtn" Content="&#xE706;" ToolTip="Độ trong suốt"
+                    Style="{StaticResource IconBtnStyle}" MouseEnter="OpacityBtn_MouseEnter"/>
+            <Popup x:Name="OpacityPopup" PlacementTarget="{Binding ElementName=OpacityBtn}"
+                   Placement="Bottom" VerticalOffset="-2" AllowsTransparency="True" StaysOpen="True">
+                <Border Background="#F5131217" CornerRadius="10" BorderBrush="{StaticResource PanelBorder}"
+                        BorderThickness="1" Padding="12,10" Margin="0,2,0,0">
+                    <StackPanel>
+                        <TextBlock x:Name="OpacityLabel" Text="100%" Foreground="{StaticResource MutedBrush}"
+                                   FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                        <Slider x:Name="OpacitySlider" Width="110" Minimum="0.2" Maximum="1"
+                                Value="1" SmallChange="0.05" LargeChange="0.1"
+                                ValueChanged="OpacitySlider_ValueChanged"/>
+                    </StackPanel>
+                </Border>
+            </Popup>
+        </Grid>
+
+        <Button x:Name="GhostBtn" Content="&#xE890;" Click="GhostBtn_Click"
+                ToolTip="Ghost: click xuyên qua (Ctrl+Alt+G để tắt)"
+                Style="{StaticResource IconBtnStyle}"/>
+
+        <Button x:Name="PinBtn" Content="&#xE718;" Click="PinBtn_Click" ToolTip="Ghim lên trên"
+                Style="{StaticResource IconBtnStyle}" Foreground="{StaticResource AccentBrush}"/>
+
+        <Button x:Name="CloseBtn" Content="&#xE711;" Click="CloseBtn_Click" ToolTip="Đóng"
+                Style="{StaticResource IconBtnStyle}"/>
+    </StackPanel>
+</UserControl>

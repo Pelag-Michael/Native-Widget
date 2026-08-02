@@ -1,0 +1,27 @@
+<UserControl x:Class="NativeWidget.ColorTagButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Button x:Name="Dot" Width="18" Height="18" Padding="0" Click="Dot_Click"
+                ToolTip="Đổi màu thẻ" Background="Transparent" BorderThickness="0" Cursor="Hand">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Ellipse x:Name="Circle" Width="14" Height="14" Stroke="#33FFFFFF" StrokeThickness="1"/>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+        <Popup x:Name="Picker" PlacementTarget="{Binding ElementName=Dot}" Placement="Bottom"
+               AllowsTransparency="True" StaysOpen="True">
+            <Border Background="#F5131217" CornerRadius="10" BorderBrush="{StaticResource PanelBorder}"
+                    BorderThickness="1" Padding="8" Margin="0,4,0,0">
+                <ItemsControl x:Name="Swatches">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="5"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

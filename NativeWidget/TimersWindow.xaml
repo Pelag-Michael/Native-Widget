@@ -1,0 +1,101 @@
+<Window x:Class="NativeWidget.TimersWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:NativeWidget"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Timers" Width="320" Height="440" MinWidth="260" MinHeight="220"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
+        Left="410" Top="40" Closing="Window_Closing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Border Background="{StaticResource PanelBg}" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="14" ClipToBounds="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="&#xE916;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Text="Timers" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="AddToggleBtn" Content="&#xE710;" ToolTip="Bộ đếm mới" Click="AddToggle_Click" Style="{StaticResource IconBtnStyle}"/>
+                    <local:WidgetHeaderControls x:Name="HeaderControls"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- New timer form: collapsed by default so it doesn't compete with the list -->
+            <Border x:Name="AddForm" Grid.Row="1" Background="{StaticResource ChipBg}" CornerRadius="12" Padding="10" Margin="0,0,0,10" Visibility="Collapsed">
+                <StackPanel>
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="TitleInput" Style="{StaticResource InputStyle}"/>
+                        <Button x:Name="ModeBtn" Grid.Column="1" Content="&#xE787;" FontFamily="Segoe MDL2 Assets"
+                                ToolTip="Đổi sang nhập mốc ngày/giờ cụ thể" Margin="4,0,0,0"
+                                Click="ToggleMode_Click" Style="{StaticResource SecondaryBtnStyle}" Width="38"/>
+                    </Grid>
+
+                    <!-- Mode A: countdown length -->
+                    <StackPanel x:Name="DurationMode">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="DaysInput" Grid.Column="0" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
+                                     Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Ngày"/>
+                            <TextBox x:Name="HoursInput" Grid.Column="1" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
+                                     Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Giờ"/>
+                            <TextBox x:Name="MinsInput" Grid.Column="2" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
+                                     Text="30" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Phút"/>
+                            <Button Grid.Column="3" Content="&#xE710;" FontFamily="Segoe MDL2 Assets" Padding="12,7"
+                                    Click="AddTimer_Click" Style="{StaticResource PrimaryBtnStyle}"/>
+                        </Grid>
+                        <TextBlock Text="ngày · giờ · phút" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Mode B: exact deadline -->
+                    <StackPanel x:Name="DeadlineMode" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <DatePicker x:Name="DeadlineDate" Grid.Column="0" Margin="0,0,4,0"/>
+                            <TextBox x:Name="DeadlineTime" Grid.Column="1" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
+                                     Text="23:59" Width="60" TextAlignment="Center" ToolTip="Giờ:phút (HH:mm)"/>
+                            <Button Grid.Column="2" Content="&#xE710;" FontFamily="Segoe MDL2 Assets" Padding="12,7"
+                                    Click="AddTimer_Click" Style="{StaticResource PrimaryBtnStyle}"/>
+                        </Grid>
+                        <TextBlock Text="đếm tới đúng mốc này" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,0" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="2">
+                <TextBlock x:Name="EmptyHint" Text="Chưa có bộ đếm nào. Bấm + góc trên." Foreground="{StaticResource MutedBrush}"
+                           FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                <ListBox x:Name="TimersList" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.CanContentScroll="False"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="False"
+                         ItemContainerStyle="{StaticResource ListItemStyle}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,35 @@
+# --- Secrets: never commit ---
+# notion-sync-experiment/.env holds a live Notion integration token.
+*.env
+.env
+notion-sync-experiment/
+
+# --- Build output ---
+# app/ is the published, ready-to-run build (dotnet publish target). Ship it as a
+# GitHub Release attachment instead of committing binaries into the tree.
+app/
+bin/
+obj/
+*.user
+
+# --- Legacy Electron prototype ---
+# Superseded by the WPF app in NativeWidget/ (see ARCHITECTURE.md "Removed features").
+# Kept on disk locally for reference, not part of this repo.
+node_modules/
+package.json
+package-lock.json
+main.js
+preload.js
+renderer.js
+config.js
+index.html
+style.css
+oauth-google.js
+oauth-helper.js
+oauth-microsoft.js
+
+# --- Local junk ---
+run.log
+urls.txt
+*.log
+.claude/
