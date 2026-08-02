@@ -25,6 +25,7 @@ public partial class NotesWindow : Window
     private readonly AppConfig _config;
     private readonly DispatcherTimer _notionSyncTimer = new() { Interval = TimeSpan.FromSeconds(15) };
     private bool _notionSyncRunning;
+    private string _editorBaselineMarkdown = "";
 
     public NotesWindow(AppConfig config) : this(config, null) { }
 
@@ -69,7 +70,35 @@ public partial class NotesWindow : Window
         try
         {
             Diag("SyncOnceAsync starting");
-            await NotionSyncService.SyncOnceAsync(_config);
+            var editorId = _currentId;
+            var editorWasDirty = EditorHasUnsavedChanges();
+            var previousSyncedHash = editorId == null ? "" :
+                NotesService.LoadIndex().FirstOrDefault(note => note.Id == editorId)?.LastSyncedHash ?? "";
+
+            await NotionSyncService.SyncOnceAsync(_config, editorWasDirty ? editorId : null);
+
+            // Keep a clean open editor following Notion. If the user began typing while the
+            // network request was in flight, retain their document and restore the old sync
+            // baseline so the next pass treats it as a real two-sided conflict.
+            if (editorId != null && _currentId == editorId && !editorWasDirty)
+            {
+                var diskDocument = NotesService.LoadNote(editorId);
+                var diskMarkdown = FlowDocumentMarkdownConverter.ToMarkdown(diskDocument);
+                if (!string.Equals(diskMarkdown, _editorBaselineMarkdown, StringComparison.Ordinal))
+                {
+                    if (EditorHasUnsavedChanges())
+                    {
+                        NotesService.MarkSynced(editorId, previousSyncedHash);
+                        Diag("Remote changed while local typing began; preserving both as conflict.");
+                    }
+                    else
+                    {
+                        NoteText.Document = diskDocument;
+                        Linkify();
+                        _editorBaselineMarkdown = CurrentEditorMarkdown();
+                    }
+                }
+            }
             Diag("SyncOnceAsync OK");
             // A no-op if an editor is open (see Refresh's own guard) - never yanks the user
             // out of what they're typing to show a background sync's result.
@@ -119,6 +148,7 @@ public partial class NotesWindow : Window
         {
             Linkify();
             NotesService.SaveNote(_currentId, NoteText.Document);
+            _editorBaselineMarkdown = CurrentEditorMarkdown();
         }
 
         // The main Notes window (owned by the launcher's singleton reference) just hides so
@@ -386,6 +416,7 @@ public partial class NotesWindow : Window
         _currentId = id;
         NoteText.Document = NotesService.LoadNote(id);
         Linkify();
+        _editorBaselineMarkdown = CurrentEditorMarkdown();
 
         ListPanel.Visibility = Visibility.Collapsed;
         EditorPanel.Visibility = Visibility.Visible;
@@ -399,6 +430,7 @@ public partial class NotesWindow : Window
         {
             Linkify();
             NotesService.SaveNote(_currentId, NoteText.Document);
+            _editorBaselineMarkdown = CurrentEditorMarkdown();
         }
 
         // A window opened straight into one note (a "pop-out") has no list to go back to -
@@ -422,6 +454,7 @@ public partial class NotesWindow : Window
         if (_currentId == null) return;
         Linkify();
         NotesService.SaveNote(_currentId, NoteText.Document);
+        _editorBaselineMarkdown = CurrentEditorMarkdown();
 
         var popped = new NotesWindow(_config, _currentId);
         popped.Left = Left + 30;
@@ -597,7 +630,14 @@ public partial class NotesWindow : Window
         if (_currentId == null) return;
         Linkify();
         NotesService.SaveNote(_currentId, NoteText.Document);
+        _editorBaselineMarkdown = CurrentEditorMarkdown();
     }
+
+    private string CurrentEditorMarkdown() =>
+        FlowDocumentMarkdownConverter.ToMarkdown(NoteText.Document);
+
+    private bool EditorHasUnsavedChanges() => _currentId != null &&
+        !string.Equals(CurrentEditorMarkdown(), _editorBaselineMarkdown, StringComparison.Ordinal);
 
     private void Rename_Click(object sender, RoutedEventArgs e)
     {

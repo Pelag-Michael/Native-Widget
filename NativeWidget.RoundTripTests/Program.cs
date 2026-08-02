@@ -64,6 +64,16 @@ internal static class Program
             if (!markdown.Contains(token, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Missing expected token: {token}\n{markdown}");
 
+        AssertEqual(NotionSyncService.SyncResolution.PushLocal,
+            NotionSyncService.ResolveChanges(localChanged: true, remoteChanged: false),
+            "Local-only sync resolution");
+        AssertEqual(NotionSyncService.SyncResolution.PullRemote,
+            NotionSyncService.ResolveChanges(localChanged: false, remoteChanged: true),
+            "Remote-only sync resolution");
+        AssertEqual(NotionSyncService.SyncResolution.PullRemoteWithLocalConflict,
+            NotionSyncService.ResolveChanges(localChanged: true, remoteChanged: true),
+            "Two-sided sync conflict resolution");
+
         using var notionJson = JsonDocument.Parse("""
         [
           {"id":"p","type":"paragraph","paragraph":{"rich_text":[{"plain_text":"plain","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
@@ -151,5 +161,11 @@ internal static class Program
     {
         if (!string.Equals(expected, actual, StringComparison.Ordinal))
             throw new InvalidOperationException($"{label} failed.\nEXPECTED:\n{expected}\nACTUAL:\n{actual}");
+    }
+
+    private static void AssertEqual<T>(T expected, T actual, string label) where T : notnull
+    {
+        if (!EqualityComparer<T>.Default.Equals(expected, actual))
+            throw new InvalidOperationException($"{label} failed. Expected {expected}, actual {actual}.");
     }
 }

@@ -135,9 +135,11 @@ clears `ReminderTimerId`.
 **Notion sync (experimental, off by default)** — `NotionSyncService`, polled every 15s from
 `NotesWindow`'s own timer (only the main list window polls, not pop-outs).
 Titles and bodies are both 2-way. A canonical Markdown SHA-256 stored in
-`NoteMeta.LastSyncedHash` identifies which side changed; simultaneous edits fall back to
-last-write-wins timestamps. Before a conflicting remote pull, the unsynced local Markdown
-is copied to `<id>.conflict-<timestamp>.md`.
+`NoteMeta.LastSyncedHash` identifies which side changed. A clean open editor follows remote
+changes on the next polling cycle; a dirty editor is excluded from that pass so its in-memory
+draft is not overwritten. If both sides changed since the shared hash, the Notion version stays
+authoritative and the local version is retained as `<id>.conflict-<timestamp>.md` instead of
+silently replacing either user's work.
 
 The note body lives as real Notion blocks. Supported mappings are paragraph, heading 1/2,
 bulleted/numbered list item, to-do, quote, code, bold/italic/strikethrough rich-text

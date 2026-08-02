@@ -15,6 +15,13 @@ namespace NativeWidget.Services;
 /// last-write-wins remote pull. Deletion still does not propagate in either direction.
 public static partial class NotionSyncService
 {
+    public enum SyncResolution
+    {
+        PushLocal,
+        PullRemote,
+        PullRemoteWithLocalConflict,
+    }
+
     private const string ApiBase = "https://api.notion.com/v1";
     private const string NotionVersion = "2026-03-11";
     private static readonly HttpClient Http = new();
@@ -262,7 +269,14 @@ public static partial class NotionSyncService
         await ReplaceSupportedBodyAsync(config, page.PageId, remoteBody, markdown);
     }
 
-    public static async Task SyncOnceAsync(AppConfig config)
+    public static SyncResolution ResolveChanges(bool localChanged, bool remoteChanged)
+    {
+        if (localChanged && remoteChanged) return SyncResolution.PullRemoteWithLocalConflict;
+        if (localChanged) return SyncResolution.PushLocal;
+        return SyncResolution.PullRemote;
+    }
+
+    public static async Task SyncOnceAsync(AppConfig config, string? skipLocalId = null)
     {
         if (!config.NotionSyncEnabled || string.IsNullOrEmpty(config.NotionToken)) return;
         await EnsureDataSourceAsync(config);
@@ -275,6 +289,10 @@ public static partial class NotionSyncService
 
         foreach (var meta in local)
         {
+            // An actively edited note is skipped when its in-memory document is dirty. Other
+            // notes still sync normally, and this one is reconsidered after the user saves it.
+            if (string.Equals(meta.Id, skipLocalId, StringComparison.Ordinal)) continue;
+
             var localMarkdown = NotesService.GetMarkdown(meta.Id);
             var localHash = await CanonicalHashAsync(localMarkdown);
             if (!remoteByLocalId.TryGetValue(meta.Id, out var match))
@@ -306,9 +324,8 @@ public static partial class NotionSyncService
                 continue;
             }
 
-            var localWins = localChanged && !remoteChanged ||
-                            localChanged == remoteChanged && meta.UpdatedAt > match.UpdatedAtUnix + 2;
-            if (localWins)
+            var resolution = ResolveChanges(localChanged, remoteChanged);
+            if (resolution == SyncResolution.PushLocal)
             {
                 await PushUpdateAsync(config, match, remoteBody, meta.Title, localMarkdown);
                 NotesService.MarkSynced(meta.Id, localHash);
@@ -318,7 +335,8 @@ public static partial class NotionSyncService
                 var localized = await LocalizeRemoteImagesAsync(remoteBody.Markdown);
                 var localizedHash = await CanonicalHashAsync(localized);
                 NotesService.ApplyRemoteUpdate(meta.Id, match.Title, localized,
-                    match.UpdatedAtUnix, localizedHash, backupLocal: localChanged);
+                    match.UpdatedAtUnix, localizedHash,
+                    backupLocal: resolution == SyncResolution.PullRemoteWithLocalConflict);
             }
         }
 
