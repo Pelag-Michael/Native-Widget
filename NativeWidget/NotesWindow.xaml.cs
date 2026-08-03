@@ -369,10 +369,8 @@ public partial class NotesWindow : Window
             };
             labelBtn.Click += (_, _) =>
             {
-                var current = string.Join(", ", note.Tags);
-                var input = PromptDialog.Show(this, "Nhãn (cách nhau bởi dấu phẩy)", current);
-                if (input == null) return;
-                var tags = input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().ToList();
+                var tags = LabelPickerDialog.Show(this, note.Tags);
+                if (tags == null) return;
                 NotesService.SetTags(noteId, tags);
                 RenderList();
             };

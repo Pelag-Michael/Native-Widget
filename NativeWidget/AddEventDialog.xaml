@@ -11,6 +11,9 @@
             <DatePicker x:Name="EventDatePicker" Margin="0,0,0,8"/>
             <CheckBox x:Name="AllDayCheck" Content="Cả ngày" Foreground="White" Margin="0,0,0,8" Checked="AllDayCheck_Changed" Unchecked="AllDayCheck_Changed"/>
             <TextBox x:Name="TimeInput" Style="{StaticResource InputStyle}" Text="09:00" Margin="0,0,0,8"/>
+            <TextBlock Text="Ghi chú" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
+            <TextBox x:Name="NoteInput" Style="{StaticResource InputStyle}" Height="54" AcceptsReturn="True"
+                     TextWrapping="Wrap" VerticalContentAlignment="Top" Margin="0,0,0,8"/>
             <TextBlock Text="Lặp lại" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
             <ComboBox x:Name="RepeatCombo" SelectedIndex="0">
                 <ComboBoxItem Content="Không lặp"/>

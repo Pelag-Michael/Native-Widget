@@ -42,17 +42,6 @@ public partial class FocusWindow : Window
     {
         _minutes = Math.Clamp(minutes, 1, 180);
         MinutesInput.Text = _minutes.ToString();
-        if (!_running)
-        {
-            FocusProgress.Value = 0;
-            FocusStatus.Text = $"Sẵn sàng cho {_minutes} phút tập trung";
-        }
-    }
-
-    private void Preset_Click(object sender, RoutedEventArgs e)
-    {
-        if (_running || sender is not Button { Tag: string value } || !int.TryParse(value, out var minutes)) return;
-        SetMinutes(minutes);
     }
 
     private void MinutesUp_Click(object sender, RoutedEventArgs e)
@@ -90,7 +79,6 @@ public partial class FocusWindow : Window
             _running = false;
             _timer.Stop();
             PlayBtn.Content = "\uE768";
-            FocusStatus.Text = "Đã tạm dừng";
         }
         else
         {
@@ -102,7 +90,6 @@ public partial class FocusWindow : Window
             MinutesSuffix.Visibility = Visibility.Collapsed;
             _timer.Start();
             PlayBtn.Content = "\uE769";
-            FocusStatus.Text = "Đang tập trung";
         }
     }
 
@@ -117,13 +104,10 @@ public partial class FocusWindow : Window
             MinutesSuffix.Visibility = Visibility.Visible;
             MinutesInput.Text = _minutes.ToString();
             PlayBtn.Content = "\uE768";
-            FocusProgress.Value = 1;
-            FocusStatus.Text = "Hoàn thành — làm tốt lắm";
             MessageBox.Show("Hết giờ tập trung rồi!", "Focus session");
             return;
         }
         var span = TimeSpan.FromSeconds(_remainingSeconds);
         MinutesInput.Text = span.ToString(@"mm\:ss");
-        FocusProgress.Value = Math.Clamp(1 - (double)_remainingSeconds / (_minutes * 60), 0, 1);
     }
 }

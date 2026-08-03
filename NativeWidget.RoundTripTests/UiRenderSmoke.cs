@@ -50,6 +50,7 @@ internal static class UiRenderSmoke
             new TimersWindow(),
             new FocusWindow(),
             new ProjectsWindow(),
+            new LabelsWindow(),
             new SettingsWindow(new AppConfig(), () => Task.CompletedTask),
             new WorkspaceSearchWindow(),
         };

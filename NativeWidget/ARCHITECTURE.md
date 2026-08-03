@@ -24,6 +24,7 @@ NativeWidget/
   NotesWindow              Multi-note rich-text widget (list view + editor)
   TimersWindow             Multiple persistent countdown timers / deadlines
   FocusWindow              Pomodoro-style focus timer widget
+  LabelsWindow             Shared label registry and rename/delete UI
   SettingsWindow           Google OAuth credentials + auto-start toggle
   PromptDialog             Small themed "enter a value" modal, used for renaming
   Models/AppConfig.cs      User-editable settings, persisted to %AppData%\NativeWidget\config.json
@@ -32,6 +33,7 @@ NativeWidget/
     OAuthHelper.cs            Shared PKCE + loopback-redirect helper (reused if more OAuth added)
     NotesService.cs           Multi-note index + per-note Markdown files, XAML migration
     ItemTagsService.cs        Local free-form labels for Google-backed task/calendar items
+    LabelsService.cs          Canonical label registry and cross-widget rename/delete
     TimersService.cs          Countdown timer persistence (absolute deadlines)
     TimerNotifier.cs          App-wide watcher that announces finished timers exactly once
     AutoStartService.cs       HKCU Run-key toggle for "start with Windows"
@@ -122,6 +124,8 @@ The Calendar header exposes explicit refresh and disconnect controls plus a comp
 status, instead of reserving permanent bottom-row space for disconnect. Events can carry
 local-only free-form labels and one local project assignment, alongside their existing local
 color; these never alter the Google Calendar event.
+`AddEventDialog` also accepts a short note, stored in Google Calendar's real `description`
+field and rendered as a compact muted excerpt beneath the event title.
 
 ### Notes
 Google-Keep-style: a **list of notes** (title + preview) that opens into an editor, with
@@ -137,8 +141,8 @@ List cards normalize title/preview whitespace and render each as one trimmed lin
 body remains untouched in storage. This keeps long or newline-heavy notes from expanding a
 single card until it pushes the rest of the scrollable list off-screen.
 
-**Free-form labels** — `NoteMeta.Tags` (`List<string>`), edited via a plain comma-separated
-`PromptDialog` (the tag icon on each card), rendered as small pill chips under the preview.
+**Free-form labels** — `NoteMeta.Tags` (`List<string>`), assigned through the shared
+`LabelPickerDialog` (the tag icon on each card), rendered as small pill chips under the preview.
 Project assignment reuses the launcher's Projects icon so it remains visually distinct from labels.
 Independent from the project tag (`ItemProjectTagsService` — a note has at most
 one project, but any number of labels). `TagFilter` combo populated from the distinct set
@@ -232,7 +236,7 @@ would just show nothing, harmlessly.
 ### Tasks
 Tasks support free-form local labels through `ItemTagsService` (`item-tags.json`, key
 `"task:<id>"` to a label list). Calendar events use the same service with `"event:<id>"`, and
-both widgets use the same tag icon and comma-separated `PromptDialog` editing as Notes.
+both widgets use the same tag icon and checkbox-based `LabelPickerDialog` as Notes.
 Calendar event project assignments are also kept in the existing local `ItemProjectTagsService`
 map, so neither enhancement changes a Google record.
 
@@ -277,6 +281,13 @@ part of this repo). Two things worth remembering if this is ever needed again:
   of nothing - either skip it or (what was done here) recreate the completed parent too,
   purely as a container, so the nesting still matches the original structure.
 
+### Labels
+`LabelsWindow` is the dedicated create/rename/delete surface. `LabelsService` persists unused
+labels in `%AppData%\NativeWidget\labels.json` and unions that registry with labels already
+embedded in Notes or `ItemTagsService`. Renaming or deleting a label rewrites every Notes,
+Tasks and Calendar reference, so all three widgets remain consistent. A label can therefore
+be created before it is assigned to any item.
+
 ### Timers
 Multiple named countdowns, created either as a **duration** (days/hours/minutes) or as an
 **exact deadline** (date picker + HH:mm) — the toggle button beside the title field swaps
@@ -297,8 +308,7 @@ so existing timer files remain compatible.
 
 ### Focus
 Simple Pomodoro-style countdown, separate from Timers (in-session focus, not a deadline).
-`DispatcherTimer`, editable minutes field plus 5-min step buttons, 25m/50m/90m presets,
-Play/Pause and a compact elapsed-progress bar. No
+`DispatcherTimer`, editable minutes field plus 5-min step buttons and Play/Pause. No
 persistence — resets each session by design.
 
 ### Settings

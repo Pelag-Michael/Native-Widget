@@ -238,7 +238,29 @@ public static class NotesService
         var index = LoadIndex();
         var meta = index.FirstOrDefault(m => m.Id == id);
         if (meta == null) return;
-        meta.Tags = tags;
+        meta.Tags = tags.Select(tag => tag.Trim().TrimStart('#'))
+            .Where(tag => tag.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+        SaveIndex(index);
+        LabelsService.Register(meta.Tags);
+    }
+
+    public static void RenameTag(string oldLabel, string newLabel)
+    {
+        var index = LoadIndex();
+        foreach (var note in index)
+            note.Tags = note.Tags.Select(tag => string.Equals(tag, oldLabel, StringComparison.OrdinalIgnoreCase) ? newLabel : tag)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        SaveIndex(index);
+    }
+
+    public static void RemoveTag(string label)
+    {
+        var index = LoadIndex();
+        foreach (var note in index)
+            note.Tags.RemoveAll(tag => string.Equals(tag, label, StringComparison.OrdinalIgnoreCase));
         SaveIndex(index);
     }
 

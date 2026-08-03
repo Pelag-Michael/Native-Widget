@@ -78,7 +78,8 @@ public partial class CalendarWindow : Window
         if (dialog == null) return;
         try
         {
-            await GoogleCalendarService.CreateEventAsync(_config, dialog.EventTitle, dialog.Start, dialog.AllDay, dialog.RecurrenceFreq);
+            await GoogleCalendarService.CreateEventAsync(_config, dialog.EventTitle, dialog.Start, dialog.AllDay,
+                dialog.RecurrenceFreq, dialog.EventNote);
             await RefreshEventsAsync();
         }
         catch (Exception ex)
@@ -178,6 +179,19 @@ public partial class CalendarWindow : Window
             };
             text.Children.Add(time);
             text.Children.Add(title);
+            if (!string.IsNullOrWhiteSpace(ev.Description))
+            {
+                text.Children.Add(new TextBlock
+                {
+                    Text = ev.Description.Trim(),
+                    Foreground = (Brush)FindResource("MutedBrush"),
+                    FontSize = 10.5,
+                    TextWrapping = TextWrapping.Wrap,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    MaxHeight = 34,
+                    Margin = new Thickness(0, 3, 0, 0),
+                });
+            }
 
             var eventId = ev.Id;
             var labels = ItemTagsService.Get("event", eventId);
@@ -226,9 +240,9 @@ public partial class CalendarWindow : Window
             };
             labelBtn.Click += (_, _) =>
             {
-                var input = PromptDialog.Show(this, "Nhãn (cách nhau bởi dấu phẩy)", string.Join(", ", labels));
-                if (input == null) return;
-                ItemTagsService.Set("event", eventId, input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+                var picked = LabelPickerDialog.Show(this, labels);
+                if (picked == null) return;
+                ItemTagsService.Set("event", eventId, picked);
                 _ = RefreshEventsAsync();
             };
 
