@@ -33,7 +33,12 @@
                 <StackPanel>
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="GOOGLE CALENDAR" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="GOOGLE CALENDAR" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Border x:Name="GoogleStatusBadge" Background="#22FFFFFF" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
+                                    <TextBlock x:Name="GoogleStatusText" Text="Chưa kết nối" Foreground="{StaticResource MutedBrush}" FontSize="10"/>
+                                </Border>
+                            </StackPanel>
                             <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" LineHeight="17">
                                 1. console.cloud.google.com → tạo project → Enable "Google Calendar API"<LineBreak/>
                                 2. "OAuth consent screen" → External → thêm email bạn vào "Test users"<LineBreak/>
@@ -45,7 +50,7 @@
                             <TextBlock Text="Client ID" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
                             <TextBox x:Name="GoogleClientIdInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
                             <TextBlock Text="Client Secret" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
-                            <TextBox x:Name="GoogleClientSecretInput" Style="{StaticResource InputStyle}"/>
+                            <PasswordBox x:Name="GoogleClientSecretInput" Style="{StaticResource PasswordInputStyle}"/>
                         </StackPanel>
                     </Border>
 
@@ -58,7 +63,12 @@
 
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,12,0,0">
                         <StackPanel>
-                            <TextBlock Text="NOTION SYNC (thử nghiệm)" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="NOTION SYNC" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Border x:Name="NotionStatusBadge" Background="#22FFFFFF" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
+                                    <TextBlock x:Name="NotionStatusText" Text="Tắt" Foreground="{StaticResource MutedBrush}" FontSize="10"/>
+                                </Border>
+                            </StackPanel>
                             <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" LineHeight="17">
                                 Chỉ đồng bộ text thuần (chưa có bold/ảnh). 2 chiều, 15s/lần, last-write-wins.<LineBreak/><LineBreak/>
                                 1. notion.so/my-integrations → New → Access token → copy secret<LineBreak/>
@@ -66,7 +76,7 @@
                                 3. Copy Page ID từ URL page đó (đoạn 32 ký tự cuối) dán vào ô dưới
                             </TextBlock>
                             <TextBlock Text="Integration Token" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
-                            <TextBox x:Name="NotionTokenInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
+                            <PasswordBox x:Name="NotionTokenInput" Style="{StaticResource PasswordInputStyle}" Margin="0,0,0,8"/>
                             <TextBlock Text="Parent Page ID" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
                             <TextBox x:Name="NotionPageIdInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
                             <StackPanel Orientation="Horizontal">
@@ -86,7 +96,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Button x:Name="LoadBtn" Content="Load (Lưu cấu hình)" Click="LoadBtn_Click" Style="{StaticResource PrimaryBtnStyle}" Margin="0,14,0,8" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="LoadBtn" Content="Lưu cài đặt" Click="LoadBtn_Click" Style="{StaticResource PrimaryBtnStyle}" Margin="0,14,0,8" HorizontalAlignment="Stretch"/>
                     <Button x:Name="LogoutBtn" Content="Log out (Google Calendar)" Click="LogoutBtn_Click" Style="{StaticResource DangerBtnStyle}" HorizontalAlignment="Stretch"/>
                     <TextBlock x:Name="SettingsStatus" Foreground="#8FE0A8" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"/>
                 </StackPanel>

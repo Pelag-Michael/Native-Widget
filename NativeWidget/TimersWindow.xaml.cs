@@ -18,6 +18,7 @@ public partial class TimersWindow : Window
 
     private readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly Dictionary<string, TextBlock> _countdownLabels = new();
+    private readonly Dictionary<string, ProgressBar> _progressBars = new();
 
     public TimersWindow()
     {
@@ -77,6 +78,15 @@ public partial class TimersWindow : Window
         RenderList();
     }
 
+    private void Preset_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string value } || !int.TryParse(value, out var minutes)) return;
+        DaysInput.Text = "0";
+        HoursInput.Text = (minutes / 60).ToString();
+        MinsInput.Text = (minutes % 60).ToString();
+        TitleInput.Focus();
+    }
+
     private TimeSpan? ReadDurationFields()
     {
         var duration = new TimeSpan(ParseBox(DaysInput), ParseBox(HoursInput), ParseBox(MinsInput), 0);
@@ -118,7 +128,9 @@ public partial class TimersWindow : Window
 
         TimersList.Items.Clear();
         _countdownLabels.Clear();
+        _progressBars.Clear();
         EmptyHint.Visibility = timers.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var nextTimerId = timers.FirstOrDefault(timer => !timer.IsExpired)?.Id;
 
         foreach (var timer in timers)
         {
@@ -126,7 +138,7 @@ public partial class TimersWindow : Window
 
             var card = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+                Background = new SolidColorBrush(Color.FromArgb(timer.Id == nextTimerId ? (byte)0x22 : (byte)0x14, 0xFF, 0xFF, 0xFF)),
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(10, 8, 8, 8),
                 Margin = new Thickness(2, 4, 2, 4),
@@ -157,6 +169,9 @@ public partial class TimersWindow : Window
             actions.Children.Add(MakeIconButton("\uE8AC", "Đổi tên", () => RenameTimer(timer.Id, timer.Title)));
             actions.Children.Add(MakeIconButton("\uE72C", "Chạy lại", () => { TimersService.Restart(timer.Id); RenderList(); }));
             actions.Children.Add(MakeIconButton("\uE74D", "Xoá", () => { TimersService.Delete(timer.Id); RenderList(); }));
+            actions.Opacity = 0;
+            card.MouseEnter += (_, _) => actions.Opacity = 1;
+            card.MouseLeave += (_, _) => actions.Opacity = 0;
 
             Grid.SetColumn(colorBtn, 0);
             Grid.SetColumn(title, 1);
@@ -181,12 +196,24 @@ public partial class TimersWindow : Window
                 FontSize = 10,
                 Margin = new Thickness(0, 2, 0, 0),
             };
+            var progress = new ProgressBar
+            {
+                Minimum = 0,
+                Maximum = 1,
+                Value = ProgressFor(timer),
+                Style = (Style)FindResource("CompactProgressStyle"),
+                Margin = new Thickness(0, 7, 0, 0),
+            };
 
             stack.Children.Add(topRow);
+            if (timer.Id == nextTimerId)
+                stack.Children.Add(new TextBlock { Text = "TIẾP THEO", Foreground = tagBrush, FontSize = 9, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 3, 0, -2) });
             stack.Children.Add(countdown);
+            stack.Children.Add(progress);
             stack.Children.Add(deadline);
             card.Child = stack;
             _countdownLabels[timer.Id] = countdown;
+            _progressBars[timer.Id] = progress;
 
             TimersList.Items.Add(card);
         }
@@ -233,7 +260,14 @@ public partial class TimersWindow : Window
             {
                 label.Text = TimersService.FormatRemaining(timer.Remaining);
             }
+            if (_progressBars.TryGetValue(timer.Id, out var progress)) progress.Value = ProgressFor(timer);
         }
+    }
+
+    private static double ProgressFor(CountdownTimer timer)
+    {
+        if (timer.DurationSeconds <= 0 || timer.IsExpired) return timer.IsExpired ? 1 : 0;
+        return Math.Clamp(1 - timer.Remaining.TotalSeconds / timer.DurationSeconds, 0, 1);
     }
 
     public void Refresh() => RenderList();

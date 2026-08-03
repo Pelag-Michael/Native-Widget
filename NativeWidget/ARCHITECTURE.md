@@ -18,7 +18,8 @@ icon, launched from a small hover-expand dock.
 NativeWidget/
   App.xaml(.cs)          Global styles/resources (colors, button/input/list/combo/scrollbar/
                           DatePicker templates) + TimerNotifier startup hook
-  MainWindow.xaml(.cs)    The launcher: small hover-expand dock, spawns/toggles the other windows
+  MainWindow.xaml(.cs)    The launcher: small hover-expand dock, global finder, spawns/toggles windows
+  WorkspaceSearchWindow   Local search across notes, labels and projects
   CalendarWindow          Google Calendar widget (view-only, OAuth)
   NotesWindow              Multi-note rich-text widget (list view + editor)
   TimersWindow             Multiple persistent countdown timers / deadlines
@@ -30,6 +31,7 @@ NativeWidget/
     GoogleCalendarService.cs  OAuth flow + Calendar API calls
     OAuthHelper.cs            Shared PKCE + loopback-redirect helper (reused if more OAuth added)
     NotesService.cs           Multi-note index + per-note Markdown files, XAML migration
+    ItemTagsService.cs        Local free-form labels for Google-backed task/calendar items
     TimersService.cs          Countdown timer persistence (absolute deadlines)
     TimerNotifier.cs          App-wide watcher that announces finished timers exactly once
     AutoStartService.cs       HKCU Run-key toggle for "start with Windows"
@@ -62,7 +64,7 @@ launcher icon, **recompute `ExpandedWidth`** — see the comment math in `MainWi
 mismatches cause icons to overflow the rounded corner (this happened once, looked like a
 "cut corner" bug).
 
-Two global hotkeys (`RegisterHotKey`, both `Ctrl+Alt+<key>`, handled in `HotkeyHook` off
+Three global hotkeys (`RegisterHotKey`, all `Ctrl+Alt+<key>`, handled in `HotkeyHook` off
 `WM_HOTKEY`): `Ctrl+Alt+G` un-ghosts every widget (the only way back once one is
 click-through, since a ghosted window can't be clicked at all — not even its own un-ghost
 button). `Ctrl+Alt+F` ("Find") pulses a blue glow (`DropShadowEffect` on `RootBorder`,
@@ -70,7 +72,13 @@ animated `Opacity`, 3 pulses) and briefly pops the icon row open, so the launche
 small floating icon, easy to lose behind other windows — is unmistakable. This is a
 deliberate hotkey, **not** a real Alt+Tab hook: every widget calls
 `WindowInterop.HideFromAltTab`, so there's no reliable way to intercept the actual Alt+Tab
-keystroke without a global low-level keyboard hook fighting Windows' own switcher.
+  keystroke without a global low-level keyboard hook fighting Windows' own switcher.
+`Ctrl+Alt+K` opens `WorkspaceSearchWindow`, which searches local notes (title, preview, label,
+assigned-project name), labels and projects. Selecting a note opens its editor; a project makes
+it the current focus project; a note label filters the Notes list. The launcher itself remains a
+52px circular drag handle; hover opens a separate circular `Popup` whose function icons orbit a
+matching launcher icon in the center. Keep the fixed menu size and canvas positions in sync if
+another launcher action is added.
 
 ## Styling (all in App.xaml, global)
 
@@ -89,6 +97,11 @@ keystroke without a global low-level keyboard hook fighting Windows' own switche
 
 ## Widgets
 
+### Shared interaction rules
+`IconBtnStyle` and `TabIconStyle` intentionally change from their rounded-square resting shape
+to a circle on hover. Secondary row actions follow the same convention: hidden until the pointer
+is over a card, so dense lists still scan cleanly.
+
 ### Calendar
 Google Calendar, **2-way**: view, create (`AddEventDialog` - title, date, time or all-day,
 optional RRULE recurrence), and delete. OAuth (Authorization Code + PKCE), `Web application`
@@ -103,6 +116,11 @@ also handles `MouseUp` to open the event's Google link - `FindAncestor<ButtonBas
 `MouseUp` handler skips that open when the click actually landed on a button, since
 `ButtonBase` only marks the narrower `MouseLeftButtonUp` handled, not the generic `MouseUp`
 that bubbles past it.
+
+The Calendar header exposes explicit refresh and disconnect controls plus a compact last-sync
+status, instead of reserving permanent bottom-row space for disconnect. Events can carry
+local-only free-form labels and one local project assignment, alongside their existing local
+color; these never alter the Google Calendar event.
 
 ### Notes
 Google-Keep-style: a **list of notes** (title + preview) that opens into an editor, with
@@ -211,6 +229,12 @@ by it. Deleting a project does not clean up its tags — a filter for a deleted 
 would just show nothing, harmlessly.
 
 ### Tasks
+Tasks support free-form local labels through `ItemTagsService` (`item-tags.json`, key
+`"task:<id>"` to a label list). Calendar events use the same service with `"event:<id>"`, and
+both widgets use the same tag icon and comma-separated `PromptDialog` editing as Notes.
+Calendar event project assignments are also kept in the existing local `ItemProjectTagsService`
+map, so neither enhancement changes a Google record.
+
 Google Tasks, **2-way** (unlike Calendar, which is view-only): add, check off, delete, and
 subtasks nest one level deep via Google's `parent` field. Shares `google-token.json` with
 Calendar — `GoogleCalendarService.Scope` requests both `calendar.readonly` and `tasks` in
@@ -266,12 +290,21 @@ then flips the flag so each fires exactly once. It also does a startup sweep 2s 
 launch that reports **how overdue** each one is ("kết thúc 3 giờ 20 phút trước") — that
 branch is what covers timers that ran out while the machine was off.
 
+The Timers add form offers 5m/15m/25m/1h presets. Cards highlight the next live deadline and
+show elapsed progress derived from `Remaining / DurationSeconds`; no new timestamp is stored,
+so existing timer files remain compatible.
+
 ### Focus
 Simple Pomodoro-style countdown, separate from Timers (in-session focus, not a deadline).
-`DispatcherTimer`, editable minutes field plus 5-min step buttons, Play/Pause. No
+`DispatcherTimer`, editable minutes field plus 5-min step buttons, 25m/50m/90m presets,
+Play/Pause and a compact elapsed-progress bar. No
 persistence — resets each session by design.
 
 ### Settings
+The Google client secret and Notion token use masked `PasswordBox` fields. Compact badges show
+whether Google is connected and whether Notion sync is enabled; credentials remain stored in
+the existing `AppConfig` file after the user chooses `Lưu cài đặt`.
+
 Google OAuth Client ID/Secret input (with inline step-by-step instructions for the Google
 Cloud Console flow) + `Load` (saves to `AppConfig`) + `Logout` (clears the Calendar token) +
 auto-start-with-Windows checkbox (`AutoStartService`, HKCU Run key).

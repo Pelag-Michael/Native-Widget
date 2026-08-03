@@ -248,10 +248,13 @@ public partial class TasksWindow : Window
         // A matching child pulls its (otherwise non-matching) parent along too, so nesting
         // never breaks - but only that child, not its unrelated siblings. Same rule for the
         // project filter, applied on top of the search filter.
+        var localTags = ItemTagsService.Load();
         var tasks = allTasks;
         if (!string.IsNullOrEmpty(_searchText))
         {
-            var matchingIds = allTasks.Where(t => t.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+            var matchingIds = allTasks.Where(t => t.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                                               || (localTags.TryGetValue($"task:{t.Id}", out var tags) &&
+                                                   tags.Any(tag => tag.Contains(_searchText, StringComparison.OrdinalIgnoreCase))))
                 .Select(t => t.Id).ToHashSet();
             var parentsOfMatches = allTasks.Where(t => t.ParentId != null && matchingIds.Contains(t.Id))
                 .Select(t => t.ParentId!).ToHashSet();
@@ -271,6 +274,8 @@ public partial class TasksWindow : Window
         }
 
         TasksList.Items.Clear();
+        var activeCount = allTasks.Count(task => !task.Completed);
+        TaskCountText.Text = allTasks.Count == 0 ? "" : $"{activeCount} đang làm";
         EmptyHint.Text = allTasks.Count == 0 ? "List này chưa có task nào." : "Không tìm thấy task nào.";
         EmptyHint.Visibility = tasks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -417,6 +422,24 @@ public partial class TasksWindow : Window
             });
         }
 
+        var labels = ItemTagsService.Get("task", task.Id);
+        if (labels.Count > 0)
+        {
+            var chips = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            foreach (var label in labels)
+            {
+                chips.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(0x22, 0x4A, 0x7D, 0xFF)),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(6, 1, 6, 1),
+                    Margin = new Thickness(0, 0, 4, 2),
+                    Child = new TextBlock { Text = label, FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xBB, 0xFF)) },
+                });
+            }
+            content.Children.Add(chips);
+        }
+
         var dueBtn = new Button
         {
             Content = "\uE787",
@@ -507,9 +530,33 @@ public partial class TasksWindow : Window
                 RenderTasks(_lastRenderedListId, _lastRenderedTasks);
         };
 
+        var labelBtn = new Button
+        {
+            Content = "\uE8EC",
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 11,
+            Width = 22,
+            Height = 22,
+            ToolTip = "Nhãn",
+            Style = (Style)FindResource("IconBtnStyle"),
+            Foreground = labels.Count > 0 ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
+        };
+        labelBtn.Click += (_, _) =>
+        {
+            var input = PromptDialog.Show(this, "Nhãn (cách nhau bởi dấu phẩy)", string.Join(", ", labels));
+            if (input == null) return;
+            ItemTagsService.Set("task", task.Id, input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            if (_lastRenderedListId != null && _lastRenderedTasks != null)
+                RenderTasks(_lastRenderedListId, _lastRenderedTasks);
+        };
+
         actions.Children.Add(tagBtn);
+        actions.Children.Add(labelBtn);
         actions.Children.Add(dueBtn);
         actions.Children.Add(del);
+        actions.Opacity = 0;
+        row.MouseEnter += (_, _) => actions.Opacity = 1;
+        row.MouseLeave += (_, _) => actions.Opacity = 0;
 
         Grid.SetColumn(chevron, 0);
         Grid.SetColumn(check, 1);

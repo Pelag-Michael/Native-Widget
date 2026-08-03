@@ -28,6 +28,7 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="&#xE73A;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
                     <TextBlock Text="Tasks" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="TaskCountText" Text="" Foreground="{StaticResource MutedBrush}" FontSize="10.5" Margin="8,1,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="PopOutBtn" Content="&#xE8A7;" ToolTip="Mở list này ra cửa sổ riêng" Click="PopOut_Click" Style="{StaticResource IconBtnStyle}"/>

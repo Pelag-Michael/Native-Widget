@@ -149,6 +149,15 @@ public partial class ProjectsWindow : Window
         }
     }
 
+    /// A project result in the global finder is an intentional focus change: making it the
+    /// current project gives all later note/task assignments the same clear context.
+    public void OpenProjectFromSearch(string id)
+    {
+        if (!ProjectsService.Load().Items.Any(project => project.Id == id)) return;
+        ProjectsService.SetCurrent(id);
+        Render();
+    }
+
     private void CurrentFolder_Click(object sender, MouseButtonEventArgs e)
     {
         var data = ProjectsService.Load();

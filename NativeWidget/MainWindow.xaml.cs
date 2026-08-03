@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Threading;
 using NativeWidget.Models;
 using NativeWidget.Services;
 
@@ -14,15 +15,16 @@ namespace NativeWidget;
 
 public partial class MainWindow : Window
 {
-    // Drag handle (~34) + one 40px-wide icon slot per launcher button, plus panel padding.
-    private const double CollapsedWidth = 52;
-    private const double ExpandedWidth = 402;
+    // The dock itself is fixed at 52px; a round Popup holds the 3×3 icon menu on hover.
+    private readonly DispatcherTimer _launcherCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(220) };
 
     private const int HotkeyId = 0xB001;
     private const int LocateHotkeyId = 0xB002;
+    private const int SearchHotkeyId = 0xB003;
     private const uint ModAlt = 0x1, ModControl = 0x2;
     private const uint VkG = 0x47;
     private const uint VkF = 0x46;
+    private const uint VkK = 0x4B;
     private const int WmHotkey = 0x0312;
 
     [DllImport("user32.dll")]
@@ -40,11 +42,17 @@ public partial class MainWindow : Window
     private TimersWindow? _timersWindow;
     private FocusWindow? _focusWindow;
     private SettingsWindow? _settingsWindow;
+    private WorkspaceSearchWindow? _searchWindow;
 
     public MainWindow()
     {
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
+        _launcherCloseTimer.Tick += (_, _) =>
+        {
+            if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
+            HideLauncher();
+        };
 
         // A ghosted window can't be clicked at all - not even its own un-ghost button - so
         // the only way back is this app-wide hotkey.
@@ -57,6 +65,7 @@ public partial class MainWindow : Window
             // hidden from Alt+Tab via WindowInterop.HideFromAltTab, so there's no way to
             // intercept the real Alt+Tab keystroke and still let Windows' own switcher work).
             RegisterHotKey(hwnd, LocateHotkeyId, ModControl | ModAlt, VkF);
+            RegisterHotKey(hwnd, SearchHotkeyId, ModControl | ModAlt, VkK);
             HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
         };
         Closed += (_, _) =>
@@ -64,6 +73,7 @@ public partial class MainWindow : Window
             var hwnd = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(hwnd, HotkeyId);
             UnregisterHotKey(hwnd, LocateHotkeyId);
+            UnregisterHotKey(hwnd, SearchHotkeyId);
         };
     }
 
@@ -79,10 +89,15 @@ public partial class MainWindow : Window
             _ = LocateAsync();
             handled = true;
         }
+        else if (msg == WmHotkey && wParam.ToInt32() == SearchHotkeyId)
+        {
+            OpenGlobalSearch();
+            handled = true;
+        }
         return IntPtr.Zero;
     }
 
-    /// Pulses a glow around the launcher and briefly pops its icon row open, so it's
+    /// Pulses a glow around the launcher and briefly opens its round menu, so it's
     /// unmistakable even buried under other windows.
     private async Task LocateAsync()
     {
@@ -109,14 +124,10 @@ public partial class MainWindow : Window
         pulse.Completed += (_, _) => RootBorder.Effect = null;
         glow.BeginAnimation(DropShadowEffect.OpacityProperty, pulse);
 
-        IconsPanel.Visibility = Visibility.Visible;
-        BeginAnimation(WidthProperty, new DoubleAnimation(ExpandedWidth, TimeSpan.FromMilliseconds(150)));
+        ShowLauncher();
         await Task.Delay(2200);
-        if (IsMouseOver) return;
-
-        var collapse = new DoubleAnimation(CollapsedWidth, TimeSpan.FromMilliseconds(150));
-        collapse.Completed += (_, _) => IconsPanel.Visibility = Visibility.Collapsed;
-        BeginAnimation(WidthProperty, collapse);
+        if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
+        HideLauncher();
     }
 
     private void UnghostAll()
@@ -146,16 +157,25 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        IconsPanel.Visibility = Visibility.Visible;
-        var anim = new DoubleAnimation(ExpandedWidth, TimeSpan.FromMilliseconds(150));
-        BeginAnimation(WidthProperty, anim);
+        ShowLauncher();
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
-        var anim = new DoubleAnimation(CollapsedWidth, TimeSpan.FromMilliseconds(150));
-        anim.Completed += (_, _) => IconsPanel.Visibility = Visibility.Collapsed;
-        BeginAnimation(WidthProperty, anim);
+        _launcherCloseTimer.Start();
+    }
+
+    private void LauncherPopup_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
+    private void LauncherPopup_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
+    private void ShowLauncher()
+    {
+        _launcherCloseTimer.Stop();
+        LauncherPopup.IsOpen = true;
+    }
+    private void HideLauncher()
+    {
+        _launcherCloseTimer.Stop();
+        LauncherPopup.IsOpen = false;
     }
 
     private void ToggleWidget_Click(object sender, RoutedEventArgs e)
@@ -203,6 +223,43 @@ public partial class MainWindow : Window
         var active = widget.IsVisible;
         btn.Background = active ? new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent;
         btn.Foreground = active ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x93));
+    }
+
+    private void OpenSearch_Click(object sender, RoutedEventArgs e)
+    {
+        HideLauncher();
+        OpenGlobalSearch();
+    }
+
+    private void OpenGlobalSearch()
+    {
+        if (_searchWindow == null)
+        {
+            _searchWindow = new WorkspaceSearchWindow();
+            _searchWindow.NoteSelected += id =>
+            {
+                var notes = _notesWindow ??= new NotesWindow(_config);
+                notes.Show();
+                notes.OpenNoteFromSearch(id);
+            };
+            _searchWindow.TagSelected += tag =>
+            {
+                var notes = _notesWindow ??= new NotesWindow(_config);
+                notes.Show();
+                notes.FilterByTagFromSearch(tag);
+            };
+            _searchWindow.ProjectSelected += id =>
+            {
+                var projects = _projectsWindow ??= new ProjectsWindow();
+                projects.OpenProjectFromSearch(id);
+                projects.Show();
+                projects.Activate();
+            };
+        }
+
+        _searchWindow.Left = Left + 12;
+        _searchWindow.Top = Top + 58;
+        _searchWindow.OpenAndFocus();
     }
 
     // Right-click on a launcher icon adds an item straight to its default target without

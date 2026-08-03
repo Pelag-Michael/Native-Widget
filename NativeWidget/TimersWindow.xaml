@@ -66,6 +66,12 @@
                                     Click="AddTimer_Click" Style="{StaticResource PrimaryBtnStyle}"/>
                         </Grid>
                         <TextBlock Text="ngày · giờ · phút" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,0" HorizontalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,7,0,0">
+                            <Button Content="5m" Tag="5" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,3" FontSize="10" Margin="2,0"/>
+                            <Button Content="15m" Tag="15" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,3" FontSize="10" Margin="2,0"/>
+                            <Button Content="25m" Tag="25" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,3" FontSize="10" Margin="2,0"/>
+                            <Button Content="1h" Tag="60" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,3" FontSize="10" Margin="2,0"/>
+                        </StackPanel>
                     </StackPanel>
 
                     <!-- Mode B: exact deadline -->

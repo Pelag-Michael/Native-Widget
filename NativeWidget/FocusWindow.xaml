@@ -27,9 +27,9 @@
 
             <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock x:Name="TitleText" Text="Let's focus" Foreground="White" FontSize="24" FontWeight="Bold"
-                           HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                           HorizontalAlignment="Center" Margin="0,0,0,12"/>
 
-                <Grid x:Name="PickerRow" HorizontalAlignment="Center" Margin="0,0,0,20">
+                <Grid x:Name="PickerRow" HorizontalAlignment="Center" Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
@@ -48,6 +48,16 @@
                         <Button Content="&#xE70D;" FontFamily="Segoe MDL2 Assets" Click="MinutesDown_Click" Style="{StaticResource IconBtnStyle}" Height="18" FontSize="8"/>
                     </StackPanel>
                 </Grid>
+
+                <StackPanel x:Name="PresetPanel" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <Button Content="25m" Tag="25" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="9,3" FontSize="10" Margin="2,0"/>
+                    <Button Content="50m" Tag="50" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="9,3" FontSize="10" Margin="2,0"/>
+                    <Button Content="90m" Tag="90" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="9,3" FontSize="10" Margin="2,0"/>
+                </StackPanel>
+
+                <ProgressBar x:Name="FocusProgress" Minimum="0" Maximum="1" Value="0" Width="140" Style="{StaticResource CompactProgressStyle}" Margin="0,0,0,5"/>
+                <TextBlock x:Name="FocusStatus" Text="Chọn thời lượng rồi bắt đầu" Foreground="{StaticResource MutedBrush}" FontSize="10.5"
+                           HorizontalAlignment="Center" Margin="0,0,0,10"/>
 
                 <Button x:Name="PlayBtn" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Click="PlayBtn_Click" Style="{StaticResource PrimaryBtnStyle}"
                         Width="140" Height="42" FontSize="16"/>

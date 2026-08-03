@@ -151,6 +151,23 @@ public partial class NotesWindow : Window
         if (_currentId == null && _openDirectlyId == null) RenderList();
     }
 
+    /// Entry points used by the launcher-wide search. They deliberately go through the same
+    /// save/list transition as Back so a global search never discards an in-progress editor.
+    public void OpenNoteFromSearch(string id)
+    {
+        if (_currentId != null && _currentId != id) SaveCurrentEditor();
+        OpenEditor(id);
+        NoteText.Focus();
+    }
+
+    public void FilterByTagFromSearch(string tag)
+    {
+        ReturnToList();
+        SearchBox.Text = "";
+        RenderList();
+        if (TagFilter.Items.Contains(tag)) TagFilter.SelectedItem = tag;
+    }
+
 
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -438,13 +455,6 @@ public partial class NotesWindow : Window
 
     private void Back_Click(object sender, RoutedEventArgs e)
     {
-        if (_currentId != null)
-        {
-            Linkify();
-            NotesService.SaveNote(_currentId, NoteText.Document);
-            _editorBaselineMarkdown = CurrentEditorMarkdown();
-        }
-
         // A window opened straight into one note (a "pop-out") has no list to go back to -
         // its Back button just closes it.
         if (_openDirectlyId != null)
@@ -453,6 +463,20 @@ public partial class NotesWindow : Window
             return;
         }
 
+        ReturnToList();
+    }
+
+    private void SaveCurrentEditor()
+    {
+        if (_currentId == null) return;
+        Linkify();
+        NotesService.SaveNote(_currentId, NoteText.Document);
+        _editorBaselineMarkdown = CurrentEditorMarkdown();
+    }
+
+    private void ReturnToList()
+    {
+        SaveCurrentEditor();
         _currentId = null;
         RenderList();
         EditorPanel.Visibility = Visibility.Collapsed;
