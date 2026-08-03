@@ -171,11 +171,35 @@ public partial class MainWindow : Window
     {
         _launcherCloseTimer.Stop();
         LauncherPopup.IsOpen = true;
+        LauncherPopupContent.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(150))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        });
+        if (LauncherPopupContent.RenderTransform is ScaleTransform scale)
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            });
+        }
     }
     private void HideLauncher()
     {
         _launcherCloseTimer.Stop();
-        LauncherPopup.IsOpen = false;
+        if (!LauncherPopup.IsOpen) return;
+        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(110))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
+        };
+        fade.Completed += (_, _) =>
+        {
+            if (!IsMouseOver && !LauncherPopupContent.IsMouseOver) LauncherPopup.IsOpen = false;
+        };
+        LauncherPopupContent.BeginAnimation(OpacityProperty, fade);
     }
 
     private void ToggleWidget_Click(object sender, RoutedEventArgs e)
