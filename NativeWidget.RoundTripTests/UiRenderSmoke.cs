@@ -41,6 +41,18 @@ internal static class UiRenderSmoke
         Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
         var app = new App();
         app.InitializeComponent();
+        // Construct every custom window while the app resources are live. This catches a
+        // broken XAML resource/template even when the screenshot below only covers Notes.
+        var parserSmoke = new Window[]
+        {
+            new CalendarWindow(new AppConfig()),
+            new TasksWindow(new AppConfig()),
+            new TimersWindow(),
+            new FocusWindow(),
+            new ProjectsWindow(),
+            new SettingsWindow(new AppConfig(), () => Task.CompletedTask),
+            new WorkspaceSearchWindow(),
+        };
         var window = new NotesWindow(new AppConfig()) { Width = 420, Height = 540 };
         try
         {
@@ -62,6 +74,7 @@ internal static class UiRenderSmoke
         finally
         {
             window.Close();
+            foreach (var parserWindow in parserSmoke) parserWindow.Close();
             app.Shutdown();
             Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", null);
         }

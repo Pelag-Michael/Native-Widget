@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using NativeWidget.Models;
 using NativeWidget.Services;
 
@@ -20,11 +21,12 @@ public partial class SettingsWindow : Window
         Loaded += (_, _) =>
         {
             GoogleClientIdInput.Text = _config.GoogleClientId;
-            GoogleClientSecretInput.Text = _config.GoogleClientSecret;
+            GoogleClientSecretInput.Password = _config.GoogleClientSecret;
             AutoStartCheck.IsChecked = AutoStartService.IsEnabled();
-            NotionTokenInput.Text = _config.NotionToken;
+            NotionTokenInput.Password = _config.NotionToken;
             NotionPageIdInput.Text = _config.NotionParentPageId;
             NotionEnabledCheck.IsChecked = _config.NotionSyncEnabled;
+            UpdateConnectionBadges();
         };
     }
 
@@ -54,20 +56,21 @@ public partial class SettingsWindow : Window
         try
         {
             _config.GoogleClientId = GoogleClientIdInput.Text.Trim();
-            _config.GoogleClientSecret = GoogleClientSecretInput.Text.Trim();
+            _config.GoogleClientSecret = GoogleClientSecretInput.Password.Trim();
 
             var newPageId = NotionPageIdInput.Text.Trim();
             // A changed parent page orphans whatever database was cached under the old one -
             // clear it so EnsureDatabaseAsync creates a fresh one under the new page.
             if (newPageId != _config.NotionParentPageId) _config.NotionDatabaseId = "";
-            _config.NotionToken = NotionTokenInput.Text.Trim();
+            _config.NotionToken = NotionTokenInput.Password.Trim();
             _config.NotionParentPageId = newPageId;
             _config.NotionSyncEnabled = NotionEnabledCheck.IsChecked == true;
 
             Diag($"about to Save() - NotionToken.Length={_config.NotionToken.Length} NotionSyncEnabled={_config.NotionSyncEnabled}");
             _config.Save();
             Diag("Save() returned OK");
-            SettingsStatus.Text = "Đã lưu. Mở widget Calendar bấm Kết nối.";
+            UpdateConnectionBadges();
+            SettingsStatus.Text = "Đã lưu. Mở widget Calendar bấm Kết nối nếu Google chưa hoạt động.";
         }
         catch (Exception ex)
         {
@@ -90,6 +93,24 @@ public partial class SettingsWindow : Window
     {
         GoogleCalendarService.Disconnect();
         await _onCalendarChanged();
+        UpdateConnectionBadges();
         SettingsStatus.Text = "Đã log out Google Calendar.";
+    }
+
+    private void UpdateConnectionBadges()
+    {
+        var googleConnected = GoogleCalendarService.IsConnected();
+        GoogleStatusText.Text = googleConnected ? "Đã kết nối" : "Chưa kết nối";
+        GoogleStatusText.Foreground = googleConnected
+            ? new SolidColorBrush(Color.FromRgb(0x8F, 0xE0, 0xA8)) : (Brush)FindResource("MutedBrush");
+        GoogleStatusBadge.Background = googleConnected
+            ? new SolidColorBrush(Color.FromArgb(0x22, 0x8F, 0xE0, 0xA8)) : new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+
+        var notionEnabled = _config.NotionSyncEnabled && !string.IsNullOrWhiteSpace(_config.NotionToken);
+        NotionStatusText.Text = notionEnabled ? "Đang bật" : "Tắt";
+        NotionStatusText.Foreground = notionEnabled
+            ? new SolidColorBrush(Color.FromRgb(0x8F, 0xE0, 0xA8)) : (Brush)FindResource("MutedBrush");
+        NotionStatusBadge.Background = notionEnabled
+            ? new SolidColorBrush(Color.FromArgb(0x22, 0x8F, 0xE0, 0xA8)) : new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
     }
 }

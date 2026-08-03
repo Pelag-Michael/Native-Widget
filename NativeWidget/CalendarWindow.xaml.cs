@@ -70,6 +70,8 @@ public partial class CalendarWindow : Window
         await RefreshEventsAsync();
     }
 
+    private async void RefreshBtn_Click(object sender, RoutedEventArgs e) => await RefreshEventsAsync();
+
     private async void AddEvent_Click(object sender, RoutedEventArgs e)
     {
         var dialog = AddEventDialog.Show(this);
@@ -91,6 +93,9 @@ public partial class CalendarWindow : Window
         CalDisconnected.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
         CalConnected.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
         AddEventBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+        RefreshBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+        GoogleDisconnectBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+        CalendarStatus.Text = connected ? "Đang đồng bộ..." : "Chưa kết nối";
         if (!connected) return;
 
         LoadingHint.Visibility = Visibility.Visible;
@@ -142,6 +147,8 @@ public partial class CalendarWindow : Window
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             card.Child = row;
 
             var dot = new Ellipse
@@ -172,12 +179,58 @@ public partial class CalendarWindow : Window
             text.Children.Add(time);
             text.Children.Add(title);
 
+            var eventId = ev.Id;
+            var labels = ItemTagsService.Get("event", eventId);
+            if (labels.Count > 0)
+            {
+                var chips = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+                foreach (var label in labels)
+                {
+                    chips.Children.Add(new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromArgb(0x22, 0x4A, 0x7D, 0xFF)),
+                        CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 0, 4, 2),
+                        Child = new TextBlock { Text = label, FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xBB, 0xFF)) },
+                    });
+                }
+                text.Children.Add(chips);
+            }
+
             // Secondary actions (color tag, delete) only appear on hover - showing them on
             // every row at once is what made the list feel busy/cluttered.
             var colorBtn = new ColorTagButton { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0), Opacity = 0 };
             colorBtn.SetColor(tagHex);
-            var eventId = ev.Id;
             colorBtn.ColorSelected += hex => { EventColorsService.SetColor(eventId, hex); _ = RefreshEventsAsync(); };
+
+            var projectBtn = new Button
+            {
+                Content = "\uE8A5", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 11,
+                Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0),
+                ToolTip = "Gán dự án", Style = (Style)FindResource("IconBtnStyle"), Opacity = 0,
+                Foreground = ItemProjectTagsService.Get("event", eventId) != null ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
+            };
+            projectBtn.Click += (_, _) =>
+            {
+                var picked = ProjectPickerDialog.Show(this, ItemProjectTagsService.Get("event", eventId));
+                if (picked == null) return;
+                ItemProjectTagsService.Set("event", eventId, picked == "" ? null : picked);
+                _ = RefreshEventsAsync();
+            };
+
+            var labelBtn = new Button
+            {
+                Content = "\uE8EC", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 11,
+                Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0),
+                ToolTip = "Nhãn", Style = (Style)FindResource("IconBtnStyle"), Opacity = 0,
+                Foreground = labels.Count > 0 ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
+            };
+            labelBtn.Click += (_, _) =>
+            {
+                var input = PromptDialog.Show(this, "Nhãn (cách nhau bởi dấu phẩy)", string.Join(", ", labels));
+                if (input == null) return;
+                ItemTagsService.Set("event", eventId, input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+                _ = RefreshEventsAsync();
+            };
 
             var delBtn = new Button
             {
@@ -207,21 +260,26 @@ public partial class CalendarWindow : Window
                 }
             };
 
-            card.MouseEnter += (_, _) => { colorBtn.Opacity = 1; delBtn.Opacity = 1; };
-            card.MouseLeave += (_, _) => { colorBtn.Opacity = 0; delBtn.Opacity = 0; };
+            card.MouseEnter += (_, _) => { colorBtn.Opacity = 1; projectBtn.Opacity = 1; labelBtn.Opacity = 1; delBtn.Opacity = 1; };
+            card.MouseLeave += (_, _) => { colorBtn.Opacity = 0; projectBtn.Opacity = 0; labelBtn.Opacity = 0; delBtn.Opacity = 0; };
 
             Grid.SetColumn(dot, 0);
             Grid.SetColumn(text, 1);
             Grid.SetColumn(colorBtn, 2);
-            Grid.SetColumn(delBtn, 3);
+            Grid.SetColumn(projectBtn, 3);
+            Grid.SetColumn(labelBtn, 4);
+            Grid.SetColumn(delBtn, 5);
             row.Children.Add(dot);
             row.Children.Add(text);
             row.Children.Add(colorBtn);
+            row.Children.Add(projectBtn);
+            row.Children.Add(labelBtn);
             row.Children.Add(delBtn);
 
             _eventLinks[card] = ev.Link;
             EventList.Items.Add(card);
         }
+        CalendarStatus.Text = $"Đã cập nhật {DateTime.Now:HH:mm}";
     }
 
     private void EventList_MouseUp(object sender, MouseButtonEventArgs e)

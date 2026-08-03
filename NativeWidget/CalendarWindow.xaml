@@ -28,9 +28,12 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="&#xE787;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
                     <TextBlock Text="Calendar" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="CalendarStatus" Text="Chưa kết nối" Foreground="{StaticResource MutedBrush}" FontSize="10.5" Margin="8,1,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="AddEventBtn" Content="&#xE710;" ToolTip="Sự kiện mới" Click="AddEvent_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
+                    <Button x:Name="RefreshBtn" Content="&#xE72C;" ToolTip="Làm mới lịch" Click="RefreshBtn_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
+                    <Button x:Name="GoogleDisconnectBtn" Content="&#xE711;" ToolTip="Ngắt kết nối Google" Click="GoogleDisconnectBtn_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
                     <local:WidgetHeaderControls x:Name="HeaderControls"/>
                 </StackPanel>
             </Grid>
@@ -41,18 +44,13 @@
                     <Button x:Name="GoogleConnectBtn" Content="Kết nối Google Calendar" Click="GoogleConnectBtn_Click" Style="{StaticResource PrimaryBtnStyle}" HorizontalAlignment="Left"/>
                 </StackPanel>
                 <Grid x:Name="CalConnected" Visibility="Collapsed">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <ListBox x:Name="EventList" Grid.Row="0" Background="Transparent" BorderThickness="0"
+                    <ListBox x:Name="EventList" Background="Transparent" BorderThickness="0"
                              ScrollViewer.CanContentScroll="False"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              VirtualizingPanel.IsVirtualizing="False"
                              ItemContainerStyle="{StaticResource ListItemStyle}" MouseUp="EventList_MouseUp"/>
-                    <TextBlock x:Name="LoadingHint" Grid.Row="0" Text="Đang tải..." Foreground="{StaticResource MutedBrush}"
+                    <TextBlock x:Name="LoadingHint" Text="Đang tải..." Foreground="{StaticResource MutedBrush}"
                                FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
-                    <Button x:Name="GoogleDisconnectBtn" Grid.Row="1" Content="Ngắt kết nối" Click="GoogleDisconnectBtn_Click" Style="{StaticResource GhostDangerBtnStyle}" HorizontalAlignment="Left" Margin="0,8,0,0"/>
                 </Grid>
             </Grid>
         </Grid>
