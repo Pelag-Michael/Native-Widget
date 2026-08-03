@@ -119,8 +119,9 @@ body remains untouched in storage. This keeps long or newline-heavy notes from e
 single card until it pushes the rest of the scrollable list off-screen.
 
 **Free-form labels** — `NoteMeta.Tags` (`List<string>`), edited via a plain comma-separated
-`PromptDialog` (the `#` button on each card), rendered as small pill chips under the
-preview. Independent from the project tag (`ItemProjectTagsService` — a note has at most
+`PromptDialog` (the tag icon on each card), rendered as small pill chips under the preview.
+Project assignment reuses the launcher's Projects icon so it remains visually distinct from labels.
+Independent from the project tag (`ItemProjectTagsService` — a note has at most
 one project, but any number of labels). `TagFilter` combo populated from the distinct set
 of tags across all notes, rebuilt on every `RenderList()`.
 
