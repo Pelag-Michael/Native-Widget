@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -14,7 +13,7 @@ namespace NativeWidget;
 public partial class CalendarWindow : Window
 {
     private readonly AppConfig _config;
-    private readonly Dictionary<object, string> _eventLinks = new();
+    private readonly Dictionary<object, CalendarEvent> _eventItems = new();
     private readonly DispatcherTimer _autoRefreshTimer = new() { Interval = TimeSpan.FromMinutes(5) };
 
     public CalendarWindow(AppConfig config)
@@ -103,7 +102,7 @@ public partial class CalendarWindow : Window
         var events = await GoogleCalendarService.GetUpcomingEventsAsync(_config);
         LoadingHint.Visibility = Visibility.Collapsed;
         EventList.Items.Clear();
-        _eventLinks.Clear();
+        _eventItems.Clear();
 
         DateTime? lastDay = null;
         var vi = new System.Globalization.CultureInfo("vi-VN");
@@ -290,7 +289,7 @@ public partial class CalendarWindow : Window
             row.Children.Add(labelBtn);
             row.Children.Add(delBtn);
 
-            _eventLinks[card] = ev.Link;
+            _eventItems[card] = ev;
             EventList.Items.Add(card);
         }
         CalendarStatus.Text = $"Đã cập nhật {DateTime.Now:HH:mm}";
@@ -303,8 +302,14 @@ public partial class CalendarWindow : Window
         // MouseLeftButtonUp handled), which would otherwise also open the event link.
         if (e.OriginalSource is DependencyObject d && FindAncestor<ButtonBase>(d) != null) return;
 
-        if (EventList.SelectedItem != null && _eventLinks.TryGetValue(EventList.SelectedItem, out var link) && !string.IsNullOrEmpty(link))
-            Process.Start(new ProcessStartInfo(link) { UseShellExecute = true });
+        if (EventList.SelectedItem == null || !_eventItems.TryGetValue(EventList.SelectedItem, out var ev)) return;
+
+        var start = DateTime.Parse(ev.Start);
+        var metadata = ev.AllDay
+            ? $"Cả ngày · {start:dd/MM/yyyy}"
+            : $"{start:HH:mm} · {start:dd/MM/yyyy}";
+        ItemDetailsDialog.Show(this, ev.Title, metadata, ev.Description,
+            "Mở Google Calendar", ev.Link, canEditDescription: false);
     }
 
     private static T? FindAncestor<T>(DependencyObject d) where T : DependencyObject

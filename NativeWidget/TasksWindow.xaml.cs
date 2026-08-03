@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -253,6 +254,7 @@ public partial class TasksWindow : Window
         if (!string.IsNullOrEmpty(_searchText))
         {
             var matchingIds = allTasks.Where(t => t.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
+                                               || t.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase)
                                                || (localTags.TryGetValue($"task:{t.Id}", out var tags) &&
                                                    tags.Any(tag => tag.Contains(_searchText, StringComparison.OrdinalIgnoreCase))))
                 .Select(t => t.Id).ToHashSet();
@@ -404,6 +406,19 @@ public partial class TasksWindow : Window
             FontSize = 12.5,
             TextWrapping = TextWrapping.Wrap,
         });
+        if (!string.IsNullOrWhiteSpace(task.Description))
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = task.Description.Trim(),
+                Foreground = (Brush)FindResource("MutedBrush"),
+                FontSize = 10.5,
+                TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                MaxHeight = 33,
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+        }
         if (task.Due != null && !task.Completed)
         {
             var days = (task.Due.Value.Date - DateTime.Today).Days;
@@ -566,7 +581,38 @@ public partial class TasksWindow : Window
         row.Children.Add(check);
         row.Children.Add(content);
         row.Children.Add(actions);
+        row.Cursor = Cursors.Hand;
+        row.MouseLeftButtonUp += async (_, e) =>
+        {
+            if (e.OriginalSource is DependencyObject d && FindAncestor<ButtonBase>(d) != null) return;
+
+            var status = task.Completed ? "Đã hoàn thành" : "Đang làm";
+            var due = task.Due == null ? "Không có hạn" : $"Hạn {task.Due.Value:dd/MM/yyyy}";
+            var result = ItemDetailsDialog.Show(this, task.Title, $"{status} · {due}", task.Description,
+                "Mở Google Tasks", "https://tasks.google.com/", canEditDescription: true);
+            if (!result.DescriptionChanged) return;
+
+            try
+            {
+                await GoogleTasksService.SetDescriptionAsync(_config, listId, task.Id, result.Description);
+                await RefreshTasksAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Không lưu được mô tả: {ex.Message}", "Lỗi");
+            }
+        };
         return row;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject d) where T : DependencyObject
+    {
+        while (d is not null)
+        {
+            if (d is T match) return match;
+            d = VisualTreeHelper.GetParent(d);
+        }
+        return null;
     }
 
     private async void AddTask_Click(object sender, RoutedEventArgs e) => await AddTaskAsync();
