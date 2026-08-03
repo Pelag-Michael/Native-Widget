@@ -76,9 +76,10 @@ deliberate hotkey, **not** a real Alt+Tab hook: every widget calls
 `Ctrl+Alt+K` opens `WorkspaceSearchWindow`, which searches local notes (title, preview, label,
 assigned-project name), labels and projects. Selecting a note opens its editor; a project makes
 it the current focus project; a note label filters the Notes list. The launcher itself remains a
-52px circular drag handle; hover opens a separate circular `Popup` whose function icons orbit a
-matching launcher icon in the center. Keep the fixed menu size and canvas positions in sync if
-another launcher action is added.
+52px circular drag handle; hover opens a circular `Popup` centered on that icon, with a matching
+launcher icon in the middle and actions evenly laid out by `RadialPanel`. The panel derives its
+radius from the largest child and available space, so adding/removing actions redistributes the
+remaining space automatically. Opening/closing uses short scale-and-fade animations.
 
 ## Styling (all in App.xaml, global)
 
