@@ -45,9 +45,17 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <ComboBox x:Name="ListSelect" Padding="8,5" SelectionChanged="ListSelect_Changed"/>
-                <local:ColorTagButton x:Name="ListColorBtn" Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                <Button x:Name="CreateListBtn" Grid.Column="1" Content="&#xE710;" FontFamily="Segoe MDL2 Assets"
+                        ToolTip="Tạo Google Tasklist mới" Click="CreateList_Click"
+                        Style="{StaticResource IconBtnStyle}" Margin="5,0,0,0"/>
+                <Button Grid.Column="2" Content="&#xE72C;" FontFamily="Segoe MDL2 Assets"
+                        ToolTip="Đồng bộ lại Tasklist" Click="RefreshLists_Click"
+                        Style="{StaticResource IconBtnStyle}" Margin="2,0,0,0"/>
+                <local:ColorTagButton x:Name="ListColorBtn" Grid.Column="3" Margin="2,0,0,0" VerticalAlignment="Center"/>
             </Grid>
 
             <Grid Grid.Row="2" Margin="0,0,0,6">

@@ -107,6 +107,24 @@ public static class GoogleTasksService
         return lists;
     }
 
+    public static async Task<GoogleTaskList?> CreateTaskListAsync(AppConfig cfg, string title)
+    {
+        var token = await GetValidAccessTokenAsync(cfg);
+        if (token == null) return null;
+
+        var res = await Http.SendAsync(Authed(HttpMethod.Post,
+            "https://www.googleapis.com/tasks/v1/users/@me/lists", token,
+            new { title }));
+        await ThrowIfFailedAsync(res);
+        var item = await res.Content.ReadFromJsonAsync<JsonElement>();
+        if (!item.TryGetProperty("id", out var id)) return null;
+        return new GoogleTaskList
+        {
+            Id = id.GetString() ?? "",
+            Title = item.TryGetProperty("title", out var returnedTitle) ? returnedTitle.GetString() ?? title : title,
+        };
+    }
+
     public static async Task<List<GoogleTaskItem>> GetTasksAsync(AppConfig cfg, string listId)
     {
         var token = await GetValidAccessTokenAsync(cfg);

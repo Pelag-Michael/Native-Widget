@@ -248,6 +248,10 @@ subtasks nest one level deep via Google's `parent` field. Shares `google-token.j
 Calendar — `GoogleCalendarService.Scope` requests both `calendar.readonly` and `tasks` in
 the same consent, so connecting Calendar once is enough; `GoogleTasksService` never runs
 its own OAuth flow. A `ComboBox` switches between the user's Google Tasklists.
+The list toolbar can create a real Google Tasklist through `CreateTaskListAsync` and explicitly
+reload the list collection. The five-minute refresh timer also calls the full `ReloadAsync`
+rather than refreshing only tasks in the selected list, so Tasklists created in Google's UI
+appear without restarting the widget; reopening it from the launcher triggers the same reload.
 
 Deleting a parent with subtasks prompts to delete the children too (cascade), rather than
 leaving them orphaned with a dangling `parent` reference.

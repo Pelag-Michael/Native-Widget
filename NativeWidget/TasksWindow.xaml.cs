@@ -56,6 +56,7 @@ public partial class TasksWindow : Window
         {
             ListSelect.IsEnabled = false;
             PopOutBtn.Visibility = Visibility.Collapsed;
+            CreateListBtn.Visibility = Visibility.Collapsed;
         }
 
         ListColorBtn.ColorSelected += hex =>
@@ -68,7 +69,7 @@ public partial class TasksWindow : Window
 
         PopulateProjectFilter();
         Loaded += async (_, _) => await ReloadAsync();
-        _autoRefreshTimer.Tick += async (_, _) => { if (IsVisible) await RefreshTasksAsync(); };
+        _autoRefreshTimer.Tick += async (_, _) => { if (IsVisible) await ReloadAsync(); };
         _autoRefreshTimer.Start();
     }
 
@@ -101,7 +102,7 @@ public partial class TasksWindow : Window
     }
 
     /// Loads the tasklists, then the tasks of whichever one ends up selected.
-    private async Task ReloadAsync()
+    private async Task ReloadAsync(string? preferredListId = null)
     {
         if (_isBusy) return;
         _isBusy = true;
@@ -116,7 +117,7 @@ public partial class TasksWindow : Window
             Disconnected.Visibility = Visibility.Collapsed;
             PopulateProjectFilter();
 
-            var selectedId = _lockedListId ?? CurrentListId;
+            var selectedId = _lockedListId ?? preferredListId ?? CurrentListId;
             _lists = await GoogleTasksService.GetTaskListsAsync(_config);
 
             _suppressSelectionChanged = true;
@@ -142,6 +143,29 @@ public partial class TasksWindow : Window
     }
 
     public async void Refresh() => await ReloadAsync();
+
+    private async void RefreshLists_Click(object sender, RoutedEventArgs e) => await ReloadAsync();
+
+    private async void CreateList_Click(object sender, RoutedEventArgs e)
+    {
+        var title = PromptDialog.Show(this, "Tasklist mới", "");
+        if (string.IsNullOrWhiteSpace(title)) return;
+
+        try
+        {
+            var created = await GoogleTasksService.CreateTaskListAsync(_config, title.Trim());
+            if (created == null)
+            {
+                MessageBox.Show("Không tạo được Tasklist. Hãy kiểm tra kết nối Google.", "Lỗi");
+                return;
+            }
+            await ReloadAsync(created.Id);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Không tạo được Tasklist: {ex.Message}", "Lỗi");
+        }
+    }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
