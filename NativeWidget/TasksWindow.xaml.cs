@@ -543,9 +543,9 @@ public partial class TasksWindow : Window
         };
         labelBtn.Click += (_, _) =>
         {
-            var input = PromptDialog.Show(this, "Nhãn (cách nhau bởi dấu phẩy)", string.Join(", ", labels));
-            if (input == null) return;
-            ItemTagsService.Set("task", task.Id, input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            var picked = LabelPickerDialog.Show(this, labels);
+            if (picked == null) return;
+            ItemTagsService.Set("task", task.Id, picked);
             if (_lastRenderedListId != null && _lastRenderedTasks != null)
                 RenderTasks(_lastRenderedListId, _lastRenderedTasks);
         };

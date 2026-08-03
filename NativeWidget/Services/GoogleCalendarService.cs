@@ -21,6 +21,7 @@ public class CalendarEvent
     public string Start { get; set; } = "";
     public bool AllDay { get; set; }
     public string Link { get; set; } = "";
+    public string Description { get; set; } = "";
 }
 
 public static class GoogleCalendarService
@@ -108,7 +109,8 @@ public static class GoogleCalendarService
     /// otherwise `start` is treated as local time and the event runs 1 hour.
     /// recurrenceFreq, when given ("DAILY"/"WEEKLY"/"MONTHLY"), repeats the event forever -
     /// matches what the class-schedule events use (RRULE:FREQ=WEEKLY with no UNTIL/COUNT).
-    public static async Task CreateEventAsync(AppConfig cfg, string title, DateTime start, bool allDay, string? recurrenceFreq = null)
+    public static async Task CreateEventAsync(AppConfig cfg, string title, DateTime start, bool allDay,
+        string? recurrenceFreq = null, string? description = null)
     {
         var token = await GetValidAccessTokenAsync(cfg);
         if (token == null) return;
@@ -137,6 +139,7 @@ public static class GoogleCalendarService
         };
         if (recurrenceFreq != null)
             bodyDict["recurrence"] = new[] { $"RRULE:FREQ={recurrenceFreq}" };
+        if (!string.IsNullOrWhiteSpace(description)) bodyDict["description"] = description.Trim();
 
         var req = new HttpRequestMessage(HttpMethod.Post, "https://www.googleapis.com/calendar/v3/calendars/primary/events");
         req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -195,6 +198,7 @@ public static class GoogleCalendarService
                     Start = hasDateTime ? dt.GetString()! : start.GetProperty("date").GetString()!,
                     AllDay = !hasDateTime,
                     Link = e.TryGetProperty("htmlLink", out var l) ? l.GetString() ?? "" : "",
+                    Description = e.TryGetProperty("description", out var description) ? description.GetString() ?? "" : "",
                 });
             }
         }

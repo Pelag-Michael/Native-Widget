@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private NotesWindow? _notesWindow;
     private TimersWindow? _timersWindow;
     private FocusWindow? _focusWindow;
+    private LabelsWindow? _labelsWindow;
     private SettingsWindow? _settingsWindow;
     private WorkspaceSearchWindow? _searchWindow;
 
@@ -147,6 +148,7 @@ public partial class MainWindow : Window
         if (_notesWindow != null) yield return (_notesWindow, _notesWindow.Header);
         if (_timersWindow != null) yield return (_timersWindow, _timersWindow.Header);
         if (_focusWindow != null) yield return (_focusWindow, _focusWindow.Header);
+        if (_labelsWindow != null) yield return (_labelsWindow, _labelsWindow.Header);
         if (_settingsWindow != null) yield return (_settingsWindow, _settingsWindow.Header);
     }
 
@@ -215,6 +217,7 @@ public partial class MainWindow : Window
             "Notes" => _notesWindow ??= new NotesWindow(_config),
             "Timers" => _timersWindow ??= new TimersWindow(),
             "Focus" => _focusWindow ??= new FocusWindow(),
+            "Labels" => _labelsWindow ??= new LabelsWindow(),
             "Settings" => _settingsWindow ??= new SettingsWindow(_config, async () =>
             {
                 if (_calendarWindow != null) await _calendarWindow.RefreshEventsAsync();
@@ -231,6 +234,7 @@ public partial class MainWindow : Window
             if (widget is TimersWindow timers) timers.Refresh();
             if (widget is ProjectsWindow projects) projects.Render();
             if (widget is TasksWindow tasksW) tasksW.Refresh();
+            if (widget is LabelsWindow labels) labels.Render();
             widget.Show();
             widget.Activate();
 
@@ -329,7 +333,8 @@ public partial class MainWindow : Window
         if (dialog == null) return;
         try
         {
-            await GoogleCalendarService.CreateEventAsync(_config, dialog.EventTitle, dialog.Start, dialog.AllDay, dialog.RecurrenceFreq);
+            await GoogleCalendarService.CreateEventAsync(_config, dialog.EventTitle, dialog.Start, dialog.AllDay,
+                dialog.RecurrenceFreq, dialog.EventNote);
             if (_calendarWindow != null) await _calendarWindow.RefreshEventsAsync();
         }
         catch (Exception ex)
@@ -340,10 +345,10 @@ public partial class MainWindow : Window
 
     private void CloseAll_Click(object sender, RoutedEventArgs e)
     {
-        foreach (Window? w in new Window?[] { _projectsWindow, _calendarWindow, _tasksWindow, _notesWindow, _timersWindow, _focusWindow, _settingsWindow })
+        foreach (Window? w in new Window?[] { _projectsWindow, _calendarWindow, _tasksWindow, _notesWindow, _timersWindow, _focusWindow, _labelsWindow, _settingsWindow })
             w?.Hide();
 
-        foreach (var btn in new[] { BtnProjects, BtnCalendar, BtnTasks, BtnNotes, BtnTimers, BtnFocus, BtnSettings })
+        foreach (var btn in new[] { BtnProjects, BtnCalendar, BtnTasks, BtnNotes, BtnTimers, BtnFocus, BtnLabels, BtnSettings })
         {
             btn.Background = Brushes.Transparent;
             btn.Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x93));

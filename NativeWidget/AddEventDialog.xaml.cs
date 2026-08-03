@@ -7,6 +7,7 @@ public partial class AddEventDialog : Window
     public string EventTitle { get; private set; } = "";
     public DateTime Start { get; private set; }
     public bool AllDay { get; private set; }
+    public string EventNote { get; private set; } = "";
 
     /// null = does not repeat; otherwise a Google RRULE FREQ value ("DAILY"/"WEEKLY"/"MONTHLY").
     public string? RecurrenceFreq { get; private set; }
@@ -44,6 +45,7 @@ public partial class AddEventDialog : Window
         }
 
         EventTitle = title;
+        EventNote = NoteInput.Text.Trim();
         Start = date.Value.Date + time;
         RecurrenceFreq = RepeatCombo.SelectedIndex switch
         {

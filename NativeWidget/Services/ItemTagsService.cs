@@ -48,6 +48,27 @@ public static class ItemTagsService
         if (normalized.Count == 0) map.Remove(key);
         else map[key] = normalized;
         Save(map);
+        LabelsService.Register(normalized);
+    }
+
+    public static void RenameTag(string oldLabel, string newLabel)
+    {
+        var map = Load();
+        foreach (var key in map.Keys.ToList())
+            map[key] = map[key].Select(tag => string.Equals(tag, oldLabel, StringComparison.OrdinalIgnoreCase) ? newLabel : tag)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        Save(map);
+    }
+
+    public static void RemoveTag(string label)
+    {
+        var map = Load();
+        foreach (var key in map.Keys.ToList())
+        {
+            map[key].RemoveAll(tag => string.Equals(tag, label, StringComparison.OrdinalIgnoreCase));
+            if (map[key].Count == 0) map.Remove(key);
+        }
+        Save(map);
     }
 
     public static IEnumerable<string> AllTags() => Load().Values.SelectMany(tags => tags)

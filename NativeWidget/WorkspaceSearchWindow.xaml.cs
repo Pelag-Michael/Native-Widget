@@ -43,9 +43,7 @@ public partial class WorkspaceSearchWindow : Window
         var projectsById = projects.ToDictionary(project => project.Id);
         var assignments = ItemProjectTagsService.Load();
         var notes = NotesService.LoadIndex();
-        var tags = notes.SelectMany(note => note.Tags).Concat(ItemTagsService.AllTags())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase);
+        var tags = LabelsService.LoadAll();
 
         bool Matches(string? value) => string.IsNullOrEmpty(query) || (!string.IsNullOrEmpty(value) && value.Contains(query, StringComparison.OrdinalIgnoreCase));
         var results = new List<SearchResult>();
