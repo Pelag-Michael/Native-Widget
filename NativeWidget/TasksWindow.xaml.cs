@@ -489,7 +489,7 @@ public partial class TasksWindow : Window
 
         var tagBtn = new Button
         {
-            Content = "\uE8EC",
+            Content = "\uE8A5",
             FontFamily = new FontFamily("Segoe MDL2 Assets"),
             FontSize = 11,
             Width = 22,

@@ -317,7 +317,7 @@ public partial class NotesWindow : Window
 
             var projectBtn = new Button
             {
-                Content = "\uE8EC",
+                Content = "\uE8A5",
                 FontFamily = new FontFamily("Segoe MDL2 Assets"),
                 FontSize = 11,
                 Width = 22,
@@ -339,9 +339,9 @@ public partial class NotesWindow : Window
 
             var labelBtn = new Button
             {
-                Content = "#",
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
+                Content = "\uE8EC",
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontSize = 11,
                 Width = 22,
                 Height = 22,
                 VerticalAlignment = VerticalAlignment.Top,
