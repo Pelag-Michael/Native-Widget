@@ -19,6 +19,7 @@ public class GoogleTaskItem
     public string Title { get; set; } = "";
     public bool Completed { get; set; }
     public string? ParentId { get; set; }
+    public string Description { get; set; } = "";
 
     /// Google Tasks only stores a date, never a time of day - the countdown this powers
     /// is always in whole days, never hours/minutes.
@@ -129,6 +130,7 @@ public static class GoogleTasksService
                         Title = it.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "",
                         Completed = it.TryGetProperty("status", out var s) && s.GetString() == "completed",
                         ParentId = it.TryGetProperty("parent", out var p) ? p.GetString() : null,
+                        Description = it.TryGetProperty("notes", out var n) ? n.GetString() ?? "" : "",
                         Due = it.TryGetProperty("due", out var d) && DateTime.TryParse(d.GetString(), out var dueVal)
                             ? dueVal : null,
                     });
@@ -155,6 +157,16 @@ public static class GoogleTasksService
 
     public static Task ToggleTaskAsync(AppConfig cfg, string listId, string taskId, bool completed) =>
         PatchStatusAsync(cfg, listId, taskId, completed);
+
+    public static async Task SetDescriptionAsync(AppConfig cfg, string listId, string taskId, string description)
+    {
+        var token = await GetValidAccessTokenAsync(cfg);
+        if (token == null) return;
+        var res = await Http.SendAsync(Authed(HttpMethod.Patch,
+            $"https://www.googleapis.com/tasks/v1/lists/{listId}/tasks/{taskId}", token,
+            new { notes = description }));
+        await ThrowIfFailedAsync(res);
+    }
 
     private static async Task PatchStatusAsync(AppConfig cfg, string listId, string taskId, bool completed)
     {

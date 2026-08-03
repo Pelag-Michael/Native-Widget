@@ -114,11 +114,11 @@ at `%AppData%\NativeWidget\google-token.json`, refreshed transparently. Fetches 
 got dominated by same-day recurring "birthday" all-day events, hiding real future events).
 Events are grouped by day with headers (Hôm nay / Ngày mai / weekday+date). Auto-refreshes
 every 5 min while visible, and on `Activated` (so reopening the widget always shows current
-data without needing to reconnect). A row's delete button sits inside a `ListBox` item that
-also handles `MouseUp` to open the event's Google link - `FindAncestor<ButtonBase>` in the
-`MouseUp` handler skips that open when the click actually landed on a button, since
-`ButtonBase` only marks the narrower `MouseLeftButtonUp` handled, not the generic `MouseUp`
-that bubbles past it.
+data without needing to reconnect). Clicking an event opens `ItemDetailsDialog` instead of
+immediately launching a browser. The dialog shows event metadata and description, turns bare
+domains and full URLs into clickable links through `LinkDetection`, and keeps opening Google
+Calendar behind an explicit button. `FindAncestor<ButtonBase>` prevents row actions from also
+opening the details dialog.
 
 The Calendar header exposes explicit refresh and disconnect controls plus a compact last-sync
 status, instead of reserving permanent bottom-row space for disconnect. Events can carry
@@ -240,7 +240,7 @@ both widgets use the same tag icon and checkbox-based `LabelPickerDialog` as Not
 Calendar event project assignments are also kept in the existing local `ItemProjectTagsService`
 map, so neither enhancement changes a Google record.
 
-Google Tasks, **2-way** (unlike Calendar, which is view-only): add, check off, delete, and
+Google Tasks, **2-way**: add, check off, delete, and
 subtasks nest one level deep via Google's `parent` field. Shares `google-token.json` with
 Calendar — `GoogleCalendarService.Scope` requests both `calendar.readonly` and `tasks` in
 the same consent, so connecting Calendar once is enough; `GoogleTasksService` never runs
@@ -256,6 +256,12 @@ list (`_lastRenderedTasks`) instead of re-fetching from Google.
 Tasks can carry a **due date** (`GoogleTasksService.SetDueDateAsync`) shown as a day-count
 under the title ("còn N ngày" / "quá hạn N ngày"). Google Tasks only stores a date, never a
 time of day, so the countdown is always in whole days.
+
+Clicking a task opens the same `ItemDetailsDialog` used by Calendar. Its description is the
+real Google Tasks `notes` field (not local metadata): it can be edited and patched back with
+`GoogleTasksService.SetDescriptionAsync`, is included in task search, and uses `LinkDetection`
+so both explicit URLs and bare domains are clickable. Opening Google Tasks remains a separate
+button in the dialog, so selecting a task never unexpectedly leaves the widget.
 
 Each Google Tasklist can be **tinted**: `TaskListColorsService` stores listId→hex locally
 (Tasks has no native per-list color field), and `TasksWindow` blends that color into the
