@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
+using System.Windows.Threading;
 using NativeWidget.Models;
 using NativeWidget.Services;
 
@@ -14,9 +15,8 @@ namespace NativeWidget;
 
 public partial class MainWindow : Window
 {
-    // Drag handle (~34) + one 40px-wide icon slot per launcher button, plus panel padding.
-    private const double CollapsedWidth = 52;
-    private const double ExpandedWidth = 442;
+    // The dock itself is fixed at 52px; a round Popup holds the 3×3 icon menu on hover.
+    private readonly DispatcherTimer _launcherCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(220) };
 
     private const int HotkeyId = 0xB001;
     private const int LocateHotkeyId = 0xB002;
@@ -48,6 +48,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
+        _launcherCloseTimer.Tick += (_, _) =>
+        {
+            if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
+            HideLauncher();
+        };
 
         // A ghosted window can't be clicked at all - not even its own un-ghost button - so
         // the only way back is this app-wide hotkey.
@@ -92,7 +97,7 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    /// Pulses a glow around the launcher and briefly pops its icon row open, so it's
+    /// Pulses a glow around the launcher and briefly opens its round menu, so it's
     /// unmistakable even buried under other windows.
     private async Task LocateAsync()
     {
@@ -119,14 +124,10 @@ public partial class MainWindow : Window
         pulse.Completed += (_, _) => RootBorder.Effect = null;
         glow.BeginAnimation(DropShadowEffect.OpacityProperty, pulse);
 
-        IconsPanel.Visibility = Visibility.Visible;
-        BeginAnimation(WidthProperty, new DoubleAnimation(ExpandedWidth, TimeSpan.FromMilliseconds(150)));
+        ShowLauncher();
         await Task.Delay(2200);
-        if (IsMouseOver) return;
-
-        var collapse = new DoubleAnimation(CollapsedWidth, TimeSpan.FromMilliseconds(150));
-        collapse.Completed += (_, _) => IconsPanel.Visibility = Visibility.Collapsed;
-        BeginAnimation(WidthProperty, collapse);
+        if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
+        HideLauncher();
     }
 
     private void UnghostAll()
@@ -156,16 +157,25 @@ public partial class MainWindow : Window
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        IconsPanel.Visibility = Visibility.Visible;
-        var anim = new DoubleAnimation(ExpandedWidth, TimeSpan.FromMilliseconds(150));
-        BeginAnimation(WidthProperty, anim);
+        ShowLauncher();
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
-        var anim = new DoubleAnimation(CollapsedWidth, TimeSpan.FromMilliseconds(150));
-        anim.Completed += (_, _) => IconsPanel.Visibility = Visibility.Collapsed;
-        BeginAnimation(WidthProperty, anim);
+        _launcherCloseTimer.Start();
+    }
+
+    private void LauncherPopup_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
+    private void LauncherPopup_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
+    private void ShowLauncher()
+    {
+        _launcherCloseTimer.Stop();
+        LauncherPopup.IsOpen = true;
+    }
+    private void HideLauncher()
+    {
+        _launcherCloseTimer.Stop();
+        LauncherPopup.IsOpen = false;
     }
 
     private void ToggleWidget_Click(object sender, RoutedEventArgs e)
@@ -215,7 +225,11 @@ public partial class MainWindow : Window
         btn.Foreground = active ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x93));
     }
 
-    private void OpenSearch_Click(object sender, RoutedEventArgs e) => OpenGlobalSearch();
+    private void OpenSearch_Click(object sender, RoutedEventArgs e)
+    {
+        HideLauncher();
+        OpenGlobalSearch();
+    }
 
     private void OpenGlobalSearch()
     {

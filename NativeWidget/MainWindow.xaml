@@ -6,30 +6,35 @@
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
         MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave"
         Left="40" Top="40">
-    <Border x:Name="RootBorder" Background="{StaticResource PanelBg}" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="8" ClipToBounds="False">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Width="30" Cursor="SizeAll" MouseLeftButtonDown="DragBar_MouseDown"
-                    Background="Transparent" Margin="0,0,4,0">
-                <TextBlock Text="⋮⋮" Foreground="{StaticResource MutedBrush}" FontSize="14"
+    <Grid Background="Transparent">
+        <!-- The launcher itself stays compact. Its menu is a separate round Popup, so
+             hovering no longer stretches a long horizontal bar across the desktop. -->
+        <Border x:Name="RootBorder" Background="{StaticResource PanelBg}" CornerRadius="22"
+                BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="8">
+            <Border x:Name="DragBar" Cursor="SizeAll" MouseLeftButtonDown="DragBar_MouseDown"
+                    Background="Transparent" ToolTip="Kéo để di chuyển · rê chuột để mở menu">
+                <TextBlock Text="&#xE700;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource MutedBrush}" FontSize="15"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
+        </Border>
 
-            <UniformGrid x:Name="IconsPanel" Grid.Column="1" Rows="1" Columns="9" Visibility="Collapsed">
-                <Button x:Name="BtnSearch" Content="&#xE721;" ToolTip="Tìm kiếm chung (Ctrl+Alt+K)" Click="OpenSearch_Click" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnProjects" Content="&#xE8A5;" ToolTip="Projects" Click="ToggleWidget_Click" Tag="Projects" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnCalendar" Content="&#xE787;" ToolTip="Calendar (chuột phải: sự kiện nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddCalendar_Click" Tag="Calendar" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnTasks" Content="&#xE73A;" ToolTip="Tasks (chuột phải: task nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddTask_Click" Tag="Tasks" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnNotes" Content="&#xE70F;" ToolTip="Notes (chuột phải: ghi chú nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddNote_Click" Tag="Notes" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnTimers" Content="&#xE916;" ToolTip="Timers" Click="ToggleWidget_Click" Tag="Timers" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnFocus" Content="&#xE121;" ToolTip="Focus session" Click="ToggleWidget_Click" Tag="Focus" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnSettings" Content="&#xE713;" ToolTip="Settings" Click="ToggleWidget_Click" Tag="Settings" Style="{StaticResource TabIconStyle}"/>
-                <Button x:Name="BtnCloseAll" Content="&#xE711;" ToolTip="Đóng tất cả" Click="CloseAll_Click" Style="{StaticResource TabIconStyle}"/>
-            </UniformGrid>
-        </Grid>
-    </Border>
+        <Popup x:Name="LauncherPopup" PlacementTarget="{Binding ElementName=RootBorder}" Placement="Right"
+               HorizontalOffset="8" VerticalOffset="-4" AllowsTransparency="True" StaysOpen="True">
+            <Border x:Name="LauncherPopupContent" Width="176" Height="176" Background="#FA131217" CornerRadius="88"
+                    BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="18"
+                    MouseEnter="LauncherPopup_MouseEnter" MouseLeave="LauncherPopup_MouseLeave">
+                <UniformGrid Rows="3" Columns="3">
+                    <Button x:Name="BtnSearch" Content="&#xE721;" ToolTip="Tìm kiếm chung (Ctrl+Alt+K)" Click="OpenSearch_Click" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnProjects" Content="&#xE8A5;" ToolTip="Projects" Click="ToggleWidget_Click" Tag="Projects" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnCalendar" Content="&#xE787;" ToolTip="Calendar (chuột phải: sự kiện nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddCalendar_Click" Tag="Calendar" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnTasks" Content="&#xE73A;" ToolTip="Tasks (chuột phải: task nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddTask_Click" Tag="Tasks" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnNotes" Content="&#xE70F;" ToolTip="Notes (chuột phải: ghi chú nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddNote_Click" Tag="Notes" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnTimers" Content="&#xE916;" ToolTip="Timers" Click="ToggleWidget_Click" Tag="Timers" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnFocus" Content="&#xE121;" ToolTip="Focus session" Click="ToggleWidget_Click" Tag="Focus" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnSettings" Content="&#xE713;" ToolTip="Settings" Click="ToggleWidget_Click" Tag="Settings" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                    <Button x:Name="BtnCloseAll" Content="&#xE711;" ToolTip="Đóng tất cả" Click="CloseAll_Click" Style="{StaticResource TabIconStyle}" Width="42" Height="42"/>
+                </UniformGrid>
+            </Border>
+        </Popup>
+    </Grid>
 </Window>

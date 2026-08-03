@@ -75,8 +75,9 @@ deliberate hotkey, **not** a real Alt+Tab hook: every widget calls
   keystroke without a global low-level keyboard hook fighting Windows' own switcher.
 `Ctrl+Alt+K` opens `WorkspaceSearchWindow`, which searches local notes (title, preview, label,
 assigned-project name), labels and projects. Selecting a note opens its editor; a project makes
-it the current focus project; a note label filters the Notes list. The launcher width includes
-the search icon; update `ExpandedWidth` when adding another launcher icon.
+it the current focus project; a note label filters the Notes list. The launcher itself remains a
+52px circular drag handle; hover opens a separate 3x3 circular `Popup` menu. Keep the fixed
+menu size and its 3x3 layout in sync if another launcher action is added.
 
 ## Styling (all in App.xaml, global)
 
