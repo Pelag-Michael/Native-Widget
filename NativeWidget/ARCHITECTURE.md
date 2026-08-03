@@ -20,16 +20,19 @@ NativeWidget/
                           DatePicker templates) + TimerNotifier startup hook
   MainWindow.xaml(.cs)    The launcher: small hover-expand dock, global finder, spawns/toggles windows
   WorkspaceSearchWindow   Local search across notes, labels and projects
-  CalendarWindow          Google Calendar widget (view-only, OAuth)
+  CalendarWindow          Google Calendar widget (view/create/delete, OAuth)
+  TasksWindow             Google Tasks widget (tasks, subtasks, due dates, descriptions)
   NotesWindow              Multi-note rich-text widget (list view + editor)
   TimersWindow             Multiple persistent countdown timers / deadlines
   FocusWindow              Pomodoro-style focus timer widget
   LabelsWindow             Shared label registry and rename/delete UI
   SettingsWindow           Google OAuth credentials + auto-start toggle
   PromptDialog             Small themed "enter a value" modal, used for renaming
+  ItemDetailsDialog        Shared Calendar/Tasks details modal with linkified descriptions
   Models/AppConfig.cs      User-editable settings, persisted to %AppData%\NativeWidget\config.json
   Services/
     GoogleCalendarService.cs  OAuth flow + Calendar API calls
+    GoogleTasksService.cs     Google tasklists/tasks API, including native notes descriptions
     OAuthHelper.cs            Shared PKCE + loopback-redirect helper (reused if more OAuth added)
     NotesService.cs           Multi-note index + per-note Markdown files, XAML migration
     ItemTagsService.cs        Local free-form labels for Google-backed task/calendar items
