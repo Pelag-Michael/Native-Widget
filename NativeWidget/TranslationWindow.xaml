@@ -3,10 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NativeWidget"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="Translate" Width="390" Height="300" MinWidth="330" MinHeight="270"
+        Title="Translate" Width="390" Height="64" MinWidth="330" MinHeight="58"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
-        Left="540" Top="90" Closing="Window_Closing">
+        Left="540" Top="90" Closing="Window_Closing"
+        MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave">
     <Window.Resources>
         <Style x:Key="TrackingToggleStyle" TargetType="ToggleButton">
             <Setter Property="Width" Value="38"/>
@@ -53,7 +54,7 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,12">
+            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,8">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="&#xE774;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White" Margin="0,0,8,0"/>

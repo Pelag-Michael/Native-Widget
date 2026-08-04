@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using NativeWidget.Models;
 using NativeWidget.Services;
 
@@ -18,6 +20,9 @@ public partial class TranslationWindow : Window
     private bool _updatingFilters;
     private bool _vocabularyExpanded;
     private double _expandedHeight = 520;
+    private bool _panelExpanded;
+    private int _interactionDepth;
+    private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(550) };
     private (string Text, string Method, string SourceApp)? _queuedTranslation;
 
     public TranslationWindow(AppConfig config)
@@ -39,12 +44,28 @@ public partial class TranslationWindow : Window
         TrackingCheck.IsChecked = _config.TranslationSelectionTrackingEnabled;
         _initializing = false;
 
+        _collapseTimer.Tick += (_, _) =>
+        {
+            _collapseTimer.Stop();
+            if (ShouldKeepPanelOpen())
+            {
+                if (!IsMouseOver) _collapseTimer.Start();
+                return;
+            }
+            SetPanelExpanded(false);
+        };
+
         Loaded += (_, _) => { UpdateTracking(); RenderVocabulary(); };
         IsVisibleChanged += (_, _) =>
         {
-            if (IsVisible) UpdateTracking();
+            if (IsVisible)
+            {
+                UpdateTracking();
+                SetPanelExpanded(false, animate: false);
+            }
             else
             {
+                _collapseTimer.Stop();
                 _selectionService.Stop();
                 _resultPopup?.Close();
             }
@@ -60,6 +81,61 @@ public partial class TranslationWindow : Window
     private void DragBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+    }
+
+    private void Window_MouseEnter(object sender, MouseEventArgs e) => SetPanelExpanded(true);
+
+    private void Window_MouseLeave(object sender, MouseEventArgs e)
+    {
+        _collapseTimer.Stop();
+        _collapseTimer.Start();
+    }
+
+    public void SetPanelExpanded(bool expanded, bool animate = true)
+    {
+        _collapseTimer.Stop();
+        if (!expanded && _panelExpanded && _vocabularyExpanded && ActualHeight > 420)
+            _expandedHeight = ActualHeight;
+        _panelExpanded = expanded;
+        var target = expanded ? DesiredPanelHeight : 64;
+        if (!animate)
+        {
+            BeginAnimation(HeightProperty, null);
+            Height = target;
+            return;
+        }
+
+        var animation = new DoubleAnimation
+        {
+            From = ActualHeight > 0 ? ActualHeight : Height,
+            To = target,
+            Duration = TimeSpan.FromMilliseconds(expanded ? 210 : 180),
+            EasingFunction = new CubicEase
+            {
+                EasingMode = expanded ? EasingMode.EaseOut : EasingMode.EaseIn,
+            },
+        };
+        animation.Completed += (_, _) =>
+        {
+            BeginAnimation(HeightProperty, null);
+            Height = target;
+        };
+        BeginAnimation(HeightProperty, animation, HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private double DesiredPanelHeight => _vocabularyExpanded ? Math.Max(420, _expandedHeight) : 300;
+
+    private bool ShouldKeepPanelOpen() => IsMouseOver || _translating || _interactionDepth > 0 ||
+        _resultPopup?.IsVisible == true || VocabularySearch.IsKeyboardFocusWithin || HeaderControls.HasOpenPopup ||
+        SourceLanguageSelect.IsDropDownOpen || TargetLanguageSelect.IsDropDownOpen ||
+        LanguagePairFilter.IsDropDownOpen || CaptureMethodFilter.IsDropDownOpen ||
+        SourceAppFilter.IsDropDownOpen || VocabularyTagFilter.IsDropDownOpen;
+
+    private void ScheduleCollapseIfIdle()
+    {
+        if (IsMouseOver) return;
+        _collapseTimer.Stop();
+        _collapseTimer.Start();
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -129,6 +205,7 @@ public partial class TranslationWindow : Window
     {
         var wasTracking = _selectionService.IsRunning;
         _selectionService.Stop();
+        _interactionDepth++;
         try
         {
             var region = ScreenRegionOverlay.Select(this);
@@ -149,7 +226,9 @@ public partial class TranslationWindow : Window
         }
         finally
         {
+            _interactionDepth--;
             if (wasTracking && IsVisible) _selectionService.Start();
+            ScheduleCollapseIfIdle();
         }
     }
 
@@ -184,6 +263,7 @@ public partial class TranslationWindow : Window
                 _queuedTranslation = null;
                 await TranslateAsync(queued.Text, queued.Method, queued.SourceApp);
             }
+            else ScheduleCollapseIfIdle();
         }
     }
 
@@ -192,7 +272,11 @@ public partial class TranslationWindow : Window
         _resultPopup?.Close();
         var popup = new TranslationResultPopup(result, captureMethod, sourceApp) { Owner = this };
         _resultPopup = popup;
-        popup.Closed += (_, _) => { if (_resultPopup == popup) _resultPopup = null; };
+        popup.Closed += (_, _) =>
+        {
+            if (_resultPopup == popup) _resultPopup = null;
+            ScheduleCollapseIfIdle();
+        };
         popup.Saved += RenderVocabulary;
         popup.RetryRequested += async () =>
         {
@@ -245,20 +329,16 @@ public partial class TranslationWindow : Window
 
     public void SetVocabularyExpanded(bool expanded)
     {
-        if (expanded)
-        {
-            Height = Math.Max(420, _expandedHeight);
-        }
-        else
+        if (!expanded)
         {
             if (Height > 320) _expandedHeight = Height;
-            Height = 300;
         }
         _vocabularyExpanded = expanded;
         VocabularySection.Visibility = _vocabularyExpanded ? Visibility.Visible : Visibility.Collapsed;
         VocabularyChevron.Text = _vocabularyExpanded ? "\uE70D" : "\uE76C";
         VocabularyOpenHint.Text = _vocabularyExpanded ? "Thu gọn" : "Mở";
         if (_vocabularyExpanded) RenderVocabulary();
+        if (_panelExpanded) SetPanelExpanded(true);
     }
 
     private void FilterToggle_Click(object sender, RoutedEventArgs e)
@@ -277,7 +357,14 @@ public partial class TranslationWindow : Window
 
     private void CreateVocabularyTag_Click(object sender, RoutedEventArgs e)
     {
-        var tag = PromptDialog.Show(this, "Tạo tag từ vựng");
+        _interactionDepth++;
+        string? tag;
+        try { tag = PromptDialog.Show(this, "Tạo tag từ vựng"); }
+        finally
+        {
+            _interactionDepth--;
+            ScheduleCollapseIfIdle();
+        }
         if (string.IsNullOrWhiteSpace(tag)) return;
         tag = tag.Trim().TrimStart('#');
         if (tag.Length == 0) return;
@@ -407,9 +494,13 @@ public partial class TranslationWindow : Window
         var tagButton = new Button { Content = "\uE8EC", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Gắn tag từ vựng", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
         tagButton.Click += (_, e) =>
         {
-            var selected = VocabularyTagPickerDialog.Show(this, item.Tags);
+            _interactionDepth++;
+            List<string>? selected;
+            try { selected = VocabularyTagPickerDialog.Show(this, item.Tags); }
+            finally { _interactionDepth--; }
             if (selected != null) { VocabularyService.SetTags(item.Id, selected); RenderVocabulary(); }
             e.Handled = true;
+            ScheduleCollapseIfIdle();
         };
         var delete = new Button { Content = "\uE74D", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Xoá khỏi sổ", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
         delete.Click += (_, e) => { VocabularyService.Delete(item.Id); RenderVocabulary(); e.Handled = true; };

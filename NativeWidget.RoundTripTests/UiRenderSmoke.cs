@@ -72,10 +72,12 @@ internal static class UiRenderSmoke
             Render(window, path);
             translation.Show();
             translation.SetVocabularyExpanded(false);
+            translation.SetPanelExpanded(false, animate: false);
             var translationPath = Path.Combine(root, "translation.png");
             Render(translation, translationPath);
             translation.SetVocabularyExpanded(true);
             translation.SetMetadataFiltersVisible(true);
+            translation.SetPanelExpanded(true, animate: false);
             var translationVocabularyPath = Path.Combine(root, "translation-vocabulary.png");
             Render(translation, translationVocabularyPath);
             resultPopup.Owner = translation;

@@ -17,7 +17,7 @@ what should be a handful of lightweight panels.
 | **Notes** | Multi-note rich text (font/size/bold/italic/strikethrough, pasted images, generic file attachments, auto-linkified URLs and bare domains), color tags, free-form labels, reminders that show up in the Timers widget, optional 2-way Notion sync |
 | **Timers** | Named countdowns created as a duration *or* an exact deadline. Stores an absolute deadline, so a timer keeps counting while the app — or the machine — is off |
 | **Focus** | Minimal Pomodoro-style focus session |
-| **Translate** | System-wide selection translation, screen OCR, and a collapsible vocabulary notebook with private tags and metadata filters |
+| **Translate** | Hover-expanding selection translation, screen OCR, and a collapsible vocabulary notebook with private tags and metadata filters |
 | **Projects** | "What am I focused on" tracker; one current project shown large, others in a list, each optionally linked to a folder that opens in Explorer |
 
 Tasks and Notes can each be tagged with a project and filtered by it.
