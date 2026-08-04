@@ -115,7 +115,9 @@ radius from the largest child and available space, so adding/removing actions re
 remaining space automatically. Opening morphs from the dock: `Placement=Center` on the dock, scale from `52/232`→1
 (~280ms cubic out) so the radial disk grows from the same hub; the collapsed `RootBorder`
 is hidden while open (avoids a second hamburger). Closing scales back to dock size then
-restores `RootBorder`. Launcher action icons do **not** use the system white tooltip;
+restores `RootBorder`. Dragging the hub snaps the menu closed first (Popup does not track
+`DragMove`, which previously stranded the disk at the old screen position). Launcher action
+icons do **not** use the system white tooltip;
 hovering shows a dark horizontal slide-in label (`LauncherHintPopup`) with the widget name,
 optional shortcut (e.g. Search → Ctrl+Alt+K), and a short extra line when useful. Elsewhere,
 app-wide `ToolTip` styling is dark + slide-in with a short InitialShowDelay.
