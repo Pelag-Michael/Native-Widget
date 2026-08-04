@@ -298,11 +298,16 @@ internal static class Program
         Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
         try
         {
-            var added = VocabularyService.Add(new TranslationResult("hello", "xin chào", "en", "vi"),
+            var meanings = new[] { new TranslationMeaningGroup("interjection", new[] { "chào", "xin chào" }) };
+            var added = VocabularyService.Add(new TranslationResult("hello", "xin chào", "en", "vi", meanings,
+                    new[] { "hello, everyone" }),
                 "selection", "test-app");
             var loaded = VocabularyService.Load();
-            if (loaded.Count != 1 || loaded[0].Id != added.Id || loaded[0].TranslatedText != "xin chào")
+            if (loaded.Count != 1 || loaded[0].Id != added.Id || loaded[0].TranslatedText != "xin chào" ||
+                loaded[0].MeaningGroups.Count != 1 || loaded[0].MeaningGroups[0].Meanings[0] != "chào")
                 throw new InvalidOperationException("Vocabulary save/load failed.");
+            if (loaded[0].Examples.Single() != "hello, everyone")
+                throw new InvalidOperationException("Vocabulary example persistence failed.");
             VocabularyTagsService.Add("greeting");
             VocabularyService.SetTags(added.Id, new[] { "greeting", "daily" });
             loaded = VocabularyService.Load();
@@ -327,6 +332,13 @@ internal static class Program
             string.IsNullOrWhiteSpace(result.TranslatedText) || result.TranslatedText == result.SourceText)
             throw new InvalidOperationException("Translation provider smoke test failed.");
         Console.WriteLine($"TRANSLATION_PASS={result.TranslatedText}");
+        var dictionary = await TranslationService.TranslateAsync("engage", "en", "vi");
+        if (dictionary.MeaningGroups is not { Count: > 0 } ||
+            dictionary.MeaningGroups.All(group => group.Meanings.Count < 2))
+            throw new InvalidOperationException("Translation dictionary meanings were not parsed.");
+        if (dictionary.Examples is not { Count: > 0 } || dictionary.Examples.Any(example => example.Contains("<b>")))
+            throw new InvalidOperationException("Translation usage examples were not parsed.");
+        Console.WriteLine($"DICTIONARY_PASS={dictionary.MeaningGroups.Sum(group => group.Meanings.Count)} meanings");
     }
 
     private static async Task TestOcrAsync()

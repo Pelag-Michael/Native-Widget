@@ -63,7 +63,9 @@ internal static class UiRenderSmoke
         var window = new NotesWindow(new AppConfig()) { Width = 420, Height = 540 };
         var translation = new TranslationWindow(new AppConfig { TranslationSelectionTrackingEnabled = false }) { Width = 390, Height = 520 };
         var resultPopup = new TranslationResultPopup(
-            new TranslationResult("Visit vincea.space for the complete guide.", "Truy cập vincea.space để xem hướng dẫn đầy đủ.", "en", "vi"),
+            new TranslationResult("engage", "đính hôn", "en", "vi",
+                new[] { new TranslationMeaningGroup("verb", new[] { "thuê", "bận việc", "giao ước", "hứa hẹn", "mướn" }) },
+                new[] { "they attempted to engage Anthony in conversation", "the teams needed to engage with local communities", "the clutch will not engage" }),
             "selection", "Smoke test");
         try
         {

@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media;
 using NativeWidget.Services;
 
 namespace NativeWidget;
@@ -24,7 +26,7 @@ public partial class TranslationResultPopup : Window
         _captureMethod = captureMethod;
         _sourceApp = sourceApp;
         Render();
-        SourceInitialized += (_, _) => PositionNearCursor();
+        Loaded += (_, _) => PositionNearCursor();
     }
 
     public void UpdateResult(TranslationResult result)
@@ -49,7 +51,62 @@ public partial class TranslationResultPopup : Window
         LanguagePairText.Text = $"{TranslationLanguages.NameOf(_result.SourceLanguage)} → {TranslationLanguages.NameOf(_result.TargetLanguage)}";
         SourceView.Document = LinkDocumentBuilder.Build(_result.SourceText, this);
         TranslationView.Document = LinkDocumentBuilder.Build(_result.TranslatedText, this);
+        RenderMeanings();
+        RenderExamples();
     }
+
+    private void RenderExamples()
+    {
+        ExamplesPanel.Children.Clear();
+        var examples = _result.Examples ?? Array.Empty<string>();
+        ExampleSection.Visibility = examples.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var example in examples)
+            ExamplesPanel.Children.Add(new TextBlock
+            {
+                Text = "• " + example, Foreground = new SolidColorBrush(Color.FromRgb(0xB8, 0xB7, 0xC0)),
+                FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4),
+            });
+    }
+
+    private void RenderMeanings()
+    {
+        MeaningGroupsPanel.Children.Clear();
+        var groups = _result.MeaningGroups ?? Array.Empty<TranslationMeaningGroup>();
+        MeaningSection.Visibility = groups.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var group in groups)
+        {
+            var row = new Grid { Margin = new Thickness(0, 0, 0, 7) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(72) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var partOfSpeech = new TextBlock
+            {
+                Text = PartOfSpeechName(group.PartOfSpeech), Foreground = new SolidColorBrush(Color.FromRgb(0x7F, 0xA8, 0xFF)),
+                FontSize = 10.5, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 1, 8, 0),
+            };
+            var meanings = new TextBlock
+            {
+                Text = string.Join(" · ", group.Meanings), Foreground = new SolidColorBrush(Color.FromRgb(0xD1, 0xD0, 0xD7)),
+                FontSize = 11.5, TextWrapping = TextWrapping.Wrap,
+            };
+            Grid.SetColumn(meanings, 1);
+            row.Children.Add(partOfSpeech);
+            row.Children.Add(meanings);
+            MeaningGroupsPanel.Children.Add(row);
+        }
+    }
+
+    private static string PartOfSpeechName(string value) => value.ToLowerInvariant() switch
+    {
+        "noun" => "Danh từ",
+        "verb" => "Động từ",
+        "adjective" => "Tính từ",
+        "adverb" => "Trạng từ",
+        "pronoun" => "Đại từ",
+        "preposition" => "Giới từ",
+        "conjunction" => "Liên từ",
+        "interjection" => "Thán từ",
+        _ => value,
+    };
 
     private void PositionNearCursor()
     {
@@ -57,10 +114,12 @@ public partial class TranslationResultPopup : Window
         var source = PresentationSource.FromVisual(this) as HwndSource;
         var cursorDip = source?.CompositionTarget?.TransformFromDevice.Transform(new Point(cursor.X, cursor.Y))
                         ?? new Point(cursor.X, cursor.Y);
+        var popupWidth = ActualWidth > 0 ? ActualWidth : Width;
+        var popupHeight = ActualHeight > 0 ? ActualHeight : 520;
         Left = Math.Max(SystemParameters.VirtualScreenLeft + 8,
-            Math.Min(cursorDip.X + 18, SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - Width - 8));
+            Math.Min(cursorDip.X + 18, SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - popupWidth - 8));
         Top = Math.Max(SystemParameters.VirtualScreenTop + 8,
-            Math.Min(cursorDip.Y + 18, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - 430));
+            Math.Min(cursorDip.Y + 18, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - popupHeight - 8));
     }
 
     private void Copy_Click(object sender, RoutedEventArgs e)
