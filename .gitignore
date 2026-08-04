@@ -11,6 +11,7 @@ app/
 app-pending/
 app-test/
 app-backup-*/
+archive/generated/
 dist/
 bin/
 obj/
@@ -19,6 +20,7 @@ obj/
 # --- Legacy Electron prototype ---
 # Superseded by the WPF app in NativeWidget/ (see ARCHITECTURE.md "Removed features").
 # Kept on disk locally for reference, not part of this repo.
+legacy/electron-prototype/
 node_modules/
 package.json
 package-lock.json
