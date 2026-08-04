@@ -187,17 +187,36 @@ internal static class Program
             Padding = new Thickness(24),
             VerticalContentAlignment = VerticalAlignment.Center,
         };
+        var dragSurface = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0xDD, 0xDD, 0xDD)),
+            Focusable = false,
+            Child = new TextBlock
+            {
+                Text = "Drag here while the selected text keeps keyboard focus",
+                Foreground = Brushes.Black,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
+        };
+        var layout = new Grid();
+        layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(54) });
+        Grid.SetRow(text, 0);
+        Grid.SetRow(dragSurface, 1);
+        layout.Children.Add(text);
+        layout.Children.Add(dragSurface);
         var window = new Window
         {
             Title = "NativeWidget Selection Harness",
             Width = 760,
             Height = 220,
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Content = text,
+            Content = layout,
             Topmost = true,
             ShowInTaskbar = true,
         };
-        window.Loaded += (_, _) => { window.Activate(); text.Focus(); };
+        window.Loaded += (_, _) => { window.Activate(); text.Focus(); text.SelectAll(); };
         app.Run(window);
     }
 
@@ -218,7 +237,7 @@ internal static class Program
             throw new InvalidOperationException("Selection harness could not become foreground; refusing to drag in another app.");
         var startX = rect.Left + 35;
         var endX = rect.Right - 35;
-        var y = rect.Top + (rect.Bottom - rect.Top) / 2;
+        var y = rect.Bottom - 28;
         SetCursorPos(startX, y);
         mouse_event(MouseeventfLeftdown, 0, 0, 0, UIntPtr.Zero);
         for (var i = 1; i <= 24; i++)
