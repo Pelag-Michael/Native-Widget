@@ -332,9 +332,13 @@ Simple Pomodoro-style countdown, separate from Timers (in-session focus, not a d
 persistence — resets each session by design.
 
 ### Translate
-The launcher exposes a dedicated `TranslationWindow`; no global hotkey is registered. Its
-compact language card uses a custom pill switch rather than the platform checkbox. While the
-window is visible and **Tự dịch vùng chọn** is enabled, `GlobalSelectionService` installs
+The launcher exposes a dedicated `TranslationWindow`; no global hotkey is registered. At rest,
+the window is a 64px title rail; pointer entry expands it with a short eased height animation,
+and pointer exit collapses it after a 550ms grace period. Translation, OCR, open dropdowns,
+the opacity popup, text search, modal tag/prompt interactions, and the result popup temporarily
+hold the panel open so it cannot disappear mid-action. Its compact language card uses a custom
+pill switch rather than the platform checkbox. While the window is visible and **Tự dịch vùng
+chọn** is enabled, `GlobalSelectionService` installs
 a low-level mouse hook. A real drag followed by left-button release records the foreground
 window, waits briefly for the source app to finish its selection, simulates `Ctrl+C`, reads the
 new clipboard text, and restores the previous clipboard payload. Captures are rejected when

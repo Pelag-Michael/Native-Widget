@@ -17,6 +17,7 @@ public partial class WidgetHeaderControls : UserControl
     private readonly DispatcherTimer _popupWatch = new() { Interval = TimeSpan.FromMilliseconds(250) };
 
     private Window? _owner;
+    public bool HasOpenPopup => OpacityPopup.IsOpen;
 
     public WidgetHeaderControls()
     {
