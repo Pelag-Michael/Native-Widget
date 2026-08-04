@@ -1,7 +1,7 @@
 # Native Widget
 
-[![Latest release](https://img.shields.io/github/v/release/Pelag-Michael/Native-Widget?include_prereleases&label=download)](https://github.com/Pelag-Michael/Native-Widget/releases/latest)
-[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)](https://github.com/Pelag-Michael/Native-Widget/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/Pelag-Michael/Native-Widget?include_prereleases&label=download)](https://github.com/Pelag-Michael/Native-Widget/releases/tag/v0.1.0-alpha)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)](https://github.com/Pelag-Michael/Native-Widget/releases/tag/v0.1.0-alpha)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/download/dotnet/8.0)
 [![CI](https://github.com/Pelag-Michael/Native-Widget/actions/workflows/ci.yml/badge.svg)](https://github.com/Pelag-Michael/Native-Widget/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -19,7 +19,7 @@ experimental Notion sync is available for Notes.
 
 ## Download
 
-**[Download the latest Windows build](https://github.com/Pelag-Michael/Native-Widget/releases/latest)**
+**[Download Native Widget v0.1.0-alpha for Windows](https://github.com/Pelag-Michael/Native-Widget/releases/download/v0.1.0-alpha/Native-Widget-v0.1.0-alpha-win-x64.zip)**
 
 1. Download `Native-Widget-v*-win-x64.zip` from Releases.
 2. Extract the zip anywhere you own.
