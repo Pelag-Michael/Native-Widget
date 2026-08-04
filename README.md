@@ -1,7 +1,7 @@
 # Native Widget
 
 Lightweight, always-on-top Windows widget dock (WPF / .NET 8) — Calendar, Tasks, Notes,
-Timers, Focus and Projects, each in its own small floating window, launched from a
+Timers, Focus, Translate and Projects, each in its own small floating window, launched from a
 hover-expand dock. Two-way sync with Google Calendar, Google Tasks, and (experimental)
 Notion.
 
@@ -17,6 +17,7 @@ what should be a handful of lightweight panels.
 | **Notes** | Multi-note rich text (font/size/bold/italic/strikethrough, pasted images, generic file attachments, auto-linkified URLs and bare domains), color tags, free-form labels, reminders that show up in the Timers widget, optional 2-way Notion sync |
 | **Timers** | Named countdowns created as a duration *or* an exact deadline. Stores an absolute deadline, so a timer keeps counting while the app — or the machine — is off |
 | **Focus** | Minimal Pomodoro-style focus session |
+| **Translate** | System-wide selection translation with a near-cursor result popup, screen-region OCR, and a minimal saved vocabulary notebook |
 | **Projects** | "What am I focused on" tracker; one current project shown large, others in a list, each optionally linked to a folder that opens in Explorer |
 
 Tasks and Notes can each be tagged with a project and filtered by it.

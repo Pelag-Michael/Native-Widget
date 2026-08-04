@@ -25,6 +25,9 @@ NativeWidget/
   NotesWindow              Multi-note rich-text widget (list view + editor)
   TimersWindow             Multiple persistent countdown timers / deadlines
   FocusWindow              Pomodoro-style focus timer widget
+  TranslationWindow        System-wide selection/OCR translator + saved vocabulary list
+  TranslationResultPopup   Near-cursor original/translation actions and link rendering
+  ScreenRegionOverlay      Full-desktop drag overlay used by Windows OCR capture
   LabelsWindow             Shared label registry and rename/delete UI
   SettingsWindow           Google OAuth credentials + auto-start toggle
   PromptDialog             Small themed "enter a value" modal, used for renaming
@@ -33,6 +36,10 @@ NativeWidget/
   Services/
     GoogleCalendarService.cs  OAuth flow + Calendar API calls
     GoogleTasksService.cs     Google tasklists/tasks API, including native notes descriptions
+    TranslationService.cs     Swappable translation-provider boundary (free Google endpoint)
+    GlobalSelectionService.cs Low-level mouse selection capture with clipboard restoration
+    ScreenOcrService.cs       GDI screen capture + built-in Windows.Media.Ocr
+    VocabularyService.cs      Minimal saved translation store (`translations.json`)
     OAuthHelper.cs            Shared PKCE + loopback-redirect helper (reused if more OAuth added)
     NotesService.cs           Multi-note index + per-note Markdown files, XAML migration
     ItemTagsService.cs        Local free-form labels for Google-backed task/calendar items
@@ -324,6 +331,35 @@ Simple Pomodoro-style countdown, separate from Timers (in-session focus, not a d
 `DispatcherTimer`, editable minutes field plus 5-min step buttons and Play/Pause. No
 persistence — resets each session by design.
 
+### Translate
+The launcher exposes a dedicated `TranslationWindow`; no global hotkey is registered. While
+the window is visible and **Theo dõi vùng chọn** is enabled, `GlobalSelectionService` installs
+a low-level mouse hook. A real drag followed by left-button release records the foreground
+window, waits briefly for the source app to finish its selection, simulates `Ctrl+C`, reads the
+new clipboard text, and restores the previous clipboard payload. Captures are rejected when
+the foreground window changes during that delay, when the source is Native Widget itself, or
+when UI Automation reports a password field. Empty selections do nothing. Hiding the widget
+removes the hook immediately.
+
+`TranslationService.TranslateAsync` is the single provider boundary. It currently uses the
+free, undocumented Google Translate endpoint with source-language auto-detection and a 5,000
+character cap. Provider details do not leak into input capture or UI code, so an official
+Google/DeepL/LLM provider can replace it later. Source and target language selections live in
+the widget and persist through `AppConfig`; Vietnamese is the default target.
+
+A successful translation opens `TranslationResultPopup` near the cursor with linkified
+original and translated text, copy, reverse, retry, and save actions. Save writes only the
+minimal vocabulary record to `%AppData%\NativeWidget\translations.json`: both texts, language
+pair, timestamp, capture method, and source application/window. `VocabularyService` de-duplicates
+identical pairs. The widget lists, searches, copies, reopens, and deletes these entries; there
+are deliberately no notes, scores, review schedules, or spaced-repetition state.
+
+For non-selectable text, **Chụp vùng màn hình** temporarily stops selection tracking and opens
+`ScreenRegionOverlay` across the virtual desktop. Physical screen pixels are captured with GDI
+`BitBlt` after the overlay hides, then passed to the built-in `Windows.Media.Ocr` engine and the
+same translation/popup/save pipeline. This requires the Windows 10 SDK projection reflected in
+the `net8.0-windows10.0.19041.0` target but adds no third-party package.
+
 ### Settings
 The Google client secret and Notion token use masked `PasswordBox` fields. Compact badges show
 whether Google is connected and whether Notion sync is enabled; credentials remain stored in
@@ -395,7 +431,7 @@ Two traps, both of which produced a silently-wrong icon before:
 
 ## Data & disk footprint
 
-- **User data** (config, notes, timers, OAuth token): `%AppData%\NativeWidget` — a few
+- **User data** (config, notes, timers, saved translations, OAuth token): `%AppData%\NativeWidget` — a few
   hundred KB, all JSON/XAML text plus any pasted note images.
 - **Runnable app** (what the Start Menu shortcut and autostart both point to):
   `Documents\Agent antigrav\desktop shit\app\` — ~0.6MB, framework-dependent (relies on

@@ -37,6 +37,7 @@
                         <Button x:Name="BtnNotes" Content="&#xE70F;" ToolTip="Notes (chuột phải: ghi chú nhanh)" Click="ToggleWidget_Click" MouseRightButtonUp="QuickAddNote_Click" Tag="Notes" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                         <Button x:Name="BtnTimers" Content="&#xE916;" ToolTip="Timers" Click="ToggleWidget_Click" Tag="Timers" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                         <Button x:Name="BtnFocus" Content="&#xE121;" ToolTip="Focus session" Click="ToggleWidget_Click" Tag="Focus" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
+                        <Button x:Name="BtnTranslate" Content="&#xE774;" ToolTip="Translate" Click="ToggleWidget_Click" Tag="Translate" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                         <Button x:Name="BtnLabels" Content="&#xE8EC;" ToolTip="Quản lý nhãn" Click="ToggleWidget_Click" Tag="Labels" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                         <Button x:Name="BtnSettings" Content="&#xE713;" ToolTip="Settings" Click="ToggleWidget_Click" Tag="Settings" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                         <Button x:Name="BtnCloseAll" Content="&#xE711;" ToolTip="Đóng tất cả" Click="CloseAll_Click" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>

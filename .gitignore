@@ -9,6 +9,7 @@ notion-sync-experiment/
 # GitHub Release attachment instead of committing binaries into the tree.
 app/
 app-pending/
+app-test/
 app-backup-*/
 bin/
 obj/
