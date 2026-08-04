@@ -251,6 +251,10 @@ public partial class MainWindow : Window
     private void WindowToolsPanel_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
     private void WindowToolsPanel_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
 
+    // Dock is 52px; radial chrome is 232px — open scale starts at dock/menu so growth
+    // reads as the same control expanding, not a second panel popping in.
+    private const double LauncherMorphScale = 52.0 / 232.0;
+
     private void ShowLauncher()
     {
         _launcherCloseTimer.Stop();
@@ -258,8 +262,12 @@ public partial class MainWindow : Window
         var wasOpen = LauncherPopup.IsOpen;
         LauncherPopup.IsOpen = true;
 
+        // Hide the collapsed dock immediately so the hub inside the menu is the only button.
+        RootBorder.Opacity = 0;
+        RootBorder.IsHitTestVisible = false;
+
         var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var openMs = 260;
+        var openMs = 280;
 
         if (!wasOpen)
         {
@@ -269,18 +277,18 @@ public partial class MainWindow : Window
             {
                 reset.BeginAnimation(ScaleTransform.ScaleXProperty, null);
                 reset.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-                reset.ScaleX = 0.86;
-                reset.ScaleY = 0.86;
+                reset.ScaleX = LauncherMorphScale;
+                reset.ScaleY = LauncherMorphScale;
             }
         }
 
-        LauncherPopupContent.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(openMs))
+        LauncherPopupContent.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(openMs * 0.7))
         {
             EasingFunction = easeOut,
         });
         if (LauncherPopupContent.RenderTransform is ScaleTransform scale)
         {
-            var scaleAnim = new DoubleAnimation(1, TimeSpan.FromMilliseconds(openMs + 20))
+            var scaleAnim = new DoubleAnimation(1, TimeSpan.FromMilliseconds(openMs))
             {
                 EasingFunction = easeOut,
             };
@@ -298,11 +306,11 @@ public partial class MainWindow : Window
         _launcherClosing = true;
 
         var easeIn = new CubicEase { EasingMode = EasingMode.EaseIn };
-        var closeMs = 160;
+        var closeMs = 180;
 
         if (LauncherPopupContent.RenderTransform is ScaleTransform scale)
         {
-            var scaleAnim = new DoubleAnimation(0.88, TimeSpan.FromMilliseconds(closeMs))
+            var scaleAnim = new DoubleAnimation(LauncherMorphScale, TimeSpan.FromMilliseconds(closeMs))
             {
                 EasingFunction = easeIn,
             };
@@ -318,9 +326,17 @@ public partial class MainWindow : Window
         {
             _launcherClosing = false;
             if (!IsMouseOver && !LauncherPopupContent.IsMouseOver && !WindowToolsPopup.IsOpen)
+            {
                 LauncherPopup.IsOpen = false;
+                // Restore the single collapsed dock after the morph finishes.
+                RootBorder.BeginAnimation(OpacityProperty, null);
+                RootBorder.Opacity = 1;
+                RootBorder.IsHitTestVisible = true;
+            }
             else if (IsMouseOver || LauncherPopupContent.IsMouseOver)
+            {
                 ShowLauncher();
+            }
         };
         LauncherPopupContent.BeginAnimation(OpacityProperty, fade);
     }

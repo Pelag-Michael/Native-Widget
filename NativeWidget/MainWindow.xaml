@@ -10,6 +10,8 @@
     <Grid Background="Transparent">
         <!-- The launcher itself stays compact. Its menu is a separate round Popup, so
              hovering no longer stretches a long horizontal bar across the desktop. -->
+        <!-- Collapsed dock. Hidden while the radial menu is open so only one hub is visible;
+             the menu scales up from this size so it reads as the same control expanding. -->
         <Border x:Name="RootBorder" Background="{StaticResource PanelBg}" CornerRadius="22"
                 BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="8">
             <Border x:Name="DragBar" Cursor="SizeAll" MouseLeftButtonDown="DragBar_MouseDown"
@@ -19,18 +21,19 @@
             </Border>
         </Border>
 
-        <Popup x:Name="LauncherPopup" PlacementTarget="{Binding ElementName=RootBorder}" Placement="Bottom"
-               HorizontalOffset="-90" VerticalOffset="-148" AllowsTransparency="True" StaysOpen="True">
+        <!-- Centered on the dock (not Placement=Bottom). Scale origin is the hub center. -->
+        <Popup x:Name="LauncherPopup" PlacementTarget="{Binding ElementName=RootBorder}" Placement="Center"
+               AllowsTransparency="True" StaysOpen="True">
             <Border x:Name="LauncherPopupContent" Width="232" Height="232" Background="#FA131217" CornerRadius="116"
                     BorderBrush="{StaticResource PanelBorder}" BorderThickness="1"
                     MouseEnter="LauncherPopup_MouseEnter" MouseLeave="LauncherPopup_MouseLeave"
                     Opacity="0" RenderTransformOrigin="0.5,0.5">
                 <Border.RenderTransform>
-                    <ScaleTransform ScaleX="0.86" ScaleY="0.86"/>
+                    <!-- Start scale ≈ dock/menu (52/232) so open feels like growth from the button. -->
+                    <ScaleTransform ScaleX="0.224" ScaleY="0.224"/>
                 </Border.RenderTransform>
                 <Grid>
                     <local:RadialPanel Margin="8">
-                        <!-- System ToolTip removed: LauncherHintPopup shows name + shortcut on hover. -->
                         <Button x:Name="BtnSearch" Content="&#xE721;" Click="OpenSearch_Click" Style="{StaticResource TabIconStyle}" Width="38" Height="38"
                                 MouseEnter="LauncherAction_MouseEnter" MouseLeave="LauncherAction_MouseLeave"/>
                         <Button x:Name="BtnProjects" Content="&#xE8A5;" Click="ToggleWidget_Click" Tag="Projects" Style="{StaticResource TabIconStyle}" Width="38" Height="38"
@@ -54,11 +57,12 @@
                         <Button x:Name="BtnWindowTools" Content="&#xE7C4;" Click="WindowTools_Click" Style="{StaticResource TabIconStyle}" Width="38" Height="38"
                                 MouseEnter="LauncherAction_MouseEnter" MouseLeave="LauncherAction_MouseLeave"/>
                     </local:RadialPanel>
-                    <!-- This overlaps the compact launcher beneath the Popup exactly. -->
-                    <Border Width="52" Height="52" Background="{StaticResource PanelBg}" CornerRadius="26"
+                    <!-- Continuity hub: same 52px dock look, replaces RootBorder while open. -->
+                    <Border x:Name="LauncherHub" Width="52" Height="52" Background="{StaticResource PanelBg}" CornerRadius="26"
                             BorderBrush="{StaticResource PanelBorder}" BorderThickness="1"
                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Cursor="SizeAll" MouseLeftButtonDown="DragBar_MouseDown" ToolTip="Drag to move">
+                            Cursor="SizeAll" MouseLeftButtonDown="DragBar_MouseDown"
+                            ToolTip="Drag to move">
                         <TextBlock Text="&#xE700;" FontFamily="Segoe MDL2 Assets" Foreground="White" FontSize="16"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
