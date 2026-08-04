@@ -36,16 +36,16 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                 <TextBlock Text="GOOGLE CALENDAR" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
                                 <Border x:Name="GoogleStatusBadge" Background="#22FFFFFF" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
-                                    <TextBlock x:Name="GoogleStatusText" Text="Chưa kết nối" Foreground="{StaticResource MutedBrush}" FontSize="10"/>
+                                    <TextBlock x:Name="GoogleStatusText" Text="Not connected" Foreground="{StaticResource MutedBrush}" FontSize="10"/>
                                 </Border>
                             </StackPanel>
                             <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" LineHeight="17">
-                                1. console.cloud.google.com → tạo project → Enable "Google Calendar API"<LineBreak/>
-                                2. "OAuth consent screen" → External → thêm email bạn vào "Test users"<LineBreak/>
+                                1. console.cloud.google.com → create a project → Enable "Google Calendar API"<LineBreak/>
+                                2. "OAuth consent screen" → External → add your email under "Test users"<LineBreak/>
                                 3. "Credentials" → Create Credentials → OAuth client ID → Web application<LineBreak/>
                                 4. Authorized redirect URI:<LineBreak/>
                                 http://127.0.0.1:42813/callback<LineBreak/>
-                                5. Copy Client ID + Client secret dán vào ô dưới
+                                5. Copy Client ID + Client secret into the fields below
                             </TextBlock>
                             <TextBlock Text="Client ID" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
                             <TextBox x:Name="GoogleClientIdInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
@@ -58,14 +58,14 @@
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
                                 <CheckBox x:Name="AutoStartCheck" Foreground="White" VerticalAlignment="Center" Click="AutoStartCheck_Click"/>
-                                <TextBlock Text="Tự khởi động cùng Windows" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Start with Windows" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Border Height="1" Background="#18FFFFFF" Margin="0,11,0,10"/>
                             <StackPanel Orientation="Horizontal">
                                 <CheckBox x:Name="RestoreSessionCheck" Foreground="White" VerticalAlignment="Top" Margin="0,2,0,0" Click="RestoreSessionCheck_Click"/>
                                 <StackPanel Margin="6,0,0,0">
-                                    <TextBlock Text="Khôi phục phiên làm việc" Foreground="White" FontSize="12"/>
-                                    <TextBlock Text="Mở lại widget chưa đóng, đúng vị trí và kích thước cũ."
+                                    <TextBlock Text="Restore work session" Foreground="White" FontSize="12"/>
+                                    <TextBlock Text="Reopen widgets that were open, at their previous position and size."
                                                Foreground="{StaticResource MutedBrush}" FontSize="10.5"
                                                TextWrapping="Wrap" Margin="0,3,0,0"/>
                                 </StackPanel>
@@ -78,14 +78,14 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                 <TextBlock Text="NOTION SYNC" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
                                 <Border x:Name="NotionStatusBadge" Background="#22FFFFFF" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
-                                    <TextBlock x:Name="NotionStatusText" Text="Tắt" Foreground="{StaticResource MutedBrush}" FontSize="10"/>
+                                    <TextBlock x:Name="NotionStatusText" Text="Off" Foreground="{StaticResource MutedBrush}" FontSize="10"/>
                                 </Border>
                             </StackPanel>
                             <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" LineHeight="17">
-                                Chỉ đồng bộ text thuần (chưa có bold/ảnh). 2 chiều, 15s/lần, last-write-wins.<LineBreak/><LineBreak/>
-                                1. notion.so/my-integrations → New → Access token → copy secret<LineBreak/>
-                                2. Mở 1 page trong Notion → "..." → Connections → thêm integration đó<LineBreak/>
-                                3. Copy Page ID từ URL page đó (đoạn 32 ký tự cuối) dán vào ô dưới
+                                Syncs plain text only (no bold/images yet). Two-way, every 15s, last-write-wins.<LineBreak/><LineBreak/>
+                                1. notion.so/my-integrations → New → Access token → copy the secret<LineBreak/>
+                                2. Open a page in Notion → "..." → Connections → add that integration<LineBreak/>
+                                3. Copy the Page ID from that page URL (last 32 characters) into the field below
                             </TextBlock>
                             <TextBlock Text="Integration Token" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
                             <PasswordBox x:Name="NotionTokenInput" Style="{StaticResource PasswordInputStyle}" Margin="0,0,0,8"/>
@@ -93,22 +93,22 @@
                             <TextBox x:Name="NotionPageIdInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
                             <StackPanel Orientation="Horizontal">
                                 <CheckBox x:Name="NotionEnabledCheck" Foreground="White" VerticalAlignment="Center"/>
-                                <TextBlock Text="Bật đồng bộ Notion" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Enable Notion sync" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,12,0,0">
                         <StackPanel>
-                            <TextBlock Text="PHÍM TẮT" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock Text="SHORTCUTS" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
                             <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" LineHeight="18">
-                                <Run Text="Ctrl+Alt+F" FontWeight="Bold" Foreground="White"/> — tìm launcher: nhấp nháy glow + bung icon vài giây (dùng khi mất dấu launcher trên màn hình)<LineBreak/><LineBreak/>
-                                <Run Text="Ctrl+Alt+G" FontWeight="Bold" Foreground="White"/> — un-ghost tất cả widget (dùng khi lỡ bật click-through và không bấm được gì nữa)
+                                <Run Text="Ctrl+Alt+F" FontWeight="Bold" Foreground="White"/> — find launcher: flash glow + expand icons for a few seconds (use when you lose the launcher on screen)<LineBreak/><LineBreak/>
+                                <Run Text="Ctrl+Alt+G" FontWeight="Bold" Foreground="White"/> — un-ghost all widgets (use when you enabled click-through and can't click anything)
                             </TextBlock>
                         </StackPanel>
                     </Border>
 
-                    <Button x:Name="LoadBtn" Content="Lưu cài đặt" Click="LoadBtn_Click" Style="{StaticResource PrimaryBtnStyle}" Margin="0,14,0,8" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="LoadBtn" Content="Save settings" Click="LoadBtn_Click" Style="{StaticResource PrimaryBtnStyle}" Margin="0,14,0,8" HorizontalAlignment="Stretch"/>
                     <Button x:Name="LogoutBtn" Content="Log out (Google Calendar)" Click="LogoutBtn_Click" Style="{StaticResource DangerBtnStyle}" HorizontalAlignment="Stretch"/>
                     <TextBlock x:Name="SettingsStatus" Foreground="#8FE0A8" FontSize="11" Margin="0,10,0,0" TextWrapping="Wrap"/>
                 </StackPanel>

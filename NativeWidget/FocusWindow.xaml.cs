@@ -104,7 +104,7 @@ public partial class FocusWindow : Window
             MinutesSuffix.Visibility = Visibility.Visible;
             MinutesInput.Text = _minutes.ToString();
             PlayBtn.Content = "\uE768";
-            MessageBox.Show("Hết giờ tập trung rồi!", "Focus session");
+            MessageBox.Show("Focus session complete!", "Focus session");
             return;
         }
         var span = TimeSpan.FromSeconds(_remainingSeconds);

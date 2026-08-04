@@ -40,7 +40,7 @@ public partial class AddEventDialog : Window
         var time = TimeSpan.Zero;
         if (!AllDay && !TimeSpan.TryParseExact(TimeInput.Text.Trim(), "hh\\:mm", null, out time))
         {
-            MessageBox.Show("Giờ không hợp lệ, dùng định dạng HH:mm.", "Lỗi");
+            MessageBox.Show("Invalid time. Use HH:mm format.", "Error");
             return;
         }
 

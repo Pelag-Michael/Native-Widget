@@ -60,7 +60,7 @@ public partial class TimersWindow : Window
         DurationMode.Visibility = _deadlineMode ? Visibility.Collapsed : Visibility.Visible;
         DeadlineMode.Visibility = _deadlineMode ? Visibility.Visible : Visibility.Collapsed;
         ModeBtn.Content = _deadlineMode ? "\uE916" : "\uE787";
-        ModeBtn.ToolTip = _deadlineMode ? "Đổi sang nhập thời lượng" : "Đổi sang nhập mốc ngày/giờ cụ thể";
+        ModeBtn.ToolTip = _deadlineMode ? "Switch to duration input" : "Switch to a specific date/time";
         if (_deadlineMode) DeadlineDate.SelectedDate ??= DateTime.Today;
     }
 
@@ -91,7 +91,7 @@ public partial class TimersWindow : Window
     {
         var duration = new TimeSpan(ParseBox(DaysInput), ParseBox(HoursInput), ParseBox(MinsInput), 0);
         if (duration > TimeSpan.Zero) return duration;
-        MessageBox.Show("Đặt thời lượng lớn hơn 0.", "Bộ đếm");
+        MessageBox.Show("Set a duration greater than 0.", "Timer");
         return null;
     }
 
@@ -99,18 +99,18 @@ public partial class TimersWindow : Window
     {
         if (DeadlineDate.SelectedDate is not { } date)
         {
-            MessageBox.Show("Chọn ngày trước.", "Bộ đếm");
+            MessageBox.Show("Pick a date first.", "Timer");
             return null;
         }
         if (!TimeSpan.TryParse(DeadlineTime.Text.Trim(), out var timeOfDay))
         {
-            MessageBox.Show("Giờ phải theo dạng HH:mm, ví dụ 23:59.", "Bộ đếm");
+            MessageBox.Show("Time must be HH:mm, for example 23:59.", "Timer");
             return null;
         }
 
         var remaining = date.Date.Add(timeOfDay) - DateTime.Now;
         if (remaining > TimeSpan.Zero) return remaining;
-        MessageBox.Show("Mốc thời gian đó đã qua rồi.", "Bộ đếm");
+        MessageBox.Show("That date and time is already in the past.", "Timer");
         return null;
     }
 
@@ -166,9 +166,9 @@ public partial class TimersWindow : Window
             };
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal };
-            actions.Children.Add(MakeIconButton("\uE8AC", "Đổi tên", () => RenameTimer(timer.Id, timer.Title)));
-            actions.Children.Add(MakeIconButton("\uE72C", "Chạy lại", () => { TimersService.Restart(timer.Id); RenderList(); }));
-            actions.Children.Add(MakeIconButton("\uE74D", "Xoá", () => { TimersService.Delete(timer.Id); RenderList(); }));
+            actions.Children.Add(MakeIconButton("\uE8AC", "Rename", () => RenameTimer(timer.Id, timer.Title)));
+            actions.Children.Add(MakeIconButton("\uE72C", "Restart", () => { TimersService.Restart(timer.Id); RenderList(); }));
+            actions.Children.Add(MakeIconButton("\uE74D", "Delete", () => { TimersService.Delete(timer.Id); RenderList(); }));
             actions.Opacity = 0;
             card.MouseEnter += (_, _) => actions.Opacity = 1;
             card.MouseLeave += (_, _) => actions.Opacity = 0;
@@ -182,7 +182,7 @@ public partial class TimersWindow : Window
 
             var countdown = new TextBlock
             {
-                Text = timer.IsExpired ? "Hết giờ" : TimersService.FormatRemaining(timer.Remaining),
+                Text = timer.IsExpired ? "Time's up" : TimersService.FormatRemaining(timer.Remaining),
                 Foreground = tagBrush,
                 FontSize = 26,
                 FontWeight = FontWeights.Bold,
@@ -207,7 +207,7 @@ public partial class TimersWindow : Window
 
             stack.Children.Add(topRow);
             if (timer.Id == nextTimerId)
-                stack.Children.Add(new TextBlock { Text = "TIẾP THEO", Foreground = tagBrush, FontSize = 9, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 3, 0, -2) });
+                stack.Children.Add(new TextBlock { Text = "UP NEXT", Foreground = tagBrush, FontSize = 9, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 3, 0, -2) });
             stack.Children.Add(countdown);
             stack.Children.Add(progress);
             stack.Children.Add(deadline);
@@ -237,7 +237,7 @@ public partial class TimersWindow : Window
 
     private void RenameTimer(string id, string currentTitle)
     {
-        var name = PromptDialog.Show(this, "Đổi tên bộ đếm", currentTitle);
+        var name = PromptDialog.Show(this, "Rename timer", currentTitle);
         if (name == null) return;
         TimersService.Rename(id, name);
         RenderList();
@@ -253,7 +253,7 @@ public partial class TimersWindow : Window
             if (!_countdownLabels.TryGetValue(timer.Id, out var label)) continue;
             if (timer.IsExpired)
             {
-                label.Text = "Hết giờ";
+                label.Text = "Time's up";
                 label.Foreground = Expired;
             }
             else

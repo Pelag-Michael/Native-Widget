@@ -46,7 +46,7 @@ public partial class VocabularyTagPickerDialog : Window
     private void AddTag_Click(object sender, RoutedEventArgs e)
     {
         CaptureSelection();
-        var tag = PromptDialog.Show(this, "Tạo tag từ vựng");
+        var tag = PromptDialog.Show(this, "Create vocabulary tag");
         if (string.IsNullOrWhiteSpace(tag)) return;
         tag = tag.Trim().TrimStart('#');
         if (tag.Length == 0) return;

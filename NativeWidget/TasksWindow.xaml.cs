@@ -29,7 +29,7 @@ public partial class TasksWindow : Window
     private List<GoogleTaskItem>? _lastRenderedTasks;
     private string _searchText = "";
 
-    // "" (index 0, "Tất cả dự án") = no filter. Index-to-projectId map rebuilt whenever the
+    // "" (index 0, "All projects") = no filter. Index-to-projectId map rebuilt whenever the
     // combo is repopulated, since Google Tasks IDs and local project GUIDs share no order.
     private readonly List<string?> _projectFilterIds = new();
 
@@ -133,7 +133,7 @@ public partial class TasksWindow : Window
         }
         catch (Exception ex)
         {
-            ShowError("Lỗi tải list", ex);
+            ShowError("Failed to load lists", ex);
         }
         finally
         {
@@ -149,7 +149,7 @@ public partial class TasksWindow : Window
 
     private async void CreateList_Click(object sender, RoutedEventArgs e)
     {
-        var title = PromptDialog.Show(this, "Tasklist mới", "");
+        var title = PromptDialog.Show(this, "New task list", "");
         if (string.IsNullOrWhiteSpace(title)) return;
 
         try
@@ -157,14 +157,14 @@ public partial class TasksWindow : Window
             var created = await GoogleTasksService.CreateTaskListAsync(_config, title.Trim());
             if (created == null)
             {
-                MessageBox.Show("Không tạo được Tasklist. Hãy kiểm tra kết nối Google.", "Lỗi");
+                MessageBox.Show("Could not create task list. Check your Google connection.", "Error");
                 return;
             }
             await ReloadAsync(created.Id);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Không tạo được Tasklist: {ex.Message}", "Lỗi");
+            MessageBox.Show($"Could not create task list: {ex.Message}", "Error");
         }
     }
 
@@ -182,7 +182,7 @@ public partial class TasksWindow : Window
 
         ProjectFilter.Items.Clear();
         _projectFilterIds.Clear();
-        ProjectFilter.Items.Add("Tất cả dự án");
+        ProjectFilter.Items.Add("All projects");
         _projectFilterIds.Add(null);
         foreach (var p in ProjectsService.Load().Items)
         {
@@ -223,7 +223,7 @@ public partial class TasksWindow : Window
         }
         catch (Exception ex)
         {
-            ShowError("Lỗi tải task", ex);
+            ShowError("Failed to load tasks", ex);
         }
         finally
         {
@@ -302,8 +302,8 @@ public partial class TasksWindow : Window
 
         TasksList.Items.Clear();
         var activeCount = allTasks.Count(task => !task.Completed);
-        TaskCountText.Text = allTasks.Count == 0 ? "" : $"{activeCount} đang làm";
-        EmptyHint.Text = allTasks.Count == 0 ? "List này chưa có task nào." : "Không tìm thấy task nào.";
+        TaskCountText.Text = allTasks.Count == 0 ? "" : $"{activeCount} active";
+        EmptyHint.Text = allTasks.Count == 0 ? "This list has no tasks yet." : "No tasks found.";
         EmptyHint.Visibility = tasks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         var topLevel = tasks.Where(t => t.ParentId == null).ToList();
@@ -348,7 +348,7 @@ public partial class TasksWindow : Window
 
         var label = new TextBlock
         {
-            Text = $"Đã xong ({count})",
+            Text = $"Completed ({count})",
             FontSize = 10.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = (Brush)FindResource("MutedBrush"),
@@ -449,9 +449,11 @@ public partial class TasksWindow : Window
             var days = (task.Due.Value.Date - DateTime.Today).Days;
             var (text, overdue) = days switch
             {
-                0 => ("Hôm nay", false),
-                > 0 => ($"còn {days} ngày", false),
-                _ => ($"quá hạn {-days} ngày", true),
+                0 => ("Today", false),
+                1 => ("Due in 1 day", false),
+                > 1 => ($"Due in {days} days", false),
+                -1 => ("Overdue by 1 day", true),
+                _ => ($"Overdue by {-days} days", true),
             };
             content.Children.Add(new TextBlock
             {
@@ -487,7 +489,7 @@ public partial class TasksWindow : Window
             FontSize = 11,
             Width = 22,
             Height = 22,
-            ToolTip = "Đặt hạn hoàn thành",
+            ToolTip = "Set due date",
             Style = (Style)FindResource("IconBtnStyle"),
         };
         dueBtn.Click += async (_, _) =>
@@ -512,8 +514,8 @@ public partial class TasksWindow : Window
             if (children is { Count: > 0 })
             {
                 var confirm = MessageBox.Show(
-                    $"\"{task.Title}\" có {children.Count} task con. Xoá cả task cha lẫn task con?",
-                    "Xác nhận xoá", MessageBoxButton.YesNo);
+                    $"\"{task.Title}\" has {children.Count} subtask{(children.Count == 1 ? "" : "s")}. Delete the parent and all subtasks?",
+                    "Confirm delete", MessageBoxButton.YesNo);
                 if (confirm != MessageBoxResult.Yes) return;
 
                 foreach (var child in children)
@@ -536,12 +538,12 @@ public partial class TasksWindow : Window
                 FontSize = 11,
                 Width = 22,
                 Height = 22,
-                ToolTip = "Thêm task con",
+                ToolTip = "Add subtask",
                 Style = (Style)FindResource("IconBtnStyle"),
             };
             addSub.Click += async (_, _) =>
             {
-                var subTitle = PromptDialog.Show(this, "Task con mới", "");
+                var subTitle = PromptDialog.Show(this, "New subtask", "");
                 if (string.IsNullOrWhiteSpace(subTitle)) return;
                 await GoogleTasksService.AddTaskAsync(_config, listId, subTitle.Trim(), task.Id);
                 _collapsedParents.Remove(task.Id);
@@ -557,7 +559,7 @@ public partial class TasksWindow : Window
             FontSize = 11,
             Width = 22,
             Height = 22,
-            ToolTip = "Gắn dự án",
+            ToolTip = "Assign project",
             Style = (Style)FindResource("IconBtnStyle"),
             Foreground = ItemProjectTagsService.Get("task", task.Id) != null ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
         };
@@ -577,7 +579,7 @@ public partial class TasksWindow : Window
             FontSize = 11,
             Width = 22,
             Height = 22,
-            ToolTip = "Nhãn",
+            ToolTip = "Labels",
             Style = (Style)FindResource("IconBtnStyle"),
             Foreground = labels.Count > 0 ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
         };
@@ -611,10 +613,10 @@ public partial class TasksWindow : Window
         {
             if (e.OriginalSource is DependencyObject d && FindAncestor<ButtonBase>(d) != null) return;
 
-            var status = task.Completed ? "Đã hoàn thành" : "Đang làm";
-            var due = task.Due == null ? "Không có hạn" : $"Hạn {task.Due.Value:dd/MM/yyyy}";
+            var status = task.Completed ? "Completed" : "In progress";
+            var due = task.Due == null ? "No due date" : $"Due {task.Due.Value:dd/MM/yyyy}";
             var result = ItemDetailsDialog.Show(this, task.Title, $"{status} · {due}", task.Description,
-                "Mở Google Tasks", "https://tasks.google.com/", canEditDescription: true);
+                "Open Google Tasks", "https://tasks.google.com/", canEditDescription: true);
             if (!result.DescriptionChanged) return;
 
             try
@@ -624,7 +626,7 @@ public partial class TasksWindow : Window
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Không lưu được mô tả: {ex.Message}", "Lỗi");
+                MessageBox.Show($"Could not save description: {ex.Message}", "Error");
             }
         };
         return row;

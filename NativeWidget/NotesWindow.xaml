@@ -28,7 +28,7 @@
                     <TextBlock Text="Notes" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="NewNoteBtn" Content="&#xE710;" ToolTip="Ghi chú mới" Click="NewNote_Click" Style="{StaticResource IconBtnStyle}"/>
+                    <Button x:Name="NewNoteBtn" Content="&#xE710;" ToolTip="New note" Click="NewNote_Click" Style="{StaticResource IconBtnStyle}"/>
                     <local:WidgetHeaderControls x:Name="HeaderControls"/>
                 </StackPanel>
             </Grid>
@@ -47,7 +47,7 @@
                     </Grid.ColumnDefinitions>
                     <Grid Grid.Column="0" Margin="0,0,6,0">
                         <TextBox x:Name="SearchBox" Style="{StaticResource InputStyle}" TextChanged="SearchBox_TextChanged"/>
-                        <TextBlock Text="Tìm ghi chú..." Foreground="{StaticResource MutedBrush}" FontSize="12"
+                        <TextBlock Text="Search notes..." Foreground="{StaticResource MutedBrush}" FontSize="12"
                                    Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -61,10 +61,10 @@
                             </TextBlock.Style>
                         </TextBlock>
                     </Grid>
-                    <ComboBox x:Name="ProjectFilter" Grid.Column="1" ToolTip="Lọc theo dự án" SelectionChanged="ProjectFilter_Changed"/>
+                    <ComboBox x:Name="ProjectFilter" Grid.Column="1" ToolTip="Filter by project" SelectionChanged="ProjectFilter_Changed"/>
                 </Grid>
-                <ComboBox x:Name="TagFilter" Grid.Row="1" Margin="0,0,0,8" ToolTip="Lọc theo nhãn" SelectionChanged="TagFilter_Changed"/>
-                <TextBlock x:Name="EmptyHint" Grid.Row="2" Text="Chưa có ghi chú nào. Bấm + để tạo." Foreground="{StaticResource MutedBrush}"
+                <ComboBox x:Name="TagFilter" Grid.Row="1" Margin="0,0,0,8" ToolTip="Filter by label" SelectionChanged="TagFilter_Changed"/>
+                <TextBlock x:Name="EmptyHint" Grid.Row="2" Text="No notes yet. Click + to create one." Foreground="{StaticResource MutedBrush}"
                            FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                 <ListBox x:Name="NotesList" Grid.Row="2" Background="Transparent" BorderThickness="0"
                          ScrollViewer.CanContentScroll="False"
@@ -85,8 +85,8 @@
                 <Border Grid.Row="0" Background="{StaticResource ChipBg}" CornerRadius="10" Padding="4" Margin="0,0,0,8">
                     <WrapPanel>
                         <ComboBox x:Name="FontFamilyCombo" Width="98" Margin="0,0,4,0" SelectionChanged="FontFamilyCombo_Changed">
-                            <ComboBoxItem Content="Có chân" Tag="Georgia"/>
-                            <ComboBoxItem Content="Không chân" Tag="Segoe UI" IsSelected="True"/>
+                            <ComboBoxItem Content="Serif" Tag="Georgia"/>
+                            <ComboBoxItem Content="Sans-serif" Tag="Segoe UI" IsSelected="True"/>
                             <ComboBoxItem Content="Mono/Code" Tag="Consolas"/>
                         </ComboBox>
                         <ComboBox x:Name="FontSizeCombo" Width="52" Margin="0,0,8,0" SelectionChanged="FontSizeCombo_Changed">
@@ -106,13 +106,13 @@
                                 </Style>
                             </Button.Resources>
                         </Button>
-                        <Button Content="H1" ToolTip="Tiêu đề (Ctrl+Alt+1)" Click="Heading1_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Segoe UI" FontWeight="Bold" Width="28"/>
-                        <Button Content="H2" ToolTip="Tiêu đề phụ (Ctrl+Alt+2)" Click="Heading2_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Segoe UI" FontWeight="Bold" Width="28"/>
-                        <Button Content="&#xE8FD;" ToolTip="Danh sách chấm (Ctrl+Shift+8)" Click="BulletList_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
-                        <Button Content="&#xE8EF;" ToolTip="Danh sách số (Ctrl+Shift+7)" Click="NumberList_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
-                        <Button Content="&#xE73A;" ToolTip="Việc cần làm (Ctrl+Shift+9)" Click="Todo_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
-                        <Button Content="&#xE90A;" ToolTip="Trích dẫn (Ctrl+Shift+Q)" Click="Quote_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
-                        <Button Content="&lt;/&gt;" ToolTip="Khối mã (Ctrl+Shift+C)" Click="Code_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Consolas" FontSize="10" Width="32"/>
+                        <Button Content="H1" ToolTip="Heading (Ctrl+Alt+1)" Click="Heading1_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Segoe UI" FontWeight="Bold" Width="28"/>
+                        <Button Content="H2" ToolTip="Subheading (Ctrl+Alt+2)" Click="Heading2_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Segoe UI" FontWeight="Bold" Width="28"/>
+                        <Button Content="&#xE8FD;" ToolTip="Bullet list (Ctrl+Shift+8)" Click="BulletList_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&#xE8EF;" ToolTip="Numbered list (Ctrl+Shift+7)" Click="NumberList_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&#xE73A;" ToolTip="To-do (Ctrl+Shift+9)" Click="Todo_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&#xE90A;" ToolTip="Quote (Ctrl+Shift+Q)" Click="Quote_Click" Style="{StaticResource IconBtnStyle}" Width="26"/>
+                        <Button Content="&lt;/&gt;" ToolTip="Code block (Ctrl+Shift+C)" Click="Code_Click" Style="{StaticResource IconBtnStyle}" FontFamily="Consolas" FontSize="10" Width="32"/>
                     </WrapPanel>
                 </Border>
 
@@ -126,12 +126,12 @@
                 </Border>
 
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button x:Name="PopOutBtn" Content="&#xE8A7;" ToolTip="Mở note này ra cửa sổ riêng" Click="PopOut_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
-                    <Button Content="&#xE8AC;" ToolTip="Đổi tên" Click="Rename_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
-                    <Button x:Name="SaveBtn" Content="&#xE74E;" ToolTip="Lưu và đồng bộ Notion (Ctrl+S)" Click="Save_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
+                    <Button x:Name="PopOutBtn" Content="&#xE8A7;" ToolTip="Open this note in a separate window" Click="PopOut_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
+                    <Button Content="&#xE8AC;" ToolTip="Rename" Click="Rename_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
+                    <Button x:Name="SaveBtn" Content="&#xE74E;" ToolTip="Save and sync to Notion (Ctrl+S)" Click="Save_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                     <Button Content="&#xE8C8;" ToolTip="Copy" Click="Copy_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
-                    <Button Content="&#xE723;" ToolTip="Đính kèm file bất kỳ" Click="AttachFile_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
-                    <Button Content="&#xE74D;" ToolTip="Xoá ghi chú này" Click="Delete_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
+                    <Button Content="&#xE723;" ToolTip="Attach any file" Click="AttachFile_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
+                    <Button Content="&#xE74D;" ToolTip="Delete this note" Click="Delete_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0"/>
                 </StackPanel>
             </Grid>
         </Grid>

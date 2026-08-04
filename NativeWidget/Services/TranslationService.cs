@@ -24,7 +24,7 @@ public static class TranslationService
         string targetLanguage, CancellationToken cancellationToken = default)
     {
         text = text.Trim();
-        if (text.Length == 0) throw new ArgumentException("Không có nội dung để dịch.", nameof(text));
+        if (text.Length == 0) throw new ArgumentException("Nothing to translate.", nameof(text));
         if (text.Length > 5000) text = text[..5000];
 
         var source = string.IsNullOrWhiteSpace(sourceLanguage) ? "auto" : sourceLanguage;
@@ -39,7 +39,7 @@ public static class TranslationService
             .Select(segment => segment[0].ValueKind == JsonValueKind.String ? segment[0].GetString() : null));
         var detected = root.GetArrayLength() > 2 && root[2].ValueKind == JsonValueKind.String
             ? root[2].GetString() ?? source : source;
-        if (string.IsNullOrWhiteSpace(translated)) throw new InvalidOperationException("Dịch vụ không trả về bản dịch.");
+        if (string.IsNullOrWhiteSpace(translated)) throw new InvalidOperationException("Translation service returned no translation.");
 
         return new TranslationResult(text, translated.Trim(), detected, target,
             ParseMeaningGroups(root), ParseExamples(root));
@@ -79,7 +79,7 @@ public static class TranslationService
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 if (attempt == MaxAttempts)
-                    throw new TimeoutException("Dịch vụ phản hồi quá chậm. Hãy thử lại.");
+                    throw new TimeoutException("The translation service timed out. Please try again.");
                 await Task.Delay(350, cancellationToken);
             }
             catch (HttpRequestException) when (attempt < MaxAttempts)
@@ -88,7 +88,7 @@ public static class TranslationService
             }
         }
 
-        throw new HttpRequestException("Không thể kết nối dịch vụ dịch. Hãy thử lại.");
+        throw new HttpRequestException("Couldn't reach the translation service. Please try again.");
     }
 
     private static bool IsTransient(System.Net.HttpStatusCode statusCode) =>

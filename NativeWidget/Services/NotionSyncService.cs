@@ -96,7 +96,7 @@ public static partial class NotionSyncService
         }
 
         if (string.IsNullOrEmpty(config.NotionParentPageId))
-            throw new InvalidOperationException("Chưa điền Parent Page ID trong Settings.");
+            throw new InvalidOperationException("Parent Page ID is not set in Settings.");
 
         var body = new
         {
@@ -372,7 +372,7 @@ public static partial class NotionSyncService
 
             var info = new FileInfo(uri.LocalPath);
             if (info.Length > 20 * 1024 * 1024)
-                throw new InvalidOperationException($"File quá lớn để tải lên Notion: {info.Name}");
+                throw new InvalidOperationException($"File is too large to upload to Notion: {info.Name}");
             var contentType = ContentType(uri.LocalPath);
             var created = await CallAsync(config, HttpMethod.Post, "/file_uploads", new
             {

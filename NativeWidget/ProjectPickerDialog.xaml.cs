@@ -16,7 +16,7 @@ public partial class ProjectPickerDialog : Window
     {
         InitializeComponent();
 
-        var noneRow = BuildRow("Không gắn", null, currentProjectId == null);
+        var noneRow = BuildRow("None", null, currentProjectId == null);
         ProjectListBox.Items.Add(noneRow);
         _rowProjectIds[noneRow] = null;
 
@@ -29,7 +29,7 @@ public partial class ProjectPickerDialog : Window
     }
 
     /// Returns null if the user cancelled - otherwise the picked project ID, or "" for
-    /// "Không gắn" (explicit clear).
+    /// "None" (explicit clear).
     public static string? Show(Window owner, string? currentProjectId)
     {
         var dialog = new ProjectPickerDialog(currentProjectId) { Owner = owner };

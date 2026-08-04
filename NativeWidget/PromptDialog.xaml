@@ -6,11 +6,11 @@
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize">
     <Border Background="#F2131217" CornerRadius="16" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="16">
         <StackPanel>
-            <TextBlock x:Name="PromptTitle" Text="Đổi tên" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10"/>
+            <TextBlock x:Name="PromptTitle" Text="Rename" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10"/>
             <TextBox x:Name="ValueInput" Style="{StaticResource InputStyle}" KeyDown="ValueInput_KeyDown"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                <Button Content="Huỷ" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="70" Margin="0,0,8,0"/>
-                <Button Content="Lưu" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="70"/>
+                <Button Content="Cancel" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="70" Margin="0,0,8,0"/>
+                <Button Content="Save" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="70"/>
             </StackPanel>
         </StackPanel>
     </Border>

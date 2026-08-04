@@ -194,7 +194,7 @@ public static class GoogleCalendarService
                 events.Add(new CalendarEvent
                 {
                     Id = e.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "",
-                    Title = e.TryGetProperty("summary", out var s) ? s.GetString() ?? "(Không tiêu đề)" : "(Không tiêu đề)",
+                    Title = e.TryGetProperty("summary", out var s) ? s.GetString() ?? "(No title)" : "(No title)",
                     Start = hasDateTime ? dt.GetString()! : start.GetProperty("date").GetString()!,
                     AllDay = !hasDateTime,
                     Link = e.TryGetProperty("htmlLink", out var l) ? l.GetString() ?? "" : "",

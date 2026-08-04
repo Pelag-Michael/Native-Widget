@@ -11,6 +11,11 @@ icon, launched from a small hover-expand dock.
   ~100MB per running widget window.
 - No third-party UI libs. No MVVM framework — plain code-behind, kept small on purpose.
 - OAuth (Google) implemented by hand (PKCE + loopback `HttpListener`), no Google SDK.
+- **UI language is English** (hard-coded chrome strings; no i18n framework). Default Translate
+  target language code remains `vi`. Day/weekday headers use `CultureInfo("en-US")` with
+  day-first date patterns where shown (`dd/MM`). New default titles: "New note", "New project",
+  "Timer". Existing user data may still contain Vietnamese titles — do not mass-rewrite AppData.
+  Vocabulary source app legacy value `Nhập trực tiếp` is display/filter-aliased to **Direct input**.
 
 ## Project layout
 
@@ -131,7 +136,7 @@ client type with a fixed loopback redirect `http://127.0.0.1:42813/callback`. To
 at `%AppData%\NativeWidget\google-token.json`, refreshed transparently. Fetches events in a
 **14-day date range** (not a flat top-N count — an early version used `maxResults=8/20` and
 got dominated by same-day recurring "birthday" all-day events, hiding real future events).
-Events are grouped by day with headers (Hôm nay / Ngày mai / weekday+date). Auto-refreshes
+Events are grouped by day with headers (Today / Tomorrow / weekday+date via `en-US`). Auto-refreshes
 every 5 min while visible, and on `Activated` (so reopening the widget always shows current
 data without needing to reconnect). Clicking an event opens `ItemDetailsDialog` instead of
 immediately launching a browser. The dialog shows event metadata and description, turns bare
@@ -172,7 +177,7 @@ as Timers' "add" form: days/hours/minutes from now). Setting one just calls
 `TimersService.Add(...)` and stores the returned `CountdownTimer.Id` in
 `NoteMeta.ReminderTimerId` — the Timers widget shows it automatically since it already
 lists every `CountdownTimer` with no note-specific code needed there. Re-opening the dialog
-on a note that already has one shows a "Xoá nhắc" option, which deletes that timer and
+on a note that already has one shows a "Clear reminder" option, which deletes that timer and
 clears `ReminderTimerId`.
 
 **Notion sync (experimental, off by default)** — `NotionSyncService`, polled every 15s from
@@ -277,7 +282,7 @@ kept in memory only — not persisted) — the chevron re-renders from the last-
 list (`_lastRenderedTasks`) instead of re-fetching from Google.
 
 Tasks can carry a **due date** (`GoogleTasksService.SetDueDateAsync`) shown as a day-count
-under the title ("còn N ngày" / "quá hạn N ngày"). Google Tasks only stores a date, never a
+under the title ("Due in N days" / "Overdue by N days"). Google Tasks only stores a date, never a
 time of day, so the countdown is always in whole days.
 
 Clicking a task opens the same `ItemDetailsDialog` used by Calendar. Its description is the
@@ -328,7 +333,7 @@ while the app is closed or the machine is powered off. Persisted to
 `TimerNotifier` (started from `App.OnStartup`, so it runs even when the Timers window is
 closed) polls every 5s for timers that are expired and not yet `Notified`, announces them,
 then flips the flag so each fires exactly once. It also does a startup sweep 2s after
-launch that reports **how overdue** each one is ("kết thúc 3 giờ 20 phút trước") — that
+launch that reports **how overdue** each one is ("ended 3 hours 20 minutes ago") — that
 branch is what covers timers that ran out while the machine was off.
 
 The Timers add form offers 5m/15m/25m/1h presets. Cards highlight the next live deadline and
@@ -346,8 +351,8 @@ the window is a 64px title rail; pointer entry expands it with a short eased hei
 and pointer exit collapses it after a 550ms grace period. Translation, OCR, open dropdowns,
 the opacity popup, text search, modal tag/prompt interactions, and the result popup temporarily
 hold the panel open so it cannot disappear mid-action. Its compact language card uses a custom
-pill switch rather than the platform checkbox. While the window is visible and **Tự dịch vùng
-chọn** is enabled, `GlobalSelectionService` installs
+pill switch rather than the platform checkbox. While the window is visible and **Auto-translate
+selection** is enabled, `GlobalSelectionService` installs
 a low-level mouse hook. A real drag followed by left-button release records the foreground
 window, waits briefly for the source app to finish its selection, simulates `Ctrl+C`, reads the
 new clipboard text, and restores the previous clipboard payload. Captures are rejected when
@@ -366,8 +371,10 @@ Google/DeepL/LLM provider can replace it later. Source and target language selec
 the widget and persist through `AppConfig`; Vietnamese is the default target.
 
 The expanded panel also contains a compact multiline manual-input field. Its action uses capture
-method `manual` and source app `Nhập trực tiếp`, then enters the exact same result popup, link,
-save, private-tag, and metadata-filter pipeline as selection, clipboard, and OCR captures. Keyboard
+method `manual` and source app `Direct input`, then enters the exact same result popup, link,
+save, private-tag, and metadata-filter pipeline as selection, clipboard, and OCR captures.
+Legacy vocabulary rows may still store source app `Nhập trực tiếp`; the Source App filter
+collapses both values into one **Direct input** option without rewriting AppData. Keyboard
 focus inside this field participates in the hover hold-open guard.
 
 A successful translation opens `TranslationResultPopup` near the cursor with linkified
@@ -382,7 +389,7 @@ pair, capture method, source application, and tag filters. Tags use an isolated 
 can copy, retag, reopen, or delete an entry; there are deliberately no notes, scores, review
 schedules, or spaced-repetition state.
 
-For non-selectable text, **Chụp vùng màn hình** temporarily stops selection tracking and opens
+For non-selectable text, **Capture screen region** temporarily stops selection tracking and opens
 `ScreenRegionOverlay` across the virtual desktop. Physical screen pixels are captured with GDI
 `BitBlt` after the overlay hides, then passed to the built-in `Windows.Media.Ocr` engine and the
 same translation/popup/save pipeline. This requires the Windows 10 SDK projection reflected in
@@ -391,12 +398,12 @@ the `net8.0-windows10.0.19041.0` target but adds no third-party package.
 ### Settings
 The Google client secret and Notion token use masked `PasswordBox` fields. Compact badges show
 whether Google is connected and whether Notion sync is enabled; credentials remain stored in
-the existing `AppConfig` file after the user chooses `Lưu cài đặt`.
+the existing `AppConfig` file after the user chooses **Save settings**.
 
 Google OAuth Client ID/Secret input (with inline step-by-step instructions for the Google
 Cloud Console flow) + `Load` (saves to `AppConfig`) + `Logout` (clears the Calendar token) +
 auto-start-with-Windows checkbox (`AutoStartService`, HKCU Run key). The independent
-`Khôi phục phiên làm việc` checkbox persists immediately and controls `WindowSessionService`;
+**Restore work session** checkbox persists immediately and controls `WindowSessionService`;
 auto-start and session restore are intentionally separate choices.
 
 ## Removed features (do not re-add without asking)
@@ -459,7 +466,7 @@ Two traps, both of which produced a silently-wrong icon before:
 ## Known rough edges
 
 - No error surfacing for OAuth/network failures beyond the connect button flipping to
-  "Lỗi, thử lại" — acceptable for a personal tool, would want real error text before sharing
+  "Error, try again" — acceptable for a personal tool, would want real error text before sharing
   this with anyone else.
 - `AutoStartService` writes `Environment.ProcessPath` to the registry — only correct once
   the app is running from its **published** location; if you delete/move the publish folder,

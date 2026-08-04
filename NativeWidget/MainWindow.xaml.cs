@@ -388,10 +388,10 @@ public partial class MainWindow : Window
         e.Handled = true;
         if (!GoogleTasksService.IsConnected())
         {
-            MessageBox.Show("Chưa kết nối Google (mở widget Calendar và Connect trước).", "Chưa kết nối");
+            MessageBox.Show("Not connected to Google (open the Calendar widget and connect first).", "Not connected");
             return;
         }
-        var title = PromptDialog.Show(this, "Task nhanh (vào list đầu tiên)");
+        var title = PromptDialog.Show(this, "Quick task (first list)");
         if (string.IsNullOrWhiteSpace(title)) return;
 
         var lists = await GoogleTasksService.GetTaskListsAsync(_config);
@@ -403,7 +403,7 @@ public partial class MainWindow : Window
     private void QuickAddNote_Click(object sender, MouseButtonEventArgs e)
     {
         e.Handled = true;
-        var title = PromptDialog.Show(this, "Ghi chú nhanh");
+        var title = PromptDialog.Show(this, "Quick note");
         if (string.IsNullOrWhiteSpace(title)) return;
 
         var id = NotesService.CreateNote();
@@ -416,7 +416,7 @@ public partial class MainWindow : Window
         e.Handled = true;
         if (!GoogleCalendarService.IsConnected())
         {
-            MessageBox.Show("Chưa kết nối Google Calendar (mở widget Calendar và Connect trước).", "Chưa kết nối");
+            MessageBox.Show("Not connected to Google Calendar (open the Calendar widget and connect first).", "Not connected");
             return;
         }
         var dialog = AddEventDialog.Show(this);
@@ -429,7 +429,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Không tạo được sự kiện: {ex.Message}", "Lỗi");
+            MessageBox.Show($"Could not create event: {ex.Message}", "Error");
         }
     }
 

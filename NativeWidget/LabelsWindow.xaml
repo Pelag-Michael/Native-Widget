@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NativeWidget"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="Nhãn" Width="300" Height="400" MinWidth="250" MinHeight="220"
+        Title="Labels" Width="300" Height="400" MinWidth="250" MinHeight="220"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
         Left="1090" Top="480" Closing="Window_Closing">
@@ -25,22 +25,22 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="&#xE8EC;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
-                    <TextBlock Text="Nhãn" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock Text="Labels" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
                     <TextBlock x:Name="CountText" Foreground="{StaticResource MutedBrush}" FontSize="10.5" Margin="8,1,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="&#xE710;" ToolTip="Tạo nhãn" Click="AddLabel_Click" Style="{StaticResource IconBtnStyle}"/>
+                    <Button Content="&#xE710;" ToolTip="Create label" Click="AddLabel_Click" Style="{StaticResource IconBtnStyle}"/>
                     <local:WidgetHeaderControls x:Name="HeaderControls"/>
                 </StackPanel>
             </Grid>
 
             <Border Grid.Row="1" Background="{StaticResource ChipBg}" CornerRadius="10" Padding="10,7" Margin="0,0,0,8">
-                <TextBlock Text="Tạo nhãn ở đây, sau đó dùng icon nhãn trong Notes, Tasks hoặc Calendar để gắn vào item."
+                <TextBlock Text="Create labels here, then use the label icon in Notes, Tasks, or Calendar to tag an item."
                            Foreground="{StaticResource MutedBrush}" FontSize="10.5" TextWrapping="Wrap"/>
             </Border>
 
             <Grid Grid.Row="2">
-                <TextBlock x:Name="EmptyHint" Text="Chưa có nhãn. Bấm + để tạo." Foreground="{StaticResource MutedBrush}"
+                <TextBlock x:Name="EmptyHint" Text="No labels yet. Tap + to create one." Foreground="{StaticResource MutedBrush}"
                            FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                 <ListBox x:Name="LabelsList" Background="Transparent" BorderThickness="0"
                          ScrollViewer.CanContentScroll="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"

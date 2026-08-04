@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid>
         <Button x:Name="Dot" Width="18" Height="18" Padding="0" Click="Dot_Click"
-                ToolTip="Đổi màu thẻ" Background="Transparent" BorderThickness="0" Cursor="Hand">
+                ToolTip="Change color tag" Background="Transparent" BorderThickness="0" Cursor="Hand">
             <Button.Template>
                 <ControlTemplate TargetType="Button">
                     <Ellipse x:Name="Circle" Width="14" Height="14" Stroke="#33FFFFFF" StrokeThickness="1"/>

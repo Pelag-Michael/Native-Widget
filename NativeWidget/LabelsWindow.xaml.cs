@@ -41,24 +41,24 @@ public partial class LabelsWindow : Window
             var uses = LabelsService.UsageCount(label);
             text.Children.Add(new TextBlock
             {
-                Text = uses == 0 ? "Chưa sử dụng" : $"Đang dùng ở {uses} mục",
+                Text = uses == 0 ? "Not used yet" : uses == 1 ? "Used on 1 item" : $"Used on {uses} items",
                 Foreground = (Brush)FindResource("MutedBrush"), FontSize = 10, Margin = new Thickness(2, 3, 0, 0),
             });
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Opacity = 0 };
-            var rename = MakeIcon("\uE8AC", "Đổi tên");
+            var rename = MakeIcon("\uE8AC", "Rename");
             rename.Click += (_, _) =>
             {
-                var value = PromptDialog.Show(this, "Đổi tên nhãn", label);
+                var value = PromptDialog.Show(this, "Rename label", label);
                 if (string.IsNullOrWhiteSpace(value)) return;
                 LabelsService.Rename(label, value);
                 Render();
             };
-            var delete = MakeIcon("\uE74D", "Xóa nhãn");
+            var delete = MakeIcon("\uE74D", "Delete label");
             delete.Click += (_, _) =>
             {
-                if (MessageBox.Show(this, $"Xóa nhãn \"{label}\" khỏi mọi note, task và sự kiện?",
-                        "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+                if (MessageBox.Show(this, $"Remove label \"{label}\" from every note, task, and event?",
+                        "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
                 LabelsService.Delete(label);
                 Render();
             };
@@ -82,7 +82,7 @@ public partial class LabelsWindow : Window
 
     private void AddLabel_Click(object sender, RoutedEventArgs e)
     {
-        var label = PromptDialog.Show(this, "Tạo nhãn");
+        var label = PromptDialog.Show(this, "Create label");
         if (string.IsNullOrWhiteSpace(label)) return;
         LabelsService.Add(label);
         Render();

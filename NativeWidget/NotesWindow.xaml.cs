@@ -117,8 +117,8 @@ public partial class NotesWindow : Window
             // Best-effort background sync - a transient network/API error shouldn't surface
             // as a popup on a 15s timer; it just retries next tick.
             if (reportErrors)
-                MessageBox.Show(this, "Không thể đồng bộ Notion:\n" + ex.Message,
-                    "Lỗi đồng bộ", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(this, "Could not sync with Notion:\n" + ex.Message,
+                    "Sync error", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
         finally
@@ -201,7 +201,7 @@ public partial class NotesWindow : Window
 
         ProjectFilter.Items.Clear();
         _projectFilterIds.Clear();
-        ProjectFilter.Items.Add("Tất cả dự án");
+        ProjectFilter.Items.Add("All projects");
         _projectFilterIds.Add(null);
         foreach (var p in ProjectsService.Load().Items)
         {
@@ -221,7 +221,7 @@ public partial class NotesWindow : Window
 
         TagFilter.SelectionChanged -= TagFilter_Changed;
         TagFilter.Items.Clear();
-        TagFilter.Items.Add("Tất cả nhãn");
+        TagFilter.Items.Add("All labels");
         foreach (var tag in allNotes.SelectMany(n => n.Tags).Distinct().OrderBy(t => t))
             TagFilter.Items.Add(tag);
 
@@ -256,7 +256,7 @@ public partial class NotesWindow : Window
 
         NotesList.Items.Clear();
         _cardIds.Clear();
-        EmptyHint.Text = allNotes.Count == 0 ? "Chưa có ghi chú nào. Bấm + để tạo." : "Không tìm thấy ghi chú nào.";
+        EmptyHint.Text = allNotes.Count == 0 ? "No notes yet. Click + to create one." : "No notes found.";
         EmptyHint.Visibility = notes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         foreach (var note in notes)
@@ -320,7 +320,7 @@ public partial class NotesWindow : Window
             {
                 text.Children.Add(new TextBlock
                 {
-                    Text = "\uE916 Đang nhắc",
+                    Text = "\uE916 Reminder active",
                     FontFamily = new FontFamily("Segoe MDL2 Assets"),
                     FontSize = 10,
                     Foreground = (Brush)FindResource("AccentBrush"),
@@ -341,7 +341,7 @@ public partial class NotesWindow : Window
                 Height = 22,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(4, 0, 0, 0),
-                ToolTip = "Gắn dự án",
+                ToolTip = "Assign project",
                 Style = (Style)FindResource("IconBtnStyle"),
                 Foreground = ItemProjectTagsService.Get("note", note.Id) != null ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
             };
@@ -363,7 +363,7 @@ public partial class NotesWindow : Window
                 Height = 22,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(4, 0, 0, 0),
-                ToolTip = "Nhãn",
+                ToolTip = "Labels",
                 Style = (Style)FindResource("IconBtnStyle"),
                 Foreground = note.Tags.Count > 0 ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
             };
@@ -384,7 +384,7 @@ public partial class NotesWindow : Window
                 Height = 22,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(4, 0, 0, 0),
-                ToolTip = "Nhắc nhở",
+                ToolTip = "Reminder",
                 Style = (Style)FindResource("IconBtnStyle"),
                 Foreground = note.ReminderTimerId != null ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
             };
@@ -680,20 +680,20 @@ public partial class NotesWindow : Window
         if (!_config.NotionSyncEnabled)
         {
             SaveBtn.Content = "\uE74E";
-            SaveBtn.ToolTip = "Đã lưu local; đồng bộ Notion đang tắt (Ctrl+S)";
+            SaveBtn.ToolTip = "Saved locally; Notion sync is off (Ctrl+S)";
             return;
         }
 
         SaveBtn.IsEnabled = false;
         SaveBtn.Content = "\uE895";
-        SaveBtn.ToolTip = "Đang lưu và đồng bộ Notion…";
+        SaveBtn.ToolTip = "Saving and syncing to Notion…";
         try
         {
             var synced = await RunNotionSyncAsync(reportErrors: true);
             SaveBtn.Content = synced ? "\uE73E" : "\uEA39";
             SaveBtn.ToolTip = synced
-                ? $"Đã lưu và đồng bộ lúc {DateTime.Now:HH:mm:ss} (Ctrl+S)"
-                : "Đã lưu local nhưng đồng bộ Notion thất bại (Ctrl+S)";
+                ? $"Saved and synced at {DateTime.Now:HH:mm:ss} (Ctrl+S)"
+                : "Saved locally but Notion sync failed (Ctrl+S)";
         }
         finally
         {
@@ -734,7 +734,7 @@ public partial class NotesWindow : Window
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
         if (_currentId == null) return;
-        var name = PromptDialog.Show(this, "Đổi tên ghi chú", NotesService.GetTitle(_currentId));
+        var name = PromptDialog.Show(this, "Rename note", NotesService.GetTitle(_currentId));
         if (string.IsNullOrWhiteSpace(name)) return;
         NotesService.RenameNote(_currentId, name);
     }
@@ -748,7 +748,7 @@ public partial class NotesWindow : Window
     private void Delete_Click(object sender, RoutedEventArgs e)
     {
         if (_currentId == null) return;
-        if (MessageBox.Show("Xoá ghi chú này?", "Xác nhận", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+        if (MessageBox.Show("Delete this note?", "Confirm", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
 
         NotesService.DeleteNote(_currentId);
         _currentId = null;
@@ -841,8 +841,8 @@ public partial class NotesWindow : Window
     {
         var dialog = new OpenFileDialog
         {
-            Title = "Đính kèm file",
-            Filter = "Tất cả file (*.*)|*.*",
+            Title = "Attach file",
+            Filter = "All files (*.*)|*.*",
             Multiselect = true,
         };
         if (dialog.ShowDialog(this) == true) AttachFiles(dialog.FileNames);
@@ -891,8 +891,8 @@ public partial class NotesWindow : Window
         }
         NoteText.Focus();
         if (oversized.Count > 0)
-            MessageBox.Show("Notion chỉ nhận file tối đa 20 MB:\n" + string.Join("\n", oversized),
-                "Không thể đính kèm", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Notion only accepts files up to 20 MB:\n" + string.Join("\n", oversized),
+                "Could not attach", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     // ---- Pasting images ----

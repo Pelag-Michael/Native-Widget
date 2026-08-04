@@ -19,11 +19,11 @@
             <Grid Grid.Row="0" Margin="0,0,0,10">
                 <TextBlock x:Name="LanguagePairText" Foreground="#7FA8FF" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
                 <Button Content="&#xE711;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Right"
-                        ToolTip="Đóng" Click="Close_Click" Style="{StaticResource IconBtnStyle}"/>
+                        ToolTip="Close" Click="Close_Click" Style="{StaticResource IconBtnStyle}"/>
             </Grid>
 
             <StackPanel Grid.Row="1">
-                <TextBlock Text="NGUYÊN VĂN" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                <TextBlock Text="ORIGINAL" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
                 <Border Background="#401F1E25" CornerRadius="9" Padding="9" MaxHeight="150">
                     <RichTextBox x:Name="SourceView" IsReadOnly="True" IsDocumentEnabled="True" Background="Transparent"
                                  BorderThickness="0" Padding="0" Foreground="#D5D4DA" FontSize="12"
@@ -32,7 +32,7 @@
             </StackPanel>
 
             <StackPanel Grid.Row="2" Margin="0,10,0,0">
-                <TextBlock Text="BẢN DỊCH" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                <TextBlock Text="TRANSLATION" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
                 <Border Background="#401F1E25" CornerRadius="9" Padding="9" MaxHeight="190">
                     <RichTextBox x:Name="TranslationView" IsReadOnly="True" IsDocumentEnabled="True" Background="Transparent"
                                  BorderThickness="0" Padding="0" Foreground="White" FontSize="13"
@@ -41,7 +41,7 @@
             </StackPanel>
 
             <StackPanel x:Name="MeaningSection" Grid.Row="3" Margin="0,10,0,0" Visibility="Collapsed">
-                <TextBlock Text="CÁC NGHĨA KHÁC" Foreground="{StaticResource MutedBrush}" FontSize="10"
+                <TextBlock Text="OTHER MEANINGS" Foreground="{StaticResource MutedBrush}" FontSize="10"
                            FontWeight="Bold" Margin="0,0,0,5"/>
                 <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="MeaningGroupsPanel"/>
@@ -49,7 +49,7 @@
             </StackPanel>
 
             <StackPanel x:Name="ExampleSection" Grid.Row="4" Margin="0,8,0,0" Visibility="Collapsed">
-                <TextBlock Text="VÍ DỤ NGỮ CẢNH" Foreground="{StaticResource MutedBrush}" FontSize="10"
+                <TextBlock Text="CONTEXT EXAMPLES" Foreground="{StaticResource MutedBrush}" FontSize="10"
                            FontWeight="Bold" Margin="0,0,0,4"/>
                 <ScrollViewer MaxHeight="115" VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="ExamplesPanel"/>
@@ -60,11 +60,11 @@
 
             <Grid Grid.Row="6" Margin="0,12,0,0">
                 <StackPanel Orientation="Horizontal">
-                    <Button Content="Sao chép" Click="Copy_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5"/>
-                    <Button Content="Đảo chiều" Click="Swap_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5" Margin="6,0,0,0"/>
-                    <Button Content="Dịch lại" Click="Retry_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5" Margin="6,0,0,0"/>
+                    <Button Content="Copy" Click="Copy_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5"/>
+                    <Button Content="Swap" Click="Swap_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5" Margin="6,0,0,0"/>
+                    <Button Content="Retry" Click="Retry_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5" Margin="6,0,0,0"/>
                 </StackPanel>
-                <Button x:Name="SaveButton" Content="Lưu" Click="Save_Click" Style="{StaticResource PrimaryBtnStyle}"
+                <Button x:Name="SaveButton" Content="Save" Click="Save_Click" Style="{StaticResource PrimaryBtnStyle}"
                         Padding="12,5" HorizontalAlignment="Right"/>
             </Grid>
         </Grid>

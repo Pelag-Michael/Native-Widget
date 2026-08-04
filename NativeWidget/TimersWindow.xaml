@@ -28,7 +28,7 @@
                     <TextBlock Text="Timers" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="AddToggleBtn" Content="&#xE710;" ToolTip="Bộ đếm mới" Click="AddToggle_Click" Style="{StaticResource IconBtnStyle}"/>
+                    <Button x:Name="AddToggleBtn" Content="&#xE710;" ToolTip="New timer" Click="AddToggle_Click" Style="{StaticResource IconBtnStyle}"/>
                     <local:WidgetHeaderControls x:Name="HeaderControls"/>
                 </StackPanel>
             </Grid>
@@ -43,7 +43,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="TitleInput" Style="{StaticResource InputStyle}"/>
                         <Button x:Name="ModeBtn" Grid.Column="1" Content="&#xE787;" FontFamily="Segoe MDL2 Assets"
-                                ToolTip="Đổi sang nhập mốc ngày/giờ cụ thể" Margin="4,0,0,0"
+                                ToolTip="Switch to a specific date/time" Margin="4,0,0,0"
                                 Click="ToggleMode_Click" Style="{StaticResource SecondaryBtnStyle}" Width="38"/>
                     </Grid>
 
@@ -57,15 +57,15 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="DaysInput" Grid.Column="0" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
-                                     Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Ngày"/>
+                                     Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Days"/>
                             <TextBox x:Name="HoursInput" Grid.Column="1" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
-                                     Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Giờ"/>
+                                     Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Hours"/>
                             <TextBox x:Name="MinsInput" Grid.Column="2" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
-                                     Text="30" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Phút"/>
+                                     Text="30" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Minutes"/>
                             <Button Grid.Column="3" Content="&#xE710;" FontFamily="Segoe MDL2 Assets" Padding="12,7"
                                     Click="AddTimer_Click" Style="{StaticResource PrimaryBtnStyle}"/>
                         </Grid>
-                        <TextBlock Text="ngày · giờ · phút" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="days · hours · minutes" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,0" HorizontalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,7,0,0">
                             <Button Content="5m" Tag="5" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,3" FontSize="10" Margin="2,0"/>
                             <Button Content="15m" Tag="15" Click="Preset_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,3" FontSize="10" Margin="2,0"/>
@@ -84,17 +84,17 @@
                             </Grid.ColumnDefinitions>
                             <DatePicker x:Name="DeadlineDate" Grid.Column="0" Margin="0,0,4,0"/>
                             <TextBox x:Name="DeadlineTime" Grid.Column="1" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
-                                     Text="23:59" Width="60" TextAlignment="Center" ToolTip="Giờ:phút (HH:mm)"/>
+                                     Text="23:59" Width="60" TextAlignment="Center" ToolTip="Time (HH:mm)"/>
                             <Button Grid.Column="2" Content="&#xE710;" FontFamily="Segoe MDL2 Assets" Padding="12,7"
                                     Click="AddTimer_Click" Style="{StaticResource PrimaryBtnStyle}"/>
                         </Grid>
-                        <TextBlock Text="đếm tới đúng mốc này" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,0" HorizontalAlignment="Center"/>
+                        <TextBlock Text="counts down to this exact time" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,5,0,0" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
             <Grid Grid.Row="2">
-                <TextBlock x:Name="EmptyHint" Text="Chưa có bộ đếm nào. Bấm + góc trên." Foreground="{StaticResource MutedBrush}"
+                <TextBlock x:Name="EmptyHint" Text="No timers yet. Tap + in the top corner." Foreground="{StaticResource MutedBrush}"
                            FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                 <ListBox x:Name="TimersList" Background="Transparent" BorderThickness="0"
                          ScrollViewer.CanContentScroll="False"

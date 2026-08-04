@@ -9,7 +9,7 @@
         <Border x:Name="SelectionBorder" Visibility="Collapsed" BorderBrush="#7FA8FF"
                 BorderThickness="2" Background="#16FFFFFF" CornerRadius="3"/>
         <Border Canvas.Left="18" Canvas.Top="18" Background="#E8131217" CornerRadius="10" Padding="10,6">
-            <TextBlock Text="Kéo để chọn vùng chữ · Esc để huỷ" Foreground="White" FontSize="12"/>
+            <TextBlock Text="Drag to select text region · Esc to cancel" Foreground="White" FontSize="12"/>
         </Border>
     </Canvas>
 </Window>

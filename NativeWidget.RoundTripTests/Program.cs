@@ -296,7 +296,7 @@ internal static class Program
                 var root = AutomationElement.FromHandle(popup);
                 var saveButton = root.FindFirst(TreeScope.Descendants, new AndCondition(
                     new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
-                    new PropertyCondition(AutomationElement.NameProperty, "Lưu")))
+                    new PropertyCondition(AutomationElement.NameProperty, "Save")))
                     ?? throw new InvalidOperationException("Save button was not found in translation popup.");
                 ((InvokePattern)saveButton.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
                 for (var saveAttempt = 0; saveAttempt < 20; saveAttempt++)

@@ -30,7 +30,7 @@
                     <TextBlock Text="Projects" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="AddBtn" Content="&#xE710;" ToolTip="Thêm dự án" Click="AddBtn_Click" Style="{StaticResource IconBtnStyle}"/>
+                    <Button x:Name="AddBtn" Content="&#xE710;" ToolTip="Add project" Click="AddBtn_Click" Style="{StaticResource IconBtnStyle}"/>
                     <local:WidgetHeaderControls x:Name="HeaderControls"/>
                 </StackPanel>
             </Grid>
@@ -48,8 +48,8 @@
                             Background="{StaticResource AccentBrush}" Margin="0,2,12,2"/>
 
                     <StackPanel Grid.Column="1">
-                        <TextBlock Text="ĐANG TẬP TRUNG" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
-                        <TextBlock x:Name="CurrentName" Text="Chưa chọn dự án" Foreground="White" FontSize="20" FontWeight="Bold" TextWrapping="Wrap"/>
+                        <TextBlock Text="FOCUSING ON" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="0,0,0,4"/>
+                        <TextBlock x:Name="CurrentName" Text="No project selected" Foreground="White" FontSize="20" FontWeight="Bold" TextWrapping="Wrap"/>
                         <TextBlock x:Name="CurrentFolder" Foreground="{StaticResource AccentBrush}" FontSize="11" Margin="0,4,0,0"
                                    Cursor="Hand" MouseLeftButtonUp="CurrentFolder_Click" Visibility="Collapsed" TextDecorations="Underline"/>
                         <TextBlock x:Name="CurrentNote" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,4,0,0"
@@ -58,17 +58,17 @@
 
                     <StackPanel Grid.Column="2" VerticalAlignment="Top">
                         <local:ColorTagButton x:Name="CurrentColorBtn"/>
-                        <Button x:Name="CurrentEditBtn" Content="&#xE70F;" ToolTip="Sửa" Click="EditCurrent_Click"
+                        <Button x:Name="CurrentEditBtn" Content="&#xE70F;" ToolTip="Edit" Click="EditCurrent_Click"
                                 Style="{StaticResource IconBtnStyle}" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <TextBlock Grid.Row="2" Text="DỰ ÁN KHÁC" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="4,0,0,6"/>
+            <TextBlock Grid.Row="2" Text="OTHER PROJECTS" Foreground="{StaticResource MutedBrush}" FontSize="10" FontWeight="Bold" Margin="4,0,0,6"/>
 
             <!-- Other projects -->
             <Grid Grid.Row="3">
-                <TextBlock x:Name="EmptyHint" Text="Chỉ có 1 dự án — bấm + để thêm dự án khác." Foreground="{StaticResource MutedBrush}"
+                <TextBlock x:Name="EmptyHint" Text="Only one project — tap + to add another." Foreground="{StaticResource MutedBrush}"
                            FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Visibility="Collapsed"/>
                 <ListBox x:Name="ProjectsList" Background="Transparent" BorderThickness="0"
                          ScrollViewer.CanContentScroll="False"

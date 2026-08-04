@@ -16,7 +16,7 @@ public partial class ReminderDialog : Window
         InitializeComponent();
         if (hasExisting)
         {
-            ExistingHint.Text = "Note này đang có nhắc nhở - đặt lại sẽ thay bằng mốc mới.";
+            ExistingHint.Text = "This note already has a reminder — setting a new one will replace it.";
             ExistingHint.Visibility = Visibility.Visible;
             ClearBtn.Visibility = Visibility.Visible;
         }
@@ -45,7 +45,7 @@ public partial class ReminderDialog : Window
         var duration = new TimeSpan(ParseBox(DaysInput), ParseBox(HoursInput), ParseBox(MinsInput), 0);
         if (duration <= TimeSpan.Zero)
         {
-            MessageBox.Show("Đặt thời lượng lớn hơn 0.", "Nhắc nhở");
+            MessageBox.Show("Enter a duration greater than 0.", "Reminder");
             return;
         }
         Duration = duration;
