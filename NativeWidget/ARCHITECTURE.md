@@ -414,6 +414,14 @@ dotnet run
 dotnet publish -c Release -r win-x64 --self-contained false -o "..\app"
 ```
 
+Public artifacts use `scripts/package-release.ps1 -Version X.Y.Z`. It creates a self-contained
+`win-x64` zip, a smaller framework-dependent zip, and `SHA256SUMS.txt` under ignored `dist/`.
+`.github/workflows/release.yml` runs the same script for `v*` tags and publishes the immutable
+archives to GitHub Releases. `packaging/NativeWidget.iss` is the Inno Setup source for the future
+signed installer; `packaging/WINGET.md` records the deliberately deferred WinGet submission path.
+The executable's product version comes from `NativeWidget.csproj` and is overridden by the
+packaging script for release builds.
+
 **Install location matters — publish to `Documents`, never `%LocalAppData%`.** Confirmed
 root cause (see Troubleshooting below): only `AppData\{Local,LocalLow,Roaming}` are
 virtualized for this agent; `Documents` is not. The Start Menu shortcut must point at the

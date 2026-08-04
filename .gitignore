@@ -11,6 +11,7 @@ app/
 app-pending/
 app-test/
 app-backup-*/
+dist/
 bin/
 obj/
 *.user

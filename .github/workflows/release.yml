@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Package Windows builds
+        shell: pwsh
+        run: ./scripts/package-release.ps1 -Version $env:GITHUB_REF_NAME.TrimStart('v')
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $releaseArgs = @('release', 'create', $tag, 'dist/*.zip', 'dist/SHA256SUMS.txt', '--generate-notes', '--title', "Native Widget $tag")
+          if ($tag -match '-') { $releaseArgs += '--prerelease' }
+          gh @releaseArgs

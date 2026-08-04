@@ -1,94 +1,141 @@
 # Native Widget
 
-Lightweight, always-on-top Windows widget dock (WPF / .NET 8) — Calendar, Tasks, Notes,
-Timers, Focus, Translate and Projects, each in its own small floating window, launched from a
-hover-expand dock. Two-way sync with Google Calendar, Google Tasks, and (experimental)
-Notion.
+[![Latest release](https://img.shields.io/github/v/release/Pelag-Michael/Native-Widget?include_prereleases&label=download)](https://github.com/Pelag-Michael/Native-Widget/releases/latest)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D4?logo=windows)](https://github.com/Pelag-Michael/Native-Widget/releases/latest)
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![CI](https://github.com/Pelag-Michael/Native-Widget/actions/workflows/ci.yml/badge.svg)](https://github.com/Pelag-Michael/Native-Widget/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Built as a replacement for an earlier Electron prototype that used 300–400 MB of RAM for
-what should be a handful of lightweight panels.
+> A native, low-RAM Windows widget dock built with WPF and .NET 8 — no Electron,
+> no bundled browser, no account required for local widgets.
+
+Native Widget keeps Calendar, Tasks, Notes, Timers, Focus, OCR translation, and Projects
+one hover away in small always-on-top windows. Google Calendar/Tasks sync is optional;
+experimental Notion sync is available for Notes.
+
+<p align="center">
+  <img src="docs/assets/translate-workspace.png" width="520" alt="Hover-expanded Translate widget with manual input, vocabulary tags and metadata filters">
+</p>
+
+## Download
+
+**[Download the latest Windows build](https://github.com/Pelag-Michael/Native-Widget/releases/latest)**
+
+1. Download `Native-Widget-v*-win-x64.zip` from Releases.
+2. Extract the zip anywhere you own.
+3. Run `NativeWidget.exe`.
+
+The main package includes the .NET runtime and works on 64-bit Windows 10 (build 19041+) and
+Windows 11. A smaller framework-dependent package is also available for machines that already
+have the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
+
+> This project is currently an alpha release. Windows SmartScreen may warn about an unsigned
+> executable; review the source and release checksums before running it.
+
+## Why this exists
+
+The original prototype used Electron and measured roughly 300–400 MB of RAM for a handful of
+small panels. Native Widget replaces the browser runtime with WPF and the Windows desktop stack.
+
+| | Native Widget | Electron-style desktop wrapper |
+|---|---|---|
+| UI runtime | WPF / Windows desktop | Chromium + Node.js |
+| Bundled browser engine | No | Usually yes |
+| Platform focus | Windows 10/11 | Often cross-platform |
+| Idle footprint on the development machine¹ | 96.2 MB working set / 44.8 MB private | Varies by app |
+| Framework-dependent publish size¹ | 25.3 MB | Varies by app |
+
+¹ Measured on 4 August 2026 with the launcher idle. Hardware, enabled integrations, and open
+widgets affect memory. The numbers are a reproducible reference, not a universal benchmark.
 
 ## Widgets
 
 | Widget | What it does |
 |---|---|
-| **Calendar** | Google Calendar, 2-way — view a 14-day agenda grouped by day, create events (with optional daily/weekly/monthly recurrence), delete, per-event color tags |
-| **Tasks** | Google Tasks, 2-way — multiple task lists, one level of subtasks, due dates with a day countdown, collapsible subtask groups, completed tasks sink below a divider, per-list window tint, pop out a list into its own window |
-| **Notes** | Multi-note rich text (font/size/bold/italic/strikethrough, pasted images, generic file attachments, auto-linkified URLs and bare domains), color tags, free-form labels, reminders that show up in the Timers widget, optional 2-way Notion sync |
-| **Timers** | Named countdowns created as a duration *or* an exact deadline. Stores an absolute deadline, so a timer keeps counting while the app — or the machine — is off |
-| **Focus** | Minimal Pomodoro-style focus session |
-| **Translate** | Hover-expanding manual/selection translation, screen OCR, and a collapsible vocabulary notebook with private tags and metadata filters |
-| **Projects** | "What am I focused on" tracker; one current project shown large, others in a list, each optionally linked to a folder that opens in Explorer |
+| **Calendar** | 14-day Google Calendar agenda; create, repeat, inspect and delete events |
+| **Tasks** | Google Tasks lists, subtasks, due dates, descriptions, colors and pop-out lists |
+| **Notes** | Rich text, links, images, file attachments, labels, reminders and optional two-way Notion sync |
+| **Timers** | Named duration or deadline timers that survive app and machine restarts |
+| **Focus** | Minimal Pomodoro-style focus sessions |
+| **Translate** | Hover panel, manual/selection translation, screen OCR, dictionary meanings, usage examples and a tagged vocabulary notebook |
+| **Projects** | Current-focus tracker with optional Explorer folder links |
 
-Tasks and Notes can each be tagged with a project and filtered by it.
+Tasks and Notes can be assigned to projects and filtered by them. A workspace search finds
+matching notes, tasks, projects, labels, events and timers from one place.
 
-## Design notes
+## See it in action
 
-- **No Electron, no MVVM framework, no third-party UI kit** — plain WPF code-behind, kept
-  deliberately small. ~100 MB RAM per open widget window.
-- **Framework-dependent build** — relies on the `Microsoft.WindowsDesktop.App 8.0` shared
-  runtime already installed on the machine, so the published output stays a few MB.
-- **Google OAuth implemented by hand** (PKCE + loopback `HttpListener`), no Google SDK.
-- Every widget is a separate top-level `Window`, hidden from Alt+Tab
-  (`WS_EX_TOOLWINDOW`), closable to hide rather than dispose, so reopening is instant.
+| Idle hover rail | Dictionary meanings and real usage context |
+|---|---|
+| <img src="docs/assets/translate-idle.png" width="390" alt="Collapsed Translate hover rail"> | <img src="docs/assets/translate-dictionary.png" width="390" alt="Translation popup with alternate meanings and context examples"> |
 
-See [`NativeWidget/ARCHITECTURE.md`](NativeWidget/ARCHITECTURE.md) for the full
-architecture write-up, including a troubleshooting section of bugs hit during development
-and how they were diagnosed.
+| Notes | Expanded Translate workspace |
+|---|---|
+| <img src="docs/assets/notes.png" width="390" alt="Native Widget notes list"> | <img src="docs/assets/translate-workspace.png" width="390" alt="Translate workspace and vocabulary notebook"> |
 
-## Build
+## Privacy and integrations
+
+- Local notes, timers, projects, settings and vocabulary live under `%AppData%\NativeWidget`.
+- Credentials are entered in the Settings widget; they are never committed to this repository.
+- Google and Notion integrations are optional. Local widgets work without an online account.
+- The translation provider currently uses an undocumented Google endpoint; see the
+  [architecture notes](NativeWidget/ARCHITECTURE.md#translate) before relying on it for sensitive text.
+
+<details>
+<summary><strong>Google Calendar and Tasks setup</strong></summary>
+
+1. Open [Google Cloud Console](https://console.cloud.google.com), create a project, and enable
+   the Google Calendar API and Google Tasks API.
+2. Configure an External OAuth consent screen and add your email under **Test users**.
+3. Create a **Web application** OAuth client.
+4. Add `http://127.0.0.1:42813/callback` as an authorized redirect URI.
+5. Paste the Client ID and Client secret into Native Widget Settings, then connect Calendar.
+
+</details>
+
+<details>
+<summary><strong>Optional Notion Notes sync</strong></summary>
+
+1. Create an integration at [notion.so/my-integrations](https://www.notion.so/my-integrations).
+2. Connect that integration to the parent Notion page you want to use.
+3. Paste the token and parent page ID into Settings, then enable Notion sync.
+
+Native Widget creates a `NativeWidget Notes` database and syncs supported rich-text blocks,
+images and attachments up to 20 MB. Unsupported blocks are left untouched. Deletion does not
+currently propagate in either direction.
+
+</details>
+
+## Build from source
 
 Requires the .NET 8 SDK.
 
-```bash
-cd NativeWidget
-dotnet build -c Debug          # build
-dotnet publish -c Release -r win-x64 --self-contained false -o ../app
+```powershell
+dotnet build NativeWidget/NativeWidget.csproj -c Release
+dotnet run --project NativeWidget/NativeWidget.csproj
 ```
 
-The published app lands in `app/` (git-ignored — attach it to a Release instead of
-committing binaries). Run `app/NativeWidget.exe`.
+Create the same release archives used by GitHub Releases:
 
-## Setup
+```powershell
+./scripts/package-release.ps1 -Version 0.1.0
+```
 
-All credentials are entered in the app's own **Settings** widget and stored in
-`%AppData%\NativeWidget\` — nothing is committed to this repo.
-
-**Google Calendar + Tasks** (one consent covers both):
-
-1. [console.cloud.google.com](https://console.cloud.google.com) → new project → enable
-   **Google Calendar API** and **Google Tasks API**
-2. *OAuth consent screen* → External → add your own email under **Test users**
-3. *Credentials* → Create Credentials → OAuth client ID → **Web application**
-4. Authorized redirect URI: `http://127.0.0.1:42813/callback`
-5. Paste Client ID + Client secret into Settings, then open the Calendar widget and
-   press **Kết nối**
-
-**Notion sync** (optional, off by default, Notes only):
-
-1. [notion.so/my-integrations](https://www.notion.so/my-integrations) → New integration →
-   **Access token** → copy the secret
-2. In Notion, open the page you want the notes to live under → `•••` → **Connections** →
-   add that integration
-3. Paste the token + that page's ID into Settings and tick **Bật đồng bộ Notion**
-
-The app creates a `NativeWidget Notes` database under that page and polls every 15s for
-remote changes. The Save button and `Ctrl+S` save locally and push to Notion immediately.
-
-> Notes sync both ways with headings, lists, to-dos, quotes, code, bold/italic/strike,
-> images, and generic attachments up to 20 MB. Attach files with the paperclip button,
-> Explorer paste, or drag-and-drop. Local files are uploaded through Notion's file-upload
-> API; remote assets are cached locally. Unsupported Notion blocks are left untouched, and
-> note deletion still does not propagate in either direction.
+Architecture, storage formats and troubleshooting notes live in
+[`NativeWidget/ARCHITECTURE.md`](NativeWidget/ARCHITECTURE.md).
 
 ## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Alt+F` | Find the launcher — pulses a glow and briefly expands the icon row |
-| `Ctrl+Alt+G` | Un-ghost every widget (recovery if click-through was left on) |
-| `Ctrl+S` | Save the current note and sync it to Notion immediately |
+| `Ctrl+Alt+F` | Find the launcher and briefly expand it |
+| `Ctrl+Alt+G` | Disable click-through mode on every widget |
+| `Ctrl+S` | Save the current note and push it to Notion immediately |
 
-## License
+## Contributing
 
-MIT — see [LICENSE](LICENSE).
+Bug reports, small focused pull requests, screenshots and accessibility feedback are welcome.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Security issues should be
+reported through [SECURITY.md](SECURITY.md), not a public issue.
+
+MIT licensed — see [LICENSE](LICENSE).

@@ -8,6 +8,11 @@
     <UseWPF>true</UseWPF>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>icon.ico</ApplicationIcon>
+    <Version>0.1.0</Version>
+    <Authors>Pelag Michael</Authors>
+    <Description>Native, low-RAM Windows widget dock built with WPF and .NET 8.</Description>
+    <RepositoryUrl>https://github.com/Pelag-Michael/Native-Widget</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
