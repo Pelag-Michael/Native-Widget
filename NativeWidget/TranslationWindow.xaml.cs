@@ -402,6 +402,8 @@ public partial class TranslationWindow : Window
             .Where(item => string.IsNullOrEmpty(search) ||
                            item.SourceText.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                            item.TranslatedText.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                           item.MeaningGroups.Any(group => group.Meanings.Any(meaning => meaning.Contains(search, StringComparison.OrdinalIgnoreCase))) ||
+                           item.Examples.Any(example => example.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
                            item.Tags.Any(itemTag => itemTag.Contains(search, StringComparison.OrdinalIgnoreCase)))
             .Where(item => pair.Length == 0 || $"{item.SourceLanguage}>{item.TargetLanguage}" == pair)
             .Where(item => method.Length == 0 || item.CaptureMethod == method)
@@ -482,6 +484,24 @@ public partial class TranslationWindow : Window
         var text = new StackPanel();
         text.Children.Add(new TextBlock { Text = item.SourceText, Foreground = Brushes.White, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, MaxHeight = 38, TextTrimming = TextTrimming.CharacterEllipsis });
         text.Children.Add(new TextBlock { Text = item.TranslatedText, Foreground = (Brush)FindResource("MutedBrush"), FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxHeight = 34, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 3, 0, 0) });
+        var alternativeMeanings = item.MeaningGroups.SelectMany(group => group.Meanings)
+            .Where(meaning => !string.Equals(meaning, item.TranslatedText, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase).Take(4).ToList();
+        if (alternativeMeanings.Count > 0)
+            text.Children.Add(new TextBlock
+            {
+                Text = "Nghĩa khác: " + string.Join(" · ", alternativeMeanings),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8E, 0x9A, 0xB8)), FontSize = 9.5,
+                TextWrapping = TextWrapping.Wrap, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 4, 0, 0),
+            });
+        if (item.Examples.Count > 0)
+            text.Children.Add(new TextBlock
+            {
+                Text = "Ví dụ: " + item.Examples[0], Foreground = new SolidColorBrush(Color.FromRgb(0x78, 0x78, 0x86)),
+                FontSize = 9.5, FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap,
+                MaxHeight = 28, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 4, 0, 0),
+            });
         if (item.Tags.Count > 0)
         {
             var tags = new WrapPanel { Margin = new Thickness(0, 5, 0, 0) };
@@ -527,7 +547,8 @@ public partial class TranslationWindow : Window
         card.MouseLeftButtonUp += (_, e) =>
         {
             if (e.OriginalSource is Button) return;
-            ShowResult(new TranslationResult(item.SourceText, item.TranslatedText, item.SourceLanguage, item.TargetLanguage), item.CaptureMethod, item.SourceApp);
+            ShowResult(new TranslationResult(item.SourceText, item.TranslatedText, item.SourceLanguage,
+                item.TargetLanguage, item.MeaningGroups, item.Examples), item.CaptureMethod, item.SourceApp);
         };
 
         Grid.SetColumn(text, 0); Grid.SetColumn(actions, 1);

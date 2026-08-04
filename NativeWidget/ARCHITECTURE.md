@@ -348,7 +348,9 @@ removes the hook immediately.
 
 `TranslationService.TranslateAsync` is the single provider boundary. It currently uses the
 free, undocumented Google Translate endpoint with source-language auto-detection and a 5,000
-character cap. Each request has a 30-second deadline and transient timeouts, HTTP 429, server
+character cap. Requests include translation (`dt=t`), dictionary senses grouped by part of speech
+(`dt=bd`), and usage examples (`dt=ex`); phrases that have no dictionary payload simply omit those
+optional sections. Each request has a 30-second deadline and transient timeouts, HTTP 429, server
 errors, and connection failures are retried once; exhausted failures are converted to short
 user-facing messages instead of exposing raw `HttpClient` errors. Provider details do not leak into input capture or UI code, so an official
 Google/DeepL/LLM provider can replace it later. Source and target language selections live in
@@ -362,7 +364,8 @@ focus inside this field participates in the hover hold-open guard.
 A successful translation opens `TranslationResultPopup` near the cursor with linkified
 original and translated text, copy, reverse, retry, and save actions. Save writes only the
 minimal vocabulary record to `%AppData%\NativeWidget\translations.json`: both texts, language
-pair, timestamp, capture method, source application/window, and optional vocabulary-only tags.
+pair, timestamp, capture method, source application/window, dictionary senses, usage examples,
+and optional vocabulary-only tags.
 `VocabularyService` de-duplicates identical pairs. The notebook is collapsed by default and
 shrinks the entire window; opening it exposes search plus an optional metadata panel for language
 pair, capture method, source application, and tag filters. Tags use an isolated registry at

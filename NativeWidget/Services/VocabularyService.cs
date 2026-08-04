@@ -14,6 +14,8 @@ public sealed class VocabularyEntry
     public string CaptureMethod { get; set; } = "selection";
     public string SourceApp { get; set; } = "";
     public List<string> Tags { get; set; } = new();
+    public List<TranslationMeaningGroup> MeaningGroups { get; set; } = new();
+    public List<string> Examples { get; set; } = new();
     public long CreatedAtUnix { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 }
 
@@ -27,7 +29,12 @@ public static class VocabularyService
         try
         {
             var items = JsonSerializer.Deserialize<List<VocabularyEntry>>(File.ReadAllText(FilePath)) ?? new();
-            foreach (var item in items) item.Tags ??= new();
+            foreach (var item in items)
+            {
+                item.Tags ??= new();
+                item.MeaningGroups ??= new();
+                item.Examples ??= new();
+            }
             return items;
         }
         catch
@@ -42,7 +49,22 @@ public static class VocabularyService
         var existing = items.FirstOrDefault(item =>
             item.SourceText == result.SourceText && item.TranslatedText == result.TranslatedText &&
             item.SourceLanguage == result.SourceLanguage && item.TargetLanguage == result.TargetLanguage);
-        if (existing != null) return existing;
+        if (existing != null)
+        {
+            var updated = false;
+            if (result.MeaningGroups is { Count: > 0 })
+            {
+                existing.MeaningGroups = CopyMeaningGroups(result.MeaningGroups);
+                updated = true;
+            }
+            if (result.Examples is { Count: > 0 })
+            {
+                existing.Examples = result.Examples.ToList();
+                updated = true;
+            }
+            if (updated) Save(items);
+            return existing;
+        }
 
         var entry = new VocabularyEntry
         {
@@ -52,6 +74,8 @@ public static class VocabularyService
             TargetLanguage = result.TargetLanguage,
             CaptureMethod = captureMethod,
             SourceApp = sourceApp,
+            MeaningGroups = CopyMeaningGroups(result.MeaningGroups),
+            Examples = result.Examples?.ToList() ?? new(),
         };
         items.Insert(0, entry);
         Save(items);
@@ -80,6 +104,11 @@ public static class VocabularyService
         AppConfig.EnsureFolder();
         File.WriteAllText(FilePath, JsonSerializer.Serialize(items, JsonOptions));
     }
+
+    private static List<TranslationMeaningGroup> CopyMeaningGroups(
+        IReadOnlyList<TranslationMeaningGroup>? groups) => groups?
+        .Select(group => new TranslationMeaningGroup(group.PartOfSpeech, group.Meanings.ToList()))
+        .ToList() ?? new();
 }
 
 /// A registry used only by the translation notebook. It intentionally does not read from or
