@@ -112,12 +112,13 @@ it the current focus project; a note label filters the Notes list. The launcher 
 52px circular drag handle; hover opens a circular `Popup` centered on that icon, with a matching
 launcher icon in the middle and actions evenly laid out by `RadialPanel`. The panel derives its
 radius from the largest child and available space, so adding/removing actions redistributes the
-remaining space automatically. Opening/closing uses light scale-and-fade (~260ms open / ~160ms close, cubic ease).
-Launcher action icons do **not** use the system white tooltip; hovering shows a dark
-horizontal slide-in label (`LauncherHintPopup`) with the widget name, optional shortcut
-(e.g. Search → Ctrl+Alt+K), and a short extra line when useful. Elsewhere, app-wide
-`ToolTip` styling is dark + slide-in with a short InitialShowDelay so icon chrome stays
-consistent without the OS white balloon.
+remaining space automatically. Opening morphs from the dock: `Placement=Center` on the dock, scale from `52/232`→1
+(~280ms cubic out) so the radial disk grows from the same hub; the collapsed `RootBorder`
+is hidden while open (avoids a second hamburger). Closing scales back to dock size then
+restores `RootBorder`. Launcher action icons do **not** use the system white tooltip;
+hovering shows a dark horizontal slide-in label (`LauncherHintPopup`) with the widget name,
+optional shortcut (e.g. Search → Ctrl+Alt+K), and a short extra line when useful. Elsewhere,
+app-wide `ToolTip` styling is dark + slide-in with a short InitialShowDelay.
 
 ## Styling (all in App.xaml, global)
 
