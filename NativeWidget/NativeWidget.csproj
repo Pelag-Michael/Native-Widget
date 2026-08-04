@@ -10,4 +10,16 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- ApplicationIcon only embeds the icon into the exe; it does not place a loose
+         icon.ico next to it. A Start Menu shortcut was once created pointing its
+         IconLocation at app\icon.ico, which a later publish silently wiped (publish
+         cleans the output dir), leaving the shortcut showing the generic file icon.
+         Shortcuts should point at the exe itself, but shipping the file too keeps a
+         shared app/ folder self-contained and any older shortcut resolvable. -->
+    <Content Include="icon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
