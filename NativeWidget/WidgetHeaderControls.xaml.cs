@@ -59,6 +59,19 @@ public partial class WidgetHeaderControls : UserControl
         GhostBtn.Foreground = ghosted ? (Brush)FindResource("AccentBrush") : Muted;
     }
 
+    public void SetPinVisual(bool pinned)
+    {
+        PinBtn.Foreground = pinned ? (Brush)FindResource("AccentBrush") : Muted;
+    }
+
+    public void SetOpacityValue(double opacity)
+    {
+        opacity = Math.Clamp(opacity, OpacitySlider.Minimum, OpacitySlider.Maximum);
+        OpacitySlider.Value = opacity;
+        OpacityLabel.Text = $"{opacity * 100:0}%";
+        if (_owner != null) _owner.Opacity = opacity;
+    }
+
     private void PinBtn_Click(object sender, RoutedEventArgs e)
     {
         if (_owner != null) WindowInterop.TogglePin(_owner, PinBtn);

@@ -13,6 +13,9 @@ Native Widget keeps Calendar, Tasks, Notes, Timers, Focus, OCR translation, and 
 one hover away in small always-on-top windows. Google Calendar/Tasks sync is optional;
 experimental Notion sync is available for Notes.
 
+The radial launcher includes a compact window-tools panel for changing pin, ghost mode,
+opacity, or visibility across every currently open widget at once; per-widget controls remain available.
+
 <p align="center">
   <img src="docs/assets/translate-workspace.png" width="520" alt="Hover-expanded Translate widget with manual input, vocabulary tags and metadata filters">
 </p>

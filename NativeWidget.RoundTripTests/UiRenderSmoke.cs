@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using NativeWidget;
@@ -69,6 +70,30 @@ internal static class UiRenderSmoke
             Math.Abs(restoredNotes.Height - 530) > 1)
             throw new InvalidOperationException("Startup did not restore the saved Notes window bounds.");
 
+        launcher.SetWindowToolsOpen(true);
+        restoredNotes.Topmost = false;
+        var globalPin = (Button)launcher.FindName("GlobalPinBtn");
+        globalPin.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (!restoredNotes.Topmost) throw new InvalidOperationException("Global pin did not affect the visible widget.");
+        var globalOpacity = (Slider)launcher.FindName("GlobalOpacitySlider");
+        globalOpacity.Value = 0.72;
+        if (Math.Abs(restoredNotes.Opacity - 0.72) > 0.01)
+            throw new InvalidOperationException("Global opacity did not affect the visible widget.");
+        var globalGhost = (Button)launcher.FindName("GlobalGhostBtn");
+        globalGhost.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (!WindowInterop.IsClickThrough(restoredNotes))
+            throw new InvalidOperationException("Global ghost did not affect the visible widget.");
+        globalGhost.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (WindowInterop.IsClickThrough(restoredNotes))
+            throw new InvalidOperationException("Global ghost could not restore the visible widget.");
+        var windowToolsPath = Path.Combine(root, "global-window-tools.png");
+        Render((FrameworkElement)launcher.FindName("WindowToolsPanel"), windowToolsPath);
+        globalOpacity.Value = 1;
+        var globalClose = (Button)launcher.FindName("GlobalCloseBtn");
+        globalClose.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (restoredNotes.IsVisible) throw new InvalidOperationException("Global close did not hide the visible widget.");
+        restoredNotes.Show();
+
         var parserSmoke = new Window[]
         {
             launcher,
@@ -109,7 +134,7 @@ internal static class UiRenderSmoke
             resultPopup.Show();
             var popupPath = Path.Combine(root, "translation-popup.png");
             Render(resultPopup, popupPath);
-            return $"{path};{translationPath};{translationVocabularyPath};{popupPath}";
+            return $"{path};{translationPath};{translationVocabularyPath};{popupPath};{windowToolsPath}";
         }
         finally
         {
@@ -123,7 +148,7 @@ internal static class UiRenderSmoke
         }
     }
 
-    private static void Render(Window window, string path)
+    private static void Render(FrameworkElement window, string path)
     {
         window.UpdateLayout();
         var dpi = VisualTreeHelper.GetDpi(window);

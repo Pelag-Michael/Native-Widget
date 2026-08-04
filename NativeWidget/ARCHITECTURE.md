@@ -80,17 +80,22 @@ Every widget window:
 - Calls `WindowInterop.HideFromAltTab(this)` in its constructor (sets `WS_EX_TOOLWINDOW`)
 - Has a pin button in its header calling `WindowInterop.TogglePin` — pinned (always-on-top)
   is the default; unpinning lets other windows cover it
+- Keeps local opacity, ghost, pin, and close controls even though the launcher also exposes
+  the same operations globally for every currently visible widget
 - Overrides `Closing` to `e.Cancel = true; Hide();` — the ✕ button hides, it never actually
   closes/disposes the window (so reopening from the launcher is instant, state intact)
 - Root `Border` uses `CornerRadius="18"` + `ClipToBounds="True"` consistently — don't let
   child content (icons, hosted controls) overflow past the rounded corner, it looks broken
 - Drag-to-move via a `MouseLeftButtonDown` handler calling `DragMove()` on a header `Grid`
 
-`MainWindow` itself: fixed `CollapsedWidth`/`ExpandedWidth`, animates `Width` on
-`MouseEnter`/`MouseLeave` to reveal/hide the icon row (`IconsPanel`). If you add/remove a
-launcher icon, **recompute `ExpandedWidth`** — see the comment math in `MainWindow.xaml.cs`;
-mismatches cause icons to overflow the rounded corner (this happened once, looked like a
-"cut corner" bug).
+`MainWindow` itself remains a fixed 52px circular drag handle. Hover opens a separate radial
+launcher popup, so adding icons never stretches the dock into a horizontal bar. The former
+one-click Close All radial action is now a window-tools action. Clicking it opens a compact
+secondary popup with global pin, ghost, opacity, and close-all controls. Operations enumerate
+visible widget windows through their `WidgetHeaderControls`, including Notes/Tasks pop-outs,
+but deliberately exclude the launcher, search, translation-result popup, and modal dialogs.
+Mixed pin/ghost state converges to enabled on the first click; opacity shows an approximate
+average until the slider is moved, then applies one value to all visible widgets.
 
 Three global hotkeys (`RegisterHotKey`, all `Ctrl+Alt+<key>`, handled in `HotkeyHook` off
 `WM_HOTKEY`): `Ctrl+Alt+G` un-ghosts every widget (the only way back once one is

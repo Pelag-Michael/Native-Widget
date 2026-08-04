@@ -40,7 +40,8 @@
                         <Button x:Name="BtnTranslate" Content="&#xE774;" ToolTip="Translate" Click="ToggleWidget_Click" Tag="Translate" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                         <Button x:Name="BtnLabels" Content="&#xE8EC;" ToolTip="Manage labels" Click="ToggleWidget_Click" Tag="Labels" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                         <Button x:Name="BtnSettings" Content="&#xE713;" ToolTip="Settings" Click="ToggleWidget_Click" Tag="Settings" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
-                        <Button x:Name="BtnCloseAll" Content="&#xE711;" ToolTip="Close all" Click="CloseAll_Click" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
+                        <Button x:Name="BtnWindowTools" Content="&#xE7C4;" ToolTip="Điều khiển các cửa sổ đang mở"
+                                Click="WindowTools_Click" Style="{StaticResource TabIconStyle}" Width="38" Height="38"/>
                     </local:RadialPanel>
                     <!-- This overlaps the compact launcher beneath the Popup exactly. -->
                     <Border Width="52" Height="52" Background="{StaticResource PanelBg}" CornerRadius="26"
@@ -51,6 +52,49 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </Grid>
+            </Border>
+        </Popup>
+
+        <Popup x:Name="WindowToolsPopup" Placement="MousePoint" HorizontalOffset="8" VerticalOffset="8"
+               AllowsTransparency="True" StaysOpen="False" Closed="WindowToolsPopup_Closed">
+            <Border x:Name="WindowToolsPanel" Width="218" Background="#FC131217" CornerRadius="15"
+                    BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="12"
+                    MouseEnter="WindowToolsPanel_MouseEnter" MouseLeave="WindowToolsPanel_MouseLeave">
+                <StackPanel>
+                    <Grid Margin="1,0,1,10">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="CỬA SỔ" Foreground="#7FA8FF" FontSize="10.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="GlobalWindowCount" Grid.Column="1" Foreground="{StaticResource MutedBrush}"
+                                   FontSize="9.5" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Background="{StaticResource ChipBg}" CornerRadius="11" Padding="5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button x:Name="GlobalPinBtn" Content="&#xE718;" FontFamily="Segoe MDL2 Assets"
+                                    ToolTip="Ghim/bỏ ghim tất cả" Click="GlobalPin_Click"
+                                    Style="{StaticResource IconBtnStyle}" Width="34" Height="34"/>
+                            <Button x:Name="GlobalGhostBtn" Grid.Column="1" Content="&#xE890;" FontFamily="Segoe MDL2 Assets"
+                                    ToolTip="Ghost/bỏ ghost tất cả" Click="GlobalGhost_Click"
+                                    Style="{StaticResource IconBtnStyle}" Width="34" Height="34"/>
+                            <Button x:Name="GlobalCloseBtn" Grid.Column="2" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                    ToolTip="Đóng tất cả cửa sổ" Click="GlobalCloseAll_Click"
+                                    Style="{StaticResource IconBtnStyle}" Foreground="#D46B68" Width="34" Height="34"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="2,10,2,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="&#xE706;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource MutedBrush}"
+                                   FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Slider x:Name="GlobalOpacitySlider" Grid.Column="1" Minimum="0.2" Maximum="1" Value="1"
+                                SmallChange="0.05" LargeChange="0.1" ValueChanged="GlobalOpacitySlider_ValueChanged"/>
+                        <TextBlock x:Name="GlobalOpacityLabel" Grid.Column="2" Text="100%" Foreground="{StaticResource MutedBrush}"
+                                   FontSize="9.5" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
             </Border>
         </Popup>
     </Grid>
