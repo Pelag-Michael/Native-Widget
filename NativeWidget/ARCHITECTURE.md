@@ -332,8 +332,9 @@ Simple Pomodoro-style countdown, separate from Timers (in-session focus, not a d
 persistence — resets each session by design.
 
 ### Translate
-The launcher exposes a dedicated `TranslationWindow`; no global hotkey is registered. While
-the window is visible and **Theo dõi vùng chọn** is enabled, `GlobalSelectionService` installs
+The launcher exposes a dedicated `TranslationWindow`; no global hotkey is registered. Its
+compact language card uses a custom pill switch rather than the platform checkbox. While the
+window is visible and **Tự dịch vùng chọn** is enabled, `GlobalSelectionService` installs
 a low-level mouse hook. A real drag followed by left-button release records the foreground
 window, waits briefly for the source app to finish its selection, simulates `Ctrl+C`, reads the
 new clipboard text, and restores the previous clipboard payload. Captures are rejected when
@@ -343,7 +344,9 @@ removes the hook immediately.
 
 `TranslationService.TranslateAsync` is the single provider boundary. It currently uses the
 free, undocumented Google Translate endpoint with source-language auto-detection and a 5,000
-character cap. Provider details do not leak into input capture or UI code, so an official
+character cap. Each request has a 30-second deadline and transient timeouts, HTTP 429, server
+errors, and connection failures are retried once; exhausted failures are converted to short
+user-facing messages instead of exposing raw `HttpClient` errors. Provider details do not leak into input capture or UI code, so an official
 Google/DeepL/LLM provider can replace it later. Source and target language selections live in
 the widget and persist through `AppConfig`; Vietnamese is the default target.
 

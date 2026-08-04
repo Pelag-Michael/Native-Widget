@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -159,16 +160,18 @@ public partial class TranslationWindow : Window
             return;
         }
         _translating = true;
+        TranslateStatus.Foreground = (Brush)FindResource("MutedBrush");
         TranslateStatus.Text = "Đang dịch...";
         try
         {
             var result = await TranslationService.TranslateAsync(text, SourceCode, TargetCode);
+            TranslateStatus.Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xE0, 0xA8));
             TranslateStatus.Text = $"Đã dịch {result.SourceText.Length} ký tự · {TranslationLanguages.NameOf(result.SourceLanguage)} → {TranslationLanguages.NameOf(result.TargetLanguage)}";
             ShowResult(result, captureMethod, sourceApp);
         }
         catch (Exception ex)
         {
-            TranslateStatus.Text = $"Dịch thất bại: {ex.Message}";
+            ShowTranslationError(ex);
         }
         finally
         {
@@ -197,7 +200,7 @@ public partial class TranslationWindow : Window
             }
             catch (Exception ex)
             {
-                TranslateStatus.Text = $"Dịch lại thất bại: {ex.Message}";
+                ShowTranslationError(ex, "Dịch lại thất bại");
                 popup.SetStatus("Dịch lại thất bại", isError: true);
             }
         };
@@ -211,11 +214,23 @@ public partial class TranslationWindow : Window
             }
             catch (Exception ex)
             {
-                TranslateStatus.Text = $"Đảo chiều thất bại: {ex.Message}";
+                ShowTranslationError(ex, "Đảo chiều thất bại");
                 popup.SetStatus("Đảo chiều thất bại", isError: true);
             }
         };
         popup.Show();
+    }
+
+    private void ShowTranslationError(Exception exception, string prefix = "Dịch thất bại")
+    {
+        var message = exception switch
+        {
+            TimeoutException => "Dịch vụ phản hồi quá chậm. Hãy thử lại.",
+            HttpRequestException => "Không thể kết nối dịch vụ dịch. Hãy kiểm tra mạng.",
+            _ => exception.Message,
+        };
+        TranslateStatus.Text = $"{prefix}: {message}";
+        TranslateStatus.Foreground = new SolidColorBrush(Color.FromRgb(0xE7, 0x7A, 0x72));
     }
 
     private void VocabularySearch_TextChanged(object sender, TextChangedEventArgs e) => RenderVocabulary();

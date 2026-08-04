@@ -11,7 +11,9 @@ public sealed record TranslationResult(string SourceText, string TranslatedText,
 // not ripple through input capture, OCR, or the UI.
 public static class TranslationService
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+    private const int MaxAttempts = 2;
 
     public static async Task<TranslationResult> TranslateAsync(string text, string sourceLanguage,
         string targetLanguage, CancellationToken cancellationToken = default)
@@ -22,16 +24,7 @@ public static class TranslationService
 
         var source = string.IsNullOrWhiteSpace(sourceLanguage) ? "auto" : sourceLanguage;
         var target = string.IsNullOrWhiteSpace(targetLanguage) ? "vi" : targetLanguage;
-        using var form = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["client"] = "gtx",
-            ["sl"] = source,
-            ["tl"] = target,
-            ["dt"] = "t",
-            ["q"] = text,
-        });
-        using var response = await Http.PostAsync("https://translate.googleapis.com/translate_a/single", form, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        using var response = await SendWithRetryAsync(text, source, target, cancellationToken);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         var root = json.RootElement;
@@ -45,4 +38,52 @@ public static class TranslationService
 
         return new TranslationResult(text, translated.Trim(), detected, target);
     }
+
+    private static async Task<HttpResponseMessage> SendWithRetryAsync(string text, string source,
+        string target, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(RequestTimeout);
+            try
+            {
+                using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["client"] = "gtx",
+                    ["sl"] = source,
+                    ["tl"] = target,
+                    ["dt"] = "t",
+                    ["q"] = text,
+                });
+                var response = await Http.PostAsync(
+                    "https://translate.googleapis.com/translate_a/single", form, timeout.Token);
+                if (attempt < MaxAttempts && IsTransient(response.StatusCode))
+                {
+                    response.Dispose();
+                    await Task.Delay(350, cancellationToken);
+                    continue;
+                }
+
+                response.EnsureSuccessStatusCode();
+                return response;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                if (attempt == MaxAttempts)
+                    throw new TimeoutException("Dịch vụ phản hồi quá chậm. Hãy thử lại.");
+                await Task.Delay(350, cancellationToken);
+            }
+            catch (HttpRequestException) when (attempt < MaxAttempts)
+            {
+                await Task.Delay(350, cancellationToken);
+            }
+        }
+
+        throw new HttpRequestException("Không thể kết nối dịch vụ dịch. Hãy thử lại.");
+    }
+
+    private static bool IsTransient(System.Net.HttpStatusCode statusCode) =>
+        statusCode is System.Net.HttpStatusCode.RequestTimeout or
+            System.Net.HttpStatusCode.TooManyRequests || (int)statusCode >= 500;
 }
