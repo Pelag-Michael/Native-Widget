@@ -77,6 +77,16 @@ public partial class MainWindow : Window
             UnregisterHotKey(hwnd, LocateHotkeyId);
             UnregisterHotKey(hwnd, SearchHotkeyId);
         };
+        // Isolated end-to-end tests can open Translate without trying to automate the
+        // deliberately tiny, borderless launcher. Production never sets this variable.
+        if (Environment.GetEnvironmentVariable("NATIVEWIDGET_UI_TEST") == "1")
+        {
+            Loaded += (_, _) =>
+            {
+                _translationWindow ??= new TranslationWindow(_config);
+                _translationWindow.Show();
+            };
+        }
     }
 
     private IntPtr HotkeyHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
