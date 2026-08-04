@@ -16,6 +16,7 @@ dist/
 bin/
 obj/
 *.user
+NativeWidget/*_wpftmp.csproj
 
 # --- Legacy Electron prototype ---
 # Superseded by the WPF app in NativeWidget/ (see ARCHITECTURE.md "Removed features").
