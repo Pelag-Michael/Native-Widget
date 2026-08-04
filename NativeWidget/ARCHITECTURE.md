@@ -354,6 +354,11 @@ user-facing messages instead of exposing raw `HttpClient` errors. Provider detai
 Google/DeepL/LLM provider can replace it later. Source and target language selections live in
 the widget and persist through `AppConfig`; Vietnamese is the default target.
 
+The expanded panel also contains a compact multiline manual-input field. Its action uses capture
+method `manual` and source app `Nhập trực tiếp`, then enters the exact same result popup, link,
+save, private-tag, and metadata-filter pipeline as selection, clipboard, and OCR captures. Keyboard
+focus inside this field participates in the hover hold-open guard.
+
 A successful translation opens `TranslationResultPopup` near the cursor with linkified
 original and translated text, copy, reverse, retry, and save actions. Save writes only the
 minimal vocabulary record to `%AppData%\NativeWidget\translations.json`: both texts, language

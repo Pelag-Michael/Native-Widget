@@ -19,7 +19,7 @@ public partial class TranslationWindow : Window
     private bool _translating;
     private bool _updatingFilters;
     private bool _vocabularyExpanded;
-    private double _expandedHeight = 520;
+    private double _expandedHeight = 590;
     private bool _panelExpanded;
     private int _interactionDepth;
     private readonly DispatcherTimer _collapseTimer = new() { Interval = TimeSpan.FromMilliseconds(550) };
@@ -123,10 +123,11 @@ public partial class TranslationWindow : Window
         BeginAnimation(HeightProperty, animation, HandoffBehavior.SnapshotAndReplace);
     }
 
-    private double DesiredPanelHeight => _vocabularyExpanded ? Math.Max(420, _expandedHeight) : 300;
+    private double DesiredPanelHeight => _vocabularyExpanded ? Math.Max(500, _expandedHeight) : 370;
 
     private bool ShouldKeepPanelOpen() => IsMouseOver || _translating || _interactionDepth > 0 ||
-        _resultPopup?.IsVisible == true || VocabularySearch.IsKeyboardFocusWithin || HeaderControls.HasOpenPopup ||
+        _resultPopup?.IsVisible == true || ManualTextInput.IsKeyboardFocusWithin ||
+        VocabularySearch.IsKeyboardFocusWithin || HeaderControls.HasOpenPopup ||
         SourceLanguageSelect.IsDropDownOpen || TargetLanguageSelect.IsDropDownOpen ||
         LanguagePairFilter.IsDropDownOpen || CaptureMethodFilter.IsDropDownOpen ||
         SourceAppFilter.IsDropDownOpen || VocabularyTagFilter.IsDropDownOpen;
@@ -199,6 +200,19 @@ public partial class TranslationWindow : Window
             await TranslateAsync(Clipboard.GetText(), "clipboard", "Clipboard");
         }
         catch (Exception ex) { TranslateStatus.Text = $"Không đọc được clipboard: {ex.Message}"; }
+    }
+
+    private async void TranslateManual_Click(object sender, RoutedEventArgs e)
+    {
+        var text = ManualTextInput.Text;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            TranslateStatus.Foreground = (Brush)FindResource("MutedBrush");
+            TranslateStatus.Text = "Hãy nhập văn bản cần dịch.";
+            ManualTextInput.Focus();
+            return;
+        }
+        await TranslateAsync(text, "manual", "Nhập trực tiếp");
     }
 
     private async void CaptureScreen_Click(object sender, RoutedEventArgs e)
@@ -448,6 +462,7 @@ public partial class TranslationWindow : Window
         "selection" => "Vùng chọn",
         "clipboard" => "Clipboard",
         "ocr" => "Ảnh / OCR",
+        "manual" => "Nhập trực tiếp",
         _ => method,
     };
 
