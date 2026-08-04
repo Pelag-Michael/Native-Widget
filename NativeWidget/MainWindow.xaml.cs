@@ -17,6 +17,7 @@ public partial class MainWindow : Window
 {
     // The dock itself is fixed at 52px; a round Popup holds the 3×3 icon menu on hover.
     private readonly DispatcherTimer _launcherCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(220) };
+    private bool _updatingGlobalControls;
 
     private const int HotkeyId = 0xB001;
     private const int LocateHotkeyId = 0xB002;
@@ -57,7 +58,7 @@ public partial class MainWindow : Window
             trackVisibility: false, restoreSize: false);
         _launcherCloseTimer.Tick += (_, _) =>
         {
-            if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
+            if (IsMouseOver || LauncherPopupContent.IsMouseOver || WindowToolsPopup.IsOpen || WindowToolsPanel.IsMouseOver) return;
             HideLauncher();
         };
 
@@ -148,7 +149,7 @@ public partial class MainWindow : Window
 
         ShowLauncher();
         await Task.Delay(2200);
-        if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
+        if (IsMouseOver || LauncherPopupContent.IsMouseOver || WindowToolsPopup.IsOpen) return;
         HideLauncher();
     }
 
@@ -174,6 +175,31 @@ public partial class MainWindow : Window
         if (_settingsWindow != null) yield return (_settingsWindow, _settingsWindow.Header);
     }
 
+    private IEnumerable<(Window Window, WidgetHeaderControls Header)> EnumerateVisibleWidgets()
+    {
+        if (Application.Current == null) yield break;
+        foreach (Window window in Application.Current.Windows)
+        {
+            if (!window.IsVisible || window == this) continue;
+            var header = HeaderFor(window);
+            if (header != null) yield return (window, header);
+        }
+    }
+
+    private static WidgetHeaderControls? HeaderFor(Window window) => window switch
+    {
+        ProjectsWindow widget => widget.Header,
+        CalendarWindow widget => widget.Header,
+        TasksWindow widget => widget.Header,
+        NotesWindow widget => widget.Header,
+        TimersWindow widget => widget.Header,
+        FocusWindow widget => widget.Header,
+        TranslationWindow widget => widget.Header,
+        LabelsWindow widget => widget.Header,
+        SettingsWindow widget => widget.Header,
+        _ => null,
+    };
+
     private void DragBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
@@ -191,6 +217,8 @@ public partial class MainWindow : Window
 
     private void LauncherPopup_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
     private void LauncherPopup_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
+    private void WindowToolsPanel_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
+    private void WindowToolsPanel_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
     private void ShowLauncher()
     {
         _launcherCloseTimer.Stop();
@@ -214,6 +242,7 @@ public partial class MainWindow : Window
     private void HideLauncher()
     {
         _launcherCloseTimer.Stop();
+        if (WindowToolsPopup.IsOpen) return;
         if (!LauncherPopup.IsOpen) return;
         var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(110))
         {
@@ -221,7 +250,7 @@ public partial class MainWindow : Window
         };
         fade.Completed += (_, _) =>
         {
-            if (!IsMouseOver && !LauncherPopupContent.IsMouseOver) LauncherPopup.IsOpen = false;
+            if (!IsMouseOver && !LauncherPopupContent.IsMouseOver && !WindowToolsPopup.IsOpen) LauncherPopup.IsOpen = false;
         };
         LauncherPopupContent.BeginAnimation(OpacityProperty, fade);
     }
@@ -436,10 +465,97 @@ public partial class MainWindow : Window
         }
     }
 
-    private void CloseAll_Click(object sender, RoutedEventArgs e)
+    private void WindowTools_Click(object sender, RoutedEventArgs e)
     {
-        foreach (Window? w in new Window?[] { _projectsWindow, _calendarWindow, _tasksWindow, _notesWindow, _timersWindow, _focusWindow, _translationWindow, _labelsWindow, _settingsWindow })
-            w?.Hide();
+        e.Handled = true;
+        SetWindowToolsOpen(!WindowToolsPopup.IsOpen);
+    }
+
+    public void SetWindowToolsOpen(bool open)
+    {
+        if (open)
+        {
+            ShowLauncher();
+            UpdateGlobalWindowControls();
+        }
+        WindowToolsPopup.IsOpen = open;
+        if (open) _launcherCloseTimer.Stop();
+    }
+
+    private void WindowToolsPopup_Closed(object? sender, EventArgs e)
+    {
+        _launcherCloseTimer.Stop();
+        _launcherCloseTimer.Start();
+    }
+
+    private void UpdateGlobalWindowControls()
+    {
+        var widgets = EnumerateVisibleWidgets().ToList();
+        GlobalWindowCount.Text = $"{widgets.Count} đang mở";
+        var hasWidgets = widgets.Count > 0;
+        GlobalPinBtn.IsEnabled = hasWidgets;
+        GlobalGhostBtn.IsEnabled = hasWidgets;
+        GlobalCloseBtn.IsEnabled = hasWidgets;
+        GlobalOpacitySlider.IsEnabled = hasWidgets;
+
+        var muted = new SolidColorBrush(Color.FromRgb(0x77, 0x77, 0x8A));
+        var allPinned = hasWidgets && widgets.All(item => item.Window.Topmost);
+        var allGhosted = hasWidgets && widgets.All(item => WindowInterop.IsClickThrough(item.Window));
+        GlobalPinBtn.Foreground = allPinned ? (Brush)FindResource("AccentBrush") : muted;
+        GlobalGhostBtn.Foreground = allGhosted ? (Brush)FindResource("AccentBrush") : muted;
+        GlobalPinBtn.ToolTip = allPinned ? "Bỏ ghim tất cả" : "Ghim tất cả";
+        GlobalGhostBtn.ToolTip = allGhosted ? "Tắt ghost cho tất cả" : "Bật ghost cho tất cả";
+
+        _updatingGlobalControls = true;
+        try
+        {
+            var opacity = hasWidgets ? widgets.Average(item => item.Window.Opacity) : 1;
+            GlobalOpacitySlider.Value = opacity;
+            var mixed = hasWidgets && widgets.Any(item => Math.Abs(item.Window.Opacity - opacity) > 0.01);
+            GlobalOpacityLabel.Text = mixed ? $"≈{opacity * 100:0}%" : $"{opacity * 100:0}%";
+        }
+        finally { _updatingGlobalControls = false; }
+    }
+
+    private void GlobalPin_Click(object sender, RoutedEventArgs e)
+    {
+        var widgets = EnumerateVisibleWidgets().ToList();
+        var pin = widgets.Any(item => !item.Window.Topmost);
+        foreach (var (window, header) in widgets)
+        {
+            window.Topmost = pin;
+            header.SetPinVisual(pin);
+        }
+        UpdateGlobalWindowControls();
+    }
+
+    private void GlobalGhost_Click(object sender, RoutedEventArgs e)
+    {
+        var widgets = EnumerateVisibleWidgets().ToList();
+        var ghost = widgets.Any(item => !WindowInterop.IsClickThrough(item.Window));
+        foreach (var (window, header) in widgets)
+        {
+            WindowInterop.SetClickThrough(window, ghost);
+            header.SetGhostVisual(ghost);
+        }
+        UpdateGlobalWindowControls();
+    }
+
+    private void GlobalOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_updatingGlobalControls || !IsInitialized || GlobalOpacityLabel == null) return;
+        foreach (var (window, header) in EnumerateVisibleWidgets())
+        {
+            window.Opacity = e.NewValue;
+            header.SetOpacityValue(e.NewValue);
+        }
+        GlobalOpacityLabel.Text = $"{e.NewValue * 100:0}%";
+    }
+
+    private void GlobalCloseAll_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var (window, _) in EnumerateVisibleWidgets().ToList()) window.Hide();
+        WindowToolsPopup.IsOpen = false;
 
         foreach (var btn in new[] { BtnProjects, BtnCalendar, BtnTasks, BtnNotes, BtnTimers, BtnFocus, BtnTranslate, BtnLabels, BtnSettings })
         {
