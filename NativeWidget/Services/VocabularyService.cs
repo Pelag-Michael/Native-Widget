@@ -13,6 +13,7 @@ public sealed class VocabularyEntry
     public string TargetLanguage { get; set; } = "vi";
     public string CaptureMethod { get; set; } = "selection";
     public string SourceApp { get; set; } = "";
+    public List<string> Tags { get; set; } = new();
     public long CreatedAtUnix { get; set; } = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 }
 
@@ -25,7 +26,9 @@ public static class VocabularyService
     {
         try
         {
-            return JsonSerializer.Deserialize<List<VocabularyEntry>>(File.ReadAllText(FilePath)) ?? new();
+            var items = JsonSerializer.Deserialize<List<VocabularyEntry>>(File.ReadAllText(FilePath)) ?? new();
+            foreach (var item in items) item.Tags ??= new();
+            return items;
         }
         catch
         {
@@ -62,9 +65,58 @@ public static class VocabularyService
         Save(items);
     }
 
+    public static void SetTags(string id, IEnumerable<string> tags)
+    {
+        var items = Load();
+        var item = items.FirstOrDefault(entry => entry.Id == id);
+        if (item == null) return;
+        item.Tags = VocabularyTagsService.Normalize(tags).ToList();
+        VocabularyTagsService.Register(item.Tags);
+        Save(items);
+    }
+
     private static void Save(List<VocabularyEntry> items)
     {
         AppConfig.EnsureFolder();
         File.WriteAllText(FilePath, JsonSerializer.Serialize(items, JsonOptions));
+    }
+}
+
+/// A registry used only by the translation notebook. It intentionally does not read from or
+/// write to the shared LabelsService registry used by Notes, Tasks, Calendar, and other widgets.
+public static class VocabularyTagsService
+{
+    private static string FilePath => AppConfig.TokenPath("translation-tags.json");
+
+    public static List<string> LoadAll()
+    {
+        var tags = new List<string>();
+        try { tags = JsonSerializer.Deserialize<List<string>>(File.ReadAllText(FilePath)) ?? new(); }
+        catch { /* A missing or malformed registry is recovered from saved entries below. */ }
+        tags.AddRange(VocabularyService.Load().SelectMany(item => item.Tags));
+        return Normalize(tags).ToList();
+    }
+
+    public static void Add(string tag) => Register(new[] { tag });
+
+    public static void Register(IEnumerable<string> tags)
+    {
+        var merged = LoadRegistry();
+        merged.AddRange(tags);
+        AppConfig.EnsureFolder();
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(Normalize(merged),
+            new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    internal static IEnumerable<string> Normalize(IEnumerable<string> tags) => tags
+        .Select(tag => tag.Trim().TrimStart('#'))
+        .Where(tag => tag.Length > 0)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase);
+
+    private static List<string> LoadRegistry()
+    {
+        try { return JsonSerializer.Deserialize<List<string>>(File.ReadAllText(FilePath)) ?? new(); }
+        catch { return new(); }
     }
 }

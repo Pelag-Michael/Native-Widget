@@ -353,9 +353,13 @@ the widget and persist through `AppConfig`; Vietnamese is the default target.
 A successful translation opens `TranslationResultPopup` near the cursor with linkified
 original and translated text, copy, reverse, retry, and save actions. Save writes only the
 minimal vocabulary record to `%AppData%\NativeWidget\translations.json`: both texts, language
-pair, timestamp, capture method, and source application/window. `VocabularyService` de-duplicates
-identical pairs. The widget lists, searches, copies, reopens, and deletes these entries; there
-are deliberately no notes, scores, review schedules, or spaced-repetition state.
+pair, timestamp, capture method, source application/window, and optional vocabulary-only tags.
+`VocabularyService` de-duplicates identical pairs. The notebook is collapsed by default and
+shrinks the entire window; opening it exposes search plus an optional metadata panel for language
+pair, capture method, source application, and tag filters. Tags use an isolated registry at
+`translation-tags.json` and never enter the shared Notes/Tasks/Calendar label registry. Each card
+can copy, retag, reopen, or delete an entry; there are deliberately no notes, scores, review
+schedules, or spaced-repetition state.
 
 For non-selectable text, **Chụp vùng màn hình** temporarily stops selection tracking and opens
 `ScreenRegionOverlay` across the virtual desktop. Physical screen pixels are captured with GDI

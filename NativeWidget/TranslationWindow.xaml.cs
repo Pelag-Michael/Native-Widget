@@ -15,6 +15,9 @@ public partial class TranslationWindow : Window
     private TranslationResultPopup? _resultPopup;
     private bool _initializing = true;
     private bool _translating;
+    private bool _updatingFilters;
+    private bool _vocabularyExpanded;
+    private double _expandedHeight = 520;
     private (string Text, string Method, string SourceApp)? _queuedTranslation;
 
     public TranslationWindow(AppConfig config)
@@ -235,21 +238,131 @@ public partial class TranslationWindow : Window
 
     private void VocabularySearch_TextChanged(object sender, TextChangedEventArgs e) => RenderVocabulary();
 
+    private void VocabularyHeader_Click(object sender, MouseButtonEventArgs e)
+    {
+        SetVocabularyExpanded(!_vocabularyExpanded);
+    }
+
+    public void SetVocabularyExpanded(bool expanded)
+    {
+        if (expanded)
+        {
+            Height = Math.Max(420, _expandedHeight);
+        }
+        else
+        {
+            if (Height > 320) _expandedHeight = Height;
+            Height = 300;
+        }
+        _vocabularyExpanded = expanded;
+        VocabularySection.Visibility = _vocabularyExpanded ? Visibility.Visible : Visibility.Collapsed;
+        VocabularyChevron.Text = _vocabularyExpanded ? "\uE70D" : "\uE76C";
+        VocabularyOpenHint.Text = _vocabularyExpanded ? "Thu gọn" : "Mở";
+        if (_vocabularyExpanded) RenderVocabulary();
+    }
+
+    private void FilterToggle_Click(object sender, RoutedEventArgs e)
+    {
+        SetMetadataFiltersVisible(MetadataFilterPanel.Visibility != Visibility.Visible);
+        e.Handled = true;
+    }
+
+    public void SetMetadataFiltersVisible(bool visible) =>
+        MetadataFilterPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+    private void MetadataFilter_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_updatingFilters) RenderVocabulary();
+    }
+
+    private void CreateVocabularyTag_Click(object sender, RoutedEventArgs e)
+    {
+        var tag = PromptDialog.Show(this, "Tạo tag từ vựng");
+        if (string.IsNullOrWhiteSpace(tag)) return;
+        tag = tag.Trim().TrimStart('#');
+        if (tag.Length == 0) return;
+        VocabularyTagsService.Add(tag);
+        RenderVocabulary();
+        SelectFilter(VocabularyTagFilter, tag);
+        e.Handled = true;
+    }
+
     private void RenderVocabulary()
     {
         if (!IsInitialized) return;
+        var allItems = VocabularyService.Load();
+        RefreshFilterOptions(allItems);
         var search = VocabularySearch.Text.Trim();
-        var items = VocabularyService.Load()
+        var pair = SelectedFilter(LanguagePairFilter);
+        var method = SelectedFilter(CaptureMethodFilter);
+        var sourceApp = SelectedFilter(SourceAppFilter);
+        var tag = SelectedFilter(VocabularyTagFilter);
+        var items = allItems
             .Where(item => string.IsNullOrEmpty(search) ||
                            item.SourceText.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                           item.TranslatedText.Contains(search, StringComparison.OrdinalIgnoreCase))
+                           item.TranslatedText.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                           item.Tags.Any(itemTag => itemTag.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .Where(item => pair.Length == 0 || $"{item.SourceLanguage}>{item.TargetLanguage}" == pair)
+            .Where(item => method.Length == 0 || item.CaptureMethod == method)
+            .Where(item => sourceApp.Length == 0 || item.SourceApp == sourceApp)
+            .Where(item => tag.Length == 0 || item.Tags.Any(itemTag => string.Equals(itemTag, tag, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(item => item.CreatedAtUnix).ToList();
 
         VocabularyList.Items.Clear();
-        VocabularyTitle.Text = $"SỔ TỪ VỰNG ({items.Count})";
+        VocabularyTitle.Text = items.Count == allItems.Count
+            ? $"SỔ TỪ VỰNG ({allItems.Count})"
+            : $"SỔ TỪ VỰNG ({items.Count}/{allItems.Count})";
         EmptyVocabulary.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var item in items) VocabularyList.Items.Add(BuildVocabularyCard(item));
     }
+
+    private void RefreshFilterOptions(IReadOnlyCollection<VocabularyEntry> items)
+    {
+        _updatingFilters = true;
+        try
+        {
+            PopulateFilter(LanguagePairFilter, "Mọi cặp ngôn ngữ", items
+                .Select(item => ($"{item.SourceLanguage}>{item.TargetLanguage}",
+                    $"{TranslationLanguages.NameOf(item.SourceLanguage)} → {TranslationLanguages.NameOf(item.TargetLanguage)}"))
+                .Distinct().OrderBy(option => option.Item2));
+            PopulateFilter(CaptureMethodFilter, "Mọi nguồn lưu", items
+                .Select(item => (item.CaptureMethod, CaptureMethodName(item.CaptureMethod)))
+                .Distinct().OrderBy(option => option.Item2));
+            PopulateFilter(SourceAppFilter, "Mọi ứng dụng", items
+                .Where(item => !string.IsNullOrWhiteSpace(item.SourceApp))
+                .Select(item => (item.SourceApp, item.SourceApp)).Distinct().OrderBy(option => option.Item2));
+            PopulateFilter(VocabularyTagFilter, "Mọi tag", VocabularyTagsService.LoadAll().Select(tag => (tag, $"#{tag}")));
+        }
+        finally { _updatingFilters = false; }
+    }
+
+    private static void PopulateFilter(ComboBox comboBox, string allLabel, IEnumerable<(string Key, string Label)> options)
+    {
+        var selected = SelectedFilter(comboBox);
+        comboBox.Items.Clear();
+        comboBox.Items.Add(new ComboBoxItem { Content = allLabel, Tag = "" });
+        foreach (var (key, label) in options)
+            comboBox.Items.Add(new ComboBoxItem { Content = label, Tag = key });
+        SelectFilter(comboBox, selected);
+    }
+
+    private static string SelectedFilter(ComboBox comboBox) =>
+        (comboBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+
+    private static void SelectFilter(ComboBox comboBox, string key)
+    {
+        comboBox.SelectedItem = comboBox.Items.OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(item.Tag as string, key, StringComparison.OrdinalIgnoreCase))
+            ?? comboBox.Items[0];
+    }
+
+    private static string CaptureMethodName(string method) => method switch
+    {
+        "selection" => "Vùng chọn",
+        "clipboard" => "Clipboard",
+        "ocr" => "Ảnh / OCR",
+        _ => method,
+    };
 
     private UIElement BuildVocabularyCard(VocabularyEntry item)
     {
@@ -267,6 +380,20 @@ public partial class TranslationWindow : Window
         var text = new StackPanel();
         text.Children.Add(new TextBlock { Text = item.SourceText, Foreground = Brushes.White, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, MaxHeight = 38, TextTrimming = TextTrimming.CharacterEllipsis });
         text.Children.Add(new TextBlock { Text = item.TranslatedText, Foreground = (Brush)FindResource("MutedBrush"), FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxHeight = 34, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 3, 0, 0) });
+        if (item.Tags.Count > 0)
+        {
+            var tags = new WrapPanel { Margin = new Thickness(0, 5, 0, 0) };
+            foreach (var tag in item.Tags.Take(3))
+                tags.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(0x24, 0x7F, 0xA8, 0xFF)),
+                    CornerRadius = new CornerRadius(7), Padding = new Thickness(5, 2, 5, 2), Margin = new Thickness(0, 0, 4, 0),
+                    Child = new TextBlock { Text = $"#{tag}", Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB9, 0xF5)), FontSize = 9 },
+                });
+            if (item.Tags.Count > 3)
+                tags.Children.Add(new TextBlock { Text = $"+{item.Tags.Count - 3}", Foreground = (Brush)FindResource("MutedBrush"), FontSize = 9, VerticalAlignment = VerticalAlignment.Center });
+            text.Children.Add(tags);
+        }
         var created = DateTimeOffset.FromUnixTimeSeconds(item.CreatedAtUnix).LocalDateTime;
         text.Children.Add(new TextBlock
         {
@@ -274,12 +401,20 @@ public partial class TranslationWindow : Window
             Foreground = new SolidColorBrush(Color.FromRgb(0x72, 0x72, 0x80)), FontSize = 9.5, Margin = new Thickness(0, 5, 0, 0),
         });
 
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Opacity = 0, VerticalAlignment = VerticalAlignment.Center };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Opacity = 0.48, VerticalAlignment = VerticalAlignment.Center };
         var copy = new Button { Content = "\uE8C8", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Sao chép bản dịch", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
         copy.Click += (_, e) => { Clipboard.SetText(item.TranslatedText); e.Handled = true; };
+        var tagButton = new Button { Content = "\uE8EC", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Gắn tag từ vựng", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
+        tagButton.Click += (_, e) =>
+        {
+            var selected = VocabularyTagPickerDialog.Show(this, item.Tags);
+            if (selected != null) { VocabularyService.SetTags(item.Id, selected); RenderVocabulary(); }
+            e.Handled = true;
+        };
         var delete = new Button { Content = "\uE74D", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Xoá khỏi sổ", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
         delete.Click += (_, e) => { VocabularyService.Delete(item.Id); RenderVocabulary(); e.Handled = true; };
         actions.Children.Add(copy);
+        actions.Children.Add(tagButton);
         actions.Children.Add(delete);
         card.MouseEnter += (_, _) => actions.Opacity = 1;
         card.MouseLeave += (_, _) => actions.Opacity = 0;
