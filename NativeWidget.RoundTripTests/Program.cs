@@ -1,4 +1,7 @@
 using System.IO;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Windows.Automation;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,6 +17,16 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Contains("--selection-harness", StringComparer.Ordinal))
+        {
+            RunSelectionHarness();
+            return;
+        }
+        if (args.Contains("--drive-selection", StringComparer.Ordinal))
+        {
+            DriveSelectionAndVerifyPopup();
+            return;
+        }
         var imagePath = Path.Combine(Path.GetTempPath(), "nativewidget-markdown-test.png");
         File.WriteAllBytes(imagePath, Convert.FromBase64String(
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
@@ -80,6 +93,7 @@ internal static class Program
             NotionSyncService.ResolveChanges(localChanged: true, remoteChanged: true),
             "Two-sided sync conflict resolution");
         TestBareDomainLinkify();
+        TestVocabularyStorage();
 
         using var notionJson = JsonDocument.Parse("""
         [
@@ -136,6 +150,10 @@ internal static class Program
             Console.WriteLine("UI_RENDER=" + UiRenderSmoke.Run());
         if (args.Contains("--notion-smoke", StringComparer.Ordinal))
             NotionSmoke.Run(imagePath).GetAwaiter().GetResult();
+        if (args.Contains("--translation-smoke", StringComparer.Ordinal))
+            TestTranslationAsync().GetAwaiter().GetResult();
+        if (args.Contains("--ocr-smoke", StringComparer.Ordinal))
+            TestOcrAsync().GetAwaiter().GetResult();
     }
 
     private static Paragraph Styled(string tag, Inline inline)
@@ -156,6 +174,151 @@ internal static class Program
             "Bare .space link detection");
         AssertEqual("https://vincea.com/", targets.ElementAtOrDefault(1) ?? "",
             "Bare .com link detection");
+    }
+
+    private static void RunSelectionHarness()
+    {
+        var app = new Application();
+        var text = new TextBox
+        {
+            Text = "Learning a new language opens a new window to the world.",
+            FontSize = 24,
+            TextWrapping = TextWrapping.Wrap,
+            Padding = new Thickness(24),
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        var window = new Window
+        {
+            Title = "NativeWidget Selection Harness",
+            Width = 760,
+            Height = 220,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Content = text,
+            Topmost = true,
+            ShowInTaskbar = true,
+        };
+        window.Loaded += (_, _) => { window.Activate(); text.Focus(); };
+        app.Run(window);
+    }
+
+    private static void DriveSelectionAndVerifyPopup()
+    {
+        var window = IntPtr.Zero;
+        for (var attempt = 0; attempt < 30 && window == IntPtr.Zero; attempt++)
+        {
+            window = FindWindow(null, "NativeWidget Selection Harness");
+            if (window == IntPtr.Zero) Thread.Sleep(100);
+        }
+        if (window == IntPtr.Zero || !GetWindowRect(window, out var rect))
+            throw new InvalidOperationException("Selection harness window was not found.");
+
+        SetForegroundWindow(window);
+        Thread.Sleep(250);
+        if (GetForegroundWindow() != window)
+            throw new InvalidOperationException("Selection harness could not become foreground; refusing to drag in another app.");
+        var startX = rect.Left + 35;
+        var endX = rect.Right - 35;
+        var y = rect.Top + (rect.Bottom - rect.Top) / 2;
+        SetCursorPos(startX, y);
+        mouse_event(MouseeventfLeftdown, 0, 0, 0, UIntPtr.Zero);
+        for (var i = 1; i <= 24; i++)
+        {
+            SetCursorPos(startX + (endX - startX) * i / 24, y);
+            Thread.Sleep(15);
+        }
+        mouse_event(MouseeventfLeftup, 0, 0, 0, UIntPtr.Zero);
+
+        for (var i = 0; i < 60; i++)
+        {
+            var popup = FindWindow(null, "Translation Result");
+            if (popup != IntPtr.Zero)
+            {
+                var root = AutomationElement.FromHandle(popup);
+                var saveButton = root.FindFirst(TreeScope.Descendants, new AndCondition(
+                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+                    new PropertyCondition(AutomationElement.NameProperty, "Lưu")))
+                    ?? throw new InvalidOperationException("Save button was not found in translation popup.");
+                ((InvokePattern)saveButton.GetCurrentPattern(InvokePattern.Pattern)).Invoke();
+                for (var saveAttempt = 0; saveAttempt < 20; saveAttempt++)
+                {
+                    var saved = VocabularyService.Load();
+                    if (saved.Any(item => item.SourceText.Contains("Learning a new language", StringComparison.Ordinal)))
+                    {
+                        Console.WriteLine("SELECTION_TRANSLATION_PASS=popup-created-and-saved");
+                        return;
+                    }
+                    Thread.Sleep(100);
+                }
+                throw new InvalidOperationException("Translation popup appeared, but Save did not persist the entry.");
+            }
+            Thread.Sleep(200);
+        }
+        throw new InvalidOperationException("Selecting text did not create the translation popup.");
+    }
+
+    private const uint MouseeventfLeftdown = 0x0002;
+    private const uint MouseeventfLeftup = 0x0004;
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowRect { public int Left; public int Top; public int Right; public int Bottom; }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string? className, string windowName);
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hwnd, out WindowRect rect);
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")]
+    private static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")]
+    private static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+
+    private static void TestVocabularyStorage()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "nativewidget-vocabulary-test-" + Guid.NewGuid().ToString("N"));
+        Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
+        try
+        {
+            var added = VocabularyService.Add(new TranslationResult("hello", "xin chào", "en", "vi"),
+                "selection", "test-app");
+            var loaded = VocabularyService.Load();
+            if (loaded.Count != 1 || loaded[0].Id != added.Id || loaded[0].TranslatedText != "xin chào")
+                throw new InvalidOperationException("Vocabulary save/load failed.");
+            VocabularyService.Delete(added.Id);
+            if (VocabularyService.Load().Count != 0)
+                throw new InvalidOperationException("Vocabulary delete failed.");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", null);
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    private static async Task TestTranslationAsync()
+    {
+        var result = await TranslationService.TranslateAsync("Hello, how are you?", "en", "vi");
+        if (result.SourceLanguage != "en" || result.TargetLanguage != "vi" ||
+            string.IsNullOrWhiteSpace(result.TranslatedText) || result.TranslatedText == result.SourceText)
+            throw new InvalidOperationException("Translation provider smoke test failed.");
+        Console.WriteLine($"TRANSLATION_PASS={result.TranslatedText}");
+    }
+
+    private static async Task TestOcrAsync()
+    {
+        var visual = new DrawingVisual();
+        using (var drawing = visual.RenderOpen())
+        {
+            drawing.DrawRectangle(Brushes.White, null, new Rect(0, 0, 700, 120));
+            drawing.DrawText(new FormattedText("HELLO WORLD", CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, new Typeface("Arial"), 56, Brushes.Black, 1), new Point(15, 20));
+        }
+        var bitmap = new RenderTargetBitmap(700, 120, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var text = await ScreenOcrService.ReadAsync(bitmap);
+        if (!text.Contains("HELLO", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"OCR smoke test failed. Actual: {text}");
+        Console.WriteLine($"OCR_PASS={text}");
     }
 
     private static void TestStorageMigration(string sourceXaml)

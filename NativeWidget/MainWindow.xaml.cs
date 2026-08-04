@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private NotesWindow? _notesWindow;
     private TimersWindow? _timersWindow;
     private FocusWindow? _focusWindow;
+    private TranslationWindow? _translationWindow;
     private LabelsWindow? _labelsWindow;
     private SettingsWindow? _settingsWindow;
     private WorkspaceSearchWindow? _searchWindow;
@@ -148,6 +149,7 @@ public partial class MainWindow : Window
         if (_notesWindow != null) yield return (_notesWindow, _notesWindow.Header);
         if (_timersWindow != null) yield return (_timersWindow, _timersWindow.Header);
         if (_focusWindow != null) yield return (_focusWindow, _focusWindow.Header);
+        if (_translationWindow != null) yield return (_translationWindow, _translationWindow.Header);
         if (_labelsWindow != null) yield return (_labelsWindow, _labelsWindow.Header);
         if (_settingsWindow != null) yield return (_settingsWindow, _settingsWindow.Header);
     }
@@ -217,6 +219,7 @@ public partial class MainWindow : Window
             "Notes" => _notesWindow ??= new NotesWindow(_config),
             "Timers" => _timersWindow ??= new TimersWindow(),
             "Focus" => _focusWindow ??= new FocusWindow(),
+            "Translate" => _translationWindow ??= new TranslationWindow(_config),
             "Labels" => _labelsWindow ??= new LabelsWindow(),
             "Settings" => _settingsWindow ??= new SettingsWindow(_config, async () =>
             {
@@ -235,6 +238,7 @@ public partial class MainWindow : Window
             if (widget is ProjectsWindow projects) projects.Render();
             if (widget is TasksWindow tasksW) tasksW.Refresh();
             if (widget is LabelsWindow labels) labels.Render();
+            if (widget is TranslationWindow translation) translation.Refresh();
             widget.Show();
             widget.Activate();
 
@@ -345,10 +349,10 @@ public partial class MainWindow : Window
 
     private void CloseAll_Click(object sender, RoutedEventArgs e)
     {
-        foreach (Window? w in new Window?[] { _projectsWindow, _calendarWindow, _tasksWindow, _notesWindow, _timersWindow, _focusWindow, _labelsWindow, _settingsWindow })
+        foreach (Window? w in new Window?[] { _projectsWindow, _calendarWindow, _tasksWindow, _notesWindow, _timersWindow, _focusWindow, _translationWindow, _labelsWindow, _settingsWindow })
             w?.Hide();
 
-        foreach (var btn in new[] { BtnProjects, BtnCalendar, BtnTasks, BtnNotes, BtnTimers, BtnFocus, BtnLabels, BtnSettings })
+        foreach (var btn in new[] { BtnProjects, BtnCalendar, BtnTasks, BtnNotes, BtnTimers, BtnFocus, BtnTranslate, BtnLabels, BtnSettings })
         {
             btn.Background = Brushes.Transparent;
             btn.Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x93));

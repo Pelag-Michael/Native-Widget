@@ -1,0 +1,91 @@
+<Window x:Class="NativeWidget.TranslationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:NativeWidget"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Translate" Width="390" Height="520" MinWidth="330" MinHeight="300"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
+        Left="540" Top="90" Closing="Window_Closing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Border Background="{StaticResource PanelBg}" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}"
+            BorderThickness="1" Padding="14" ClipToBounds="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="&#xE774;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White" Margin="0,0,8,0"/>
+                    <TextBlock Text="Translate" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                </StackPanel>
+                <local:WidgetHeaderControls x:Name="HeaderControls" Grid.Column="1"/>
+            </Grid>
+
+            <Border Grid.Row="1" Background="{StaticResource ChipBg}" CornerRadius="12" Padding="11" Margin="0,0,0,10">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/><ColumnDefinition Width="34"/><ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="SourceLanguageSelect" Padding="7,5" SelectionChanged="LanguageSelect_Changed"/>
+                        <Button Grid.Column="1" Content="&#xE8AB;" FontFamily="Segoe MDL2 Assets" ToolTip="Đảo ngôn ngữ"
+                                Click="SwapLanguages_Click" Style="{StaticResource IconBtnStyle}" Margin="3,0"/>
+                        <ComboBox x:Name="TargetLanguageSelect" Grid.Column="2" Padding="7,5" SelectionChanged="LanguageSelect_Changed"/>
+                    </Grid>
+                    <Grid Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <CheckBox x:Name="TrackingCheck" Click="TrackingCheck_Click" VerticalAlignment="Center"/>
+                            <TextBlock Text="Theo dõi vùng chọn" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock x:Name="TrackingState" HorizontalAlignment="Right" Foreground="#8FE0A8" FontSize="10.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <TextBlock Text="Kéo bôi đen chữ trong ứng dụng khác; bản dịch sẽ hiện gần con trỏ."
+                               Foreground="{StaticResource MutedBrush}" FontSize="10.5" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="2" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Button Content="Dịch clipboard" Click="TranslateClipboard_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="0,0,4,0"/>
+                <Button Grid.Column="1" Content="Chụp vùng màn hình" Click="CaptureScreen_Click" Style="{StaticResource PrimaryBtnStyle}" Margin="4,0,0,0"/>
+            </Grid>
+
+            <TextBlock x:Name="TranslateStatus" Grid.Row="3" Foreground="{StaticResource MutedBrush}" FontSize="10.5"
+                       Text="Sẵn sàng" TextWrapping="Wrap" Margin="2,0,2,10"/>
+
+            <Grid Grid.Row="4" Margin="0,0,0,8">
+                <TextBlock x:Name="VocabularyTitle" Text="SỔ TỪ VỰNG" Foreground="#7FA8FF" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Grid HorizontalAlignment="Right" Width="180">
+                    <TextBox x:Name="VocabularySearch" Style="{StaticResource InputStyle}" Padding="8,5" TextChanged="VocabularySearch_TextChanged"/>
+                    <TextBlock Text="Tìm trong sổ..." Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="8,0,0,0"
+                               VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=VocabularySearch}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+
+            <Grid Grid.Row="5">
+                <TextBlock x:Name="EmptyVocabulary" Text="Chưa lưu bản dịch nào." Foreground="{StaticResource MutedBrush}"
+                           FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <ListBox x:Name="VocabularyList" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False"
+                         VirtualizingPanel.IsVirtualizing="False" ItemContainerStyle="{StaticResource ListItemStyle}"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

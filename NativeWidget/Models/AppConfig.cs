@@ -16,6 +16,10 @@ public class AppConfig
     public string NotionDataSourceId { get; set; } = "";
     public bool NotionSyncEnabled { get; set; }
 
+    public string TranslationSourceLanguage { get; set; } = "auto";
+    public string TranslationTargetLanguage { get; set; } = "vi";
+    public bool TranslationSelectionTrackingEnabled { get; set; } = true;
+
     private static string FolderPath =>
         Environment.GetEnvironmentVariable("NATIVEWIDGET_DATA_DIR") is { Length: > 0 } overridePath
             ? overridePath

@@ -45,6 +45,7 @@ internal static class UiRenderSmoke
         // broken XAML resource/template even when the screenshot below only covers Notes.
         var parserSmoke = new Window[]
         {
+            new MainWindow(),
             new CalendarWindow(new AppConfig()),
             new TasksWindow(new AppConfig()),
             new TimersWindow(),
@@ -52,32 +53,52 @@ internal static class UiRenderSmoke
             new ProjectsWindow(),
             new LabelsWindow(),
             new SettingsWindow(new AppConfig(), () => Task.CompletedTask),
+            new TranslationResultPopup(new TranslationResult("vincea.space", "vincea.space", "en", "vi"), "selection", "Smoke test"),
+            new ScreenRegionOverlay(),
             new WorkspaceSearchWindow(),
         };
         var window = new NotesWindow(new AppConfig()) { Width = 420, Height = 540 };
+        var translation = new TranslationWindow(new AppConfig { TranslationSelectionTrackingEnabled = false }) { Width = 390, Height = 520 };
+        var resultPopup = new TranslationResultPopup(
+            new TranslationResult("Visit vincea.space for the complete guide.", "Truy cập vincea.space để xem hướng dẫn đầy đủ.", "en", "vi"),
+            "selection", "Smoke test");
         try
         {
             window.Show();
-            window.UpdateLayout();
-            var dpi = VisualTreeHelper.GetDpi(window);
-            var bitmap = new RenderTargetBitmap(
-                Math.Max(1, (int)Math.Ceiling(window.ActualWidth * dpi.DpiScaleX)),
-                Math.Max(1, (int)Math.Ceiling(window.ActualHeight * dpi.DpiScaleY)),
-                dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            bitmap.Render(window);
             var path = Path.Combine(root, "notes-list.png");
-            using var stream = File.Create(path);
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bitmap));
-            encoder.Save(stream);
-            return path;
+            Render(window, path);
+            translation.Show();
+            var translationPath = Path.Combine(root, "translation.png");
+            Render(translation, translationPath);
+            resultPopup.Owner = translation;
+            resultPopup.Show();
+            var popupPath = Path.Combine(root, "translation-popup.png");
+            Render(resultPopup, popupPath);
+            return $"{path};{translationPath};{popupPath}";
         }
         finally
         {
             window.Close();
+            translation.Close();
+            resultPopup.Close();
             foreach (var parserWindow in parserSmoke) parserWindow.Close();
             app.Shutdown();
             Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", null);
         }
+    }
+
+    private static void Render(Window window, string path)
+    {
+        window.UpdateLayout();
+        var dpi = VisualTreeHelper.GetDpi(window);
+        var bitmap = new RenderTargetBitmap(
+            Math.Max(1, (int)Math.Ceiling(window.ActualWidth * dpi.DpiScaleX)),
+            Math.Max(1, (int)Math.Ceiling(window.ActualHeight * dpi.DpiScaleY)),
+            dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+        bitmap.Render(window);
+        using var stream = File.Create(path);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        encoder.Save(stream);
     }
 }
