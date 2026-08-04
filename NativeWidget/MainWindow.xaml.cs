@@ -15,9 +15,28 @@ namespace NativeWidget;
 
 public partial class MainWindow : Window
 {
-    // The dock itself is fixed at 52px; a round Popup holds the 3×3 icon menu on hover.
+    // The dock itself is fixed at 52px; a round Popup holds the icon menu on hover.
     private readonly DispatcherTimer _launcherCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(220) };
+    private readonly DispatcherTimer _hintHideTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
     private bool _updatingGlobalControls;
+    private bool _launcherClosing;
+    private Button? _hintOwner;
+
+    // title, optional shortcut, optional extra line — keyed by button Name
+    private static readonly Dictionary<string, (string Title, string? Shortcut, string? Extra)> LauncherHints = new()
+    {
+        ["BtnSearch"] = ("Search", "Ctrl+Alt+K", null),
+        ["BtnProjects"] = ("Projects", null, null),
+        ["BtnCalendar"] = ("Calendar", null, "Right-click: quick event"),
+        ["BtnTasks"] = ("Tasks", null, "Right-click: quick task"),
+        ["BtnNotes"] = ("Notes", null, "Right-click: quick note"),
+        ["BtnTimers"] = ("Timers", null, null),
+        ["BtnFocus"] = ("Focus session", null, null),
+        ["BtnTranslate"] = ("Translate", null, null),
+        ["BtnLabels"] = ("Labels", null, null),
+        ["BtnSettings"] = ("Settings", null, null),
+        ["BtnWindowTools"] = ("Window tools", null, "Pin, ghost, opacity for open widgets"),
+    };
 
     private const int HotkeyId = 0xB001;
     private const int LocateHotkeyId = 0xB002;
@@ -60,6 +79,14 @@ public partial class MainWindow : Window
         {
             if (IsMouseOver || LauncherPopupContent.IsMouseOver || WindowToolsPopup.IsOpen || WindowToolsPanel.IsMouseOver) return;
             HideLauncher();
+        };
+        _hintHideTimer.Tick += (_, _) =>
+        {
+            _hintHideTimer.Stop();
+            // Still hovering the same (or another) action? keep the label.
+            if (_hintOwner != null && _hintOwner.IsMouseOver) return;
+            _hintOwner = null;
+            CloseLauncherHintNow();
         };
 
         // A ghosted window can't be clicked at all - not even its own un-ghost button - so
@@ -216,43 +243,174 @@ public partial class MainWindow : Window
     }
 
     private void LauncherPopup_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
-    private void LauncherPopup_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
+    private void LauncherPopup_MouseLeave(object sender, MouseEventArgs e)
+    {
+        HideLauncherHint();
+        _launcherCloseTimer.Start();
+    }
     private void WindowToolsPanel_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
     private void WindowToolsPanel_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
+
     private void ShowLauncher()
     {
         _launcherCloseTimer.Stop();
+        _launcherClosing = false;
+        var wasOpen = LauncherPopup.IsOpen;
         LauncherPopup.IsOpen = true;
-        LauncherPopupContent.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(150))
+
+        var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var openMs = 260;
+
+        if (!wasOpen)
         {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            LauncherPopupContent.BeginAnimation(OpacityProperty, null);
+            LauncherPopupContent.Opacity = 0;
+            if (LauncherPopupContent.RenderTransform is ScaleTransform reset)
+            {
+                reset.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                reset.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                reset.ScaleX = 0.86;
+                reset.ScaleY = 0.86;
+            }
+        }
+
+        LauncherPopupContent.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(openMs))
+        {
+            EasingFunction = easeOut,
         });
         if (LauncherPopupContent.RenderTransform is ScaleTransform scale)
         {
-            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180))
+            var scaleAnim = new DoubleAnimation(1, TimeSpan.FromMilliseconds(openMs + 20))
             {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-            });
-            scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(180))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-            });
+                EasingFunction = easeOut,
+            };
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
         }
     }
+
     private void HideLauncher()
     {
         _launcherCloseTimer.Stop();
+        HideLauncherHint();
         if (WindowToolsPopup.IsOpen) return;
-        if (!LauncherPopup.IsOpen) return;
-        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(110))
+        if (!LauncherPopup.IsOpen || _launcherClosing) return;
+        _launcherClosing = true;
+
+        var easeIn = new CubicEase { EasingMode = EasingMode.EaseIn };
+        var closeMs = 160;
+
+        if (LauncherPopupContent.RenderTransform is ScaleTransform scale)
         {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
+            var scaleAnim = new DoubleAnimation(0.88, TimeSpan.FromMilliseconds(closeMs))
+            {
+                EasingFunction = easeIn,
+            };
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+        }
+
+        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(closeMs))
+        {
+            EasingFunction = easeIn,
         };
         fade.Completed += (_, _) =>
         {
-            if (!IsMouseOver && !LauncherPopupContent.IsMouseOver && !WindowToolsPopup.IsOpen) LauncherPopup.IsOpen = false;
+            _launcherClosing = false;
+            if (!IsMouseOver && !LauncherPopupContent.IsMouseOver && !WindowToolsPopup.IsOpen)
+                LauncherPopup.IsOpen = false;
+            else if (IsMouseOver || LauncherPopupContent.IsMouseOver)
+                ShowLauncher();
         };
         LauncherPopupContent.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void LauncherAction_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        _launcherCloseTimer.Stop();
+        _hintHideTimer.Stop();
+        ShowLauncherHint(btn);
+    }
+
+    private void LauncherAction_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is Button left && _hintOwner == left)
+        {
+            _hintHideTimer.Stop();
+            _hintHideTimer.Start();
+        }
+    }
+
+    private void ShowLauncherHint(Button btn)
+    {
+        if (!LauncherHints.TryGetValue(btn.Name, out var hint)) return;
+        var switching = LauncherHintPopup.IsOpen && _hintOwner != btn;
+        _hintOwner = btn;
+
+        LauncherHintTitle.Text = hint.Title;
+        if (string.IsNullOrEmpty(hint.Shortcut))
+        {
+            LauncherHintShortcut.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            LauncherHintShortcut.Text = hint.Shortcut;
+            LauncherHintShortcut.Visibility = Visibility.Visible;
+        }
+        if (string.IsNullOrEmpty(hint.Extra))
+        {
+            LauncherHintExtra.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            LauncherHintExtra.Text = hint.Extra;
+            LauncherHintExtra.Visibility = Visibility.Visible;
+        }
+
+        LauncherHintPopup.PlacementTarget = btn;
+        LauncherHintPopup.IsOpen = true;
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        // Full slide when first shown; lighter fade when moving between icons.
+        var fromX = switching ? -4 : -12;
+        var duration = switching ? 140 : 220;
+        LauncherHintChrome.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(duration - 20))
+        {
+            EasingFunction = ease,
+        });
+        if (LauncherHintChrome.RenderTransform is TranslateTransform slide)
+        {
+            slide.BeginAnimation(TranslateTransform.XProperty, null);
+            slide.X = fromX;
+            slide.BeginAnimation(TranslateTransform.XProperty,
+                new DoubleAnimation(0, TimeSpan.FromMilliseconds(duration)) { EasingFunction = ease });
+        }
+    }
+
+    private void HideLauncherHint()
+    {
+        _hintOwner = null;
+        _hintHideTimer.Stop();
+        CloseLauncherHintNow();
+    }
+
+    private void CloseLauncherHintNow()
+    {
+        if (!LauncherHintPopup.IsOpen) return;
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+        var fade = new DoubleAnimation(0, TimeSpan.FromMilliseconds(120)) { EasingFunction = ease };
+        fade.Completed += (_, _) =>
+        {
+            if (_hintOwner == null) LauncherHintPopup.IsOpen = false;
+        };
+        LauncherHintChrome.BeginAnimation(OpacityProperty, fade);
+        if (LauncherHintChrome.RenderTransform is TranslateTransform slide)
+        {
+            slide.BeginAnimation(TranslateTransform.XProperty,
+                new DoubleAnimation(-8, TimeSpan.FromMilliseconds(120)) { EasingFunction = ease });
+        }
     }
 
     private void ToggleWidget_Click(object sender, RoutedEventArgs e)
