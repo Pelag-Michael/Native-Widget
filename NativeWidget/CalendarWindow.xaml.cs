@@ -16,6 +16,13 @@ public partial class CalendarWindow : Window
     private readonly Dictionary<object, CalendarEvent> _eventItems = new();
     private readonly DispatcherTimer _autoRefreshTimer = new() { Interval = TimeSpan.FromMinutes(5) };
 
+    // Loaded, Activated, the 5-minute timer and the refresh button can all fire while a
+    // previous load is still awaiting the network. Without this guard the passes interleave:
+    // a later pass flips LoadingHint back on over the events an earlier pass already
+    // rendered (looks like "still loading" on a fully-loaded list), and both passes mutate
+    // EventList.Items concurrently. Same fix TasksWindow already carries.
+    private bool _isBusy;
+
     public CalendarWindow(AppConfig config)
     {
         InitializeComponent();
@@ -89,27 +96,35 @@ public partial class CalendarWindow : Window
 
     public async Task RefreshEventsAsync()
     {
-        var connected = GoogleCalendarService.IsConnected();
-        CalDisconnected.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
-        CalConnected.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
-        AddEventBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
-        RefreshBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
-        GoogleDisconnectBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
-        CalendarStatus.Text = connected ? "Đang đồng bộ..." : "Chưa kết nối";
-        if (!connected) return;
-
-        LoadingHint.Visibility = Visibility.Visible;
-        var events = await GoogleCalendarService.GetUpcomingEventsAsync(_config);
-        LoadingHint.Visibility = Visibility.Collapsed;
-        EventList.Items.Clear();
-        _eventItems.Clear();
-
-        DateTime? lastDay = null;
-        var vi = new System.Globalization.CultureInfo("vi-VN");
-        var eventColors = EventColorsService.Load();
-
-        foreach (var ev in events)
+        if (_isBusy) return;
+        _isBusy = true;
+        try
         {
+            var connected = GoogleCalendarService.IsConnected();
+            CalDisconnected.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
+            CalConnected.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+            AddEventBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+            RefreshBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+            GoogleDisconnectBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
+            if (!connected)
+            {
+                CalendarStatus.Text = "Chưa kết nối";
+                return;
+            }
+
+            CalendarStatus.Text = "Đang đồng bộ...";
+            LoadingHint.Visibility = Visibility.Visible;
+            var events = await GoogleCalendarService.GetUpcomingEventsAsync(_config);
+            LoadingHint.Visibility = Visibility.Collapsed;
+            EventList.Items.Clear();
+            _eventItems.Clear();
+
+            DateTime? lastDay = null;
+            var vi = new System.Globalization.CultureInfo("vi-VN");
+            var eventColors = EventColorsService.Load();
+
+            foreach (var ev in events)
+            {
             var day = DateTime.Parse(ev.Start).Date;
             if (lastDay != day)
             {
@@ -292,7 +307,12 @@ public partial class CalendarWindow : Window
             _eventItems[card] = ev;
             EventList.Items.Add(card);
         }
-        CalendarStatus.Text = $"Đã cập nhật {DateTime.Now:HH:mm}";
+            CalendarStatus.Text = $"Đã cập nhật {DateTime.Now:HH:mm}";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
     }
 
     private void EventList_MouseUp(object sender, MouseButtonEventArgs e)
