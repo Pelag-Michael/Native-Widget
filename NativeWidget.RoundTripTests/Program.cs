@@ -303,6 +303,12 @@ internal static class Program
             var loaded = VocabularyService.Load();
             if (loaded.Count != 1 || loaded[0].Id != added.Id || loaded[0].TranslatedText != "xin chào")
                 throw new InvalidOperationException("Vocabulary save/load failed.");
+            VocabularyTagsService.Add("greeting");
+            VocabularyService.SetTags(added.Id, new[] { "greeting", "daily" });
+            loaded = VocabularyService.Load();
+            if (!loaded[0].Tags.SequenceEqual(new[] { "daily", "greeting" }) ||
+                !VocabularyTagsService.LoadAll().Contains("greeting"))
+                throw new InvalidOperationException("Vocabulary-only tag persistence failed.");
             VocabularyService.Delete(added.Id);
             if (VocabularyService.Load().Count != 0)
                 throw new InvalidOperationException("Vocabulary delete failed.");

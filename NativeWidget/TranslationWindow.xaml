@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NativeWidget"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="Translate" Width="390" Height="520" MinWidth="330" MinHeight="300"
+        Title="Translate" Width="390" Height="300" MinWidth="330" MinHeight="270"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
         Left="540" Top="90" Closing="Window_Closing">
@@ -100,28 +100,60 @@
             <TextBlock x:Name="TranslateStatus" Grid.Row="3" Foreground="{StaticResource MutedBrush}" FontSize="10.5"
                        Text="Sẵn sàng" TextWrapping="Wrap" Margin="2,0,2,10"/>
 
-            <Grid Grid.Row="4" Margin="0,0,0,8">
-                <TextBlock x:Name="VocabularyTitle" Text="SỔ TỪ VỰNG" Foreground="#7FA8FF" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Grid HorizontalAlignment="Right" Width="180">
-                    <TextBox x:Name="VocabularySearch" Style="{StaticResource InputStyle}" Padding="8,5" TextChanged="VocabularySearch_TextChanged"/>
-                    <TextBlock Text="Tìm trong sổ..." Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="8,0,0,0"
-                               VerticalAlignment="Center" IsHitTestVisible="False">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=VocabularySearch}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </Grid>
+            <Grid Grid.Row="4" Margin="0,1,0,8" Cursor="Hand" MouseLeftButtonUp="VocabularyHeader_Click">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="VocabularyChevron" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="2,0,8,0"/>
+                <TextBlock x:Name="VocabularyTitle" Grid.Column="1" Text="SỔ TỪ VỰNG" Foreground="#7FA8FF"
+                           FontSize="11" FontWeight="Bold" VerticalAlignment="Center"/>
+                <TextBlock x:Name="VocabularyOpenHint" Grid.Column="2" Text="Mở" Foreground="{StaticResource MutedBrush}"
+                           FontSize="9.5" VerticalAlignment="Center" Margin="8,0,2,0"/>
             </Grid>
 
-            <Grid Grid.Row="5">
-                <TextBlock x:Name="EmptyVocabulary" Text="Chưa lưu bản dịch nào." Foreground="{StaticResource MutedBrush}"
-                           FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <ListBox x:Name="VocabularyList" Background="Transparent" BorderThickness="0"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False"
-                         VirtualizingPanel.IsVirtualizing="False" ItemContainerStyle="{StaticResource ListItemStyle}"/>
+            <Grid x:Name="VocabularySection" Grid.Row="5" Visibility="Collapsed">
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid Grid.Row="0" Margin="0,0,0,7">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid>
+                        <TextBox x:Name="VocabularySearch" Style="{StaticResource InputStyle}" Padding="9,6" TextChanged="VocabularySearch_TextChanged"/>
+                        <TextBlock Text="Tìm từ hoặc bản dịch..." Foreground="{StaticResource MutedBrush}" FontSize="10.5" Margin="9,0,0,0"
+                                   VerticalAlignment="Center" IsHitTestVisible="False">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=VocabularySearch}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <Button x:Name="FilterToggle" Grid.Column="1" Content="&#xE71C;" FontFamily="Segoe MDL2 Assets"
+                            ToolTip="Lọc metadata" Click="FilterToggle_Click" Style="{StaticResource IconBtnStyle}" Margin="7,0,0,0"/>
+                </Grid>
+
+                <Border x:Name="MetadataFilterPanel" Grid.Row="1" Visibility="Collapsed" Background="{StaticResource ChipBg}"
+                        CornerRadius="11" Padding="8" Margin="0,0,0,7">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <ComboBox x:Name="LanguagePairFilter" Padding="7,5" Margin="0,0,4,4" SelectionChanged="MetadataFilter_Changed"/>
+                        <ComboBox x:Name="CaptureMethodFilter" Grid.Column="1" Padding="7,5" Margin="4,0,0,4" SelectionChanged="MetadataFilter_Changed"/>
+                        <ComboBox x:Name="SourceAppFilter" Grid.Row="1" Padding="7,5" Margin="0,4,4,0" SelectionChanged="MetadataFilter_Changed"/>
+                        <Grid Grid.Row="1" Grid.Column="1" Margin="4,4,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="VocabularyTagFilter" Padding="7,5" SelectionChanged="MetadataFilter_Changed"/>
+                            <Button Grid.Column="1" Content="&#xE710;" FontFamily="Segoe MDL2 Assets" ToolTip="Tạo tag từ vựng"
+                                    Click="CreateVocabularyTag_Click" Style="{StaticResource IconBtnStyle}" Margin="4,0,0,0"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="2">
+                    <TextBlock x:Name="EmptyVocabulary" Text="Chưa có mục phù hợp." Foreground="{StaticResource MutedBrush}"
+                               FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <ListBox x:Name="VocabularyList" Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False"
+                             VirtualizingPanel.IsVirtualizing="False" ItemContainerStyle="{StaticResource ListItemStyle}"/>
+                </Grid>
             </Grid>
         </Grid>
     </Border>

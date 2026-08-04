@@ -39,6 +39,9 @@ internal static class UiRenderSmoke
             }));
 
         Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
+        var savedTranslation = VocabularyService.Add(
+            new TranslationResult("Hello world", "Xin chào thế giới", "en", "vi"), "clipboard", "Clipboard");
+        VocabularyService.SetTags(savedTranslation.Id, new[] { "greeting", "daily" });
         var app = new App();
         app.InitializeComponent();
         // Construct every custom window while the app resources are live. This catches a
@@ -68,13 +71,18 @@ internal static class UiRenderSmoke
             var path = Path.Combine(root, "notes-list.png");
             Render(window, path);
             translation.Show();
+            translation.SetVocabularyExpanded(false);
             var translationPath = Path.Combine(root, "translation.png");
             Render(translation, translationPath);
+            translation.SetVocabularyExpanded(true);
+            translation.SetMetadataFiltersVisible(true);
+            var translationVocabularyPath = Path.Combine(root, "translation-vocabulary.png");
+            Render(translation, translationVocabularyPath);
             resultPopup.Owner = translation;
             resultPopup.Show();
             var popupPath = Path.Combine(root, "translation-popup.png");
             Render(resultPopup, popupPath);
-            return $"{path};{translationPath};{popupPath}";
+            return $"{path};{translationPath};{translationVocabularyPath};{popupPath}";
         }
         finally
         {
