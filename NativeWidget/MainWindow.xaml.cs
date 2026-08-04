@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _hintHideTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
     private bool _updatingGlobalControls;
     private bool _launcherClosing;
+    private bool _draggingDock;
     private Button? _hintOwner;
 
     // title, optional shortcut, optional extra line — keyed by button Name
@@ -229,11 +230,55 @@ public partial class MainWindow : Window
 
     private void DragBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+        if (e.ChangedButton != MouseButton.Left || e.ButtonState != MouseButtonState.Pressed) return;
+
+        // While the radial menu is open, RootBorder is invisible and the Popup is a separate
+        // HWND that does not track DragMove. Dragging the hub moved the 52px window under the
+        // cursor but left the menu stranded at the old spot — user had to return there to
+        // release. Snap the menu shut and show the dock first so the control follows the mouse.
+        _draggingDock = true;
+        _launcherCloseTimer.Stop();
+        SnapCloseLauncherForDrag();
+        try
+        {
+            DragMove();
+        }
+        catch
+        {
+            /* DragMove throws if the button is no longer down after the tree change. */
+        }
+        finally
+        {
+            _draggingDock = false;
+        }
+    }
+
+    /// Instantly collapses the radial menu and restores the dock — no close animation.
+    private void SnapCloseLauncherForDrag()
+    {
+        _launcherClosing = false;
+        HideLauncherHint();
+        if (WindowToolsPopup.IsOpen) WindowToolsPopup.IsOpen = false;
+
+        LauncherPopupContent.BeginAnimation(OpacityProperty, null);
+        if (LauncherPopupContent.RenderTransform is ScaleTransform scale)
+        {
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            scale.ScaleX = LauncherMorphScale;
+            scale.ScaleY = LauncherMorphScale;
+        }
+        LauncherPopupContent.Opacity = 0;
+        LauncherPopup.IsOpen = false;
+
+        RootBorder.BeginAnimation(OpacityProperty, null);
+        RootBorder.Opacity = 1;
+        RootBorder.IsHitTestVisible = true;
     }
 
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
+        if (_draggingDock) return;
         ShowLauncher();
     }
 
@@ -257,6 +302,7 @@ public partial class MainWindow : Window
 
     private void ShowLauncher()
     {
+        if (_draggingDock) return;
         _launcherCloseTimer.Stop();
         _launcherClosing = false;
         var wasOpen = LauncherPopup.IsOpen;
