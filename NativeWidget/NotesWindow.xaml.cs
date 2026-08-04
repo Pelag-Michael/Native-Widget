@@ -491,6 +491,7 @@ public partial class NotesWindow : Window
         _editorBaselineMarkdown = CurrentEditorMarkdown();
 
         var popped = new NotesWindow(_config, _currentId);
+        WindowSessionService.TrackNewPopout(popped, _config, "NotesPopout", _currentId);
         popped.Left = Left + 30;
         popped.Top = Top + 30;
         popped.Show();

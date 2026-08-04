@@ -19,6 +19,7 @@ public class AppConfig
     public string TranslationSourceLanguage { get; set; } = "auto";
     public string TranslationTargetLanguage { get; set; } = "vi";
     public bool TranslationSelectionTrackingEnabled { get; set; } = true;
+    public bool RestoreWindowSessionEnabled { get; set; }
 
     private static string FolderPath =>
         Environment.GetEnvironmentVariable("NATIVEWIDGET_DATA_DIR") is { Length: > 0 } overridePath

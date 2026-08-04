@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NativeWidget"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="Settings" Width="320" Height="460" MinWidth="260" MinHeight="220"
+        Title="Settings" Width="320" Height="520" MinWidth="260" MinHeight="220"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
         Left="760" Top="40" Closing="Window_Closing">
@@ -55,9 +55,21 @@
                     </Border>
 
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,12,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <CheckBox x:Name="AutoStartCheck" Foreground="White" VerticalAlignment="Center" Click="AutoStartCheck_Click"/>
-                            <TextBlock Text="Tự khởi động cùng Windows" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox x:Name="AutoStartCheck" Foreground="White" VerticalAlignment="Center" Click="AutoStartCheck_Click"/>
+                                <TextBlock Text="Tự khởi động cùng Windows" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Border Height="1" Background="#18FFFFFF" Margin="0,11,0,10"/>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox x:Name="RestoreSessionCheck" Foreground="White" VerticalAlignment="Top" Margin="0,2,0,0" Click="RestoreSessionCheck_Click"/>
+                                <StackPanel Margin="6,0,0,0">
+                                    <TextBlock Text="Khôi phục phiên làm việc" Foreground="White" FontSize="12"/>
+                                    <TextBlock Text="Mở lại widget chưa đóng, đúng vị trí và kích thước cũ."
+                                               Foreground="{StaticResource MutedBrush}" FontSize="10.5"
+                                               TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

@@ -96,6 +96,7 @@ public partial class TasksWindow : Window
         var listId = CurrentListId;
         if (listId == null) return;
         var popped = new TasksWindow(_config, listId);
+        WindowSessionService.TrackNewPopout(popped, _config, "TasksPopout", listId);
         popped.Left = Left + 30;
         popped.Top = Top + 30;
         popped.Show();
