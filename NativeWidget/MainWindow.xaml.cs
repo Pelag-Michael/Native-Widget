@@ -45,11 +45,13 @@ public partial class MainWindow : Window
     private LabelsWindow? _labelsWindow;
     private SettingsWindow? _settingsWindow;
     private WorkspaceSearchWindow? _searchWindow;
+    private bool _sessionRestored;
 
     public MainWindow()
     {
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
+        WindowSessionService.Track(this, _config, "Launcher", "Launcher", trackVisibility: false);
         _launcherCloseTimer.Tick += (_, _) =>
         {
             if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
@@ -77,15 +79,20 @@ public partial class MainWindow : Window
             UnregisterHotKey(hwnd, LocateHotkeyId);
             UnregisterHotKey(hwnd, SearchHotkeyId);
         };
+        Closing += (_, _) => WindowSessionService.CaptureForShutdown();
         // Isolated end-to-end tests can open Translate without trying to automate the
         // deliberately tiny, borderless launcher. Production never sets this variable.
         if (Environment.GetEnvironmentVariable("NATIVEWIDGET_UI_TEST") == "1")
         {
             Loaded += (_, _) =>
             {
-                _translationWindow ??= new TranslationWindow(_config);
+                _translationWindow ??= (TranslationWindow)GetOrCreateWidget("Translate");
                 _translationWindow.Show();
             };
+        }
+        else
+        {
+            Loaded += (_, _) => RestoreWindowSession();
         }
     }
 
@@ -221,22 +228,7 @@ public partial class MainWindow : Window
         var btn = (Button)sender;
         var tag = (string)btn.Tag;
 
-        Window widget = tag switch
-        {
-            "Projects" => _projectsWindow ??= new ProjectsWindow(),
-            "Calendar" => _calendarWindow ??= new CalendarWindow(_config),
-            "Tasks" => _tasksWindow ??= new TasksWindow(_config),
-            "Notes" => _notesWindow ??= new NotesWindow(_config),
-            "Timers" => _timersWindow ??= new TimersWindow(),
-            "Focus" => _focusWindow ??= new FocusWindow(),
-            "Translate" => _translationWindow ??= new TranslationWindow(_config),
-            "Labels" => _labelsWindow ??= new LabelsWindow(),
-            "Settings" => _settingsWindow ??= new SettingsWindow(_config, async () =>
-            {
-                if (_calendarWindow != null) await _calendarWindow.RefreshEventsAsync();
-            }),
-            _ => throw new InvalidOperationException(),
-        };
+        var widget = GetOrCreateWidget(tag);
 
         if (widget.IsVisible)
         {
@@ -244,11 +236,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            if (widget is TimersWindow timers) timers.Refresh();
-            if (widget is ProjectsWindow projects) projects.Render();
-            if (widget is TasksWindow tasksW) tasksW.Refresh();
-            if (widget is LabelsWindow labels) labels.Render();
-            if (widget is TranslationWindow translation) translation.Refresh();
+            RefreshWidget(widget);
             widget.Show();
             widget.Activate();
 
@@ -262,9 +250,97 @@ public partial class MainWindow : Window
             }
         }
 
-        var active = widget.IsVisible;
-        btn.Background = active ? new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent;
-        btn.Foreground = active ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x93));
+        SetWidgetButtonState(btn, widget.IsVisible);
+    }
+
+    private Window GetOrCreateWidget(string tag)
+    {
+        return tag switch
+        {
+            "Projects" => _projectsWindow ??= TrackWidget(new ProjectsWindow(), tag),
+            "Calendar" => _calendarWindow ??= TrackWidget(new CalendarWindow(_config), tag),
+            "Tasks" => _tasksWindow ??= TrackWidget(new TasksWindow(_config), tag),
+            "Notes" => _notesWindow ??= TrackWidget(new NotesWindow(_config), tag),
+            "Timers" => _timersWindow ??= TrackWidget(new TimersWindow(), tag),
+            "Focus" => _focusWindow ??= TrackWidget(new FocusWindow(), tag),
+            "Translate" => _translationWindow ??= TrackWidget(new TranslationWindow(_config), tag),
+            "Labels" => _labelsWindow ??= TrackWidget(new LabelsWindow(), tag),
+            "Settings" => _settingsWindow ??= TrackWidget(new SettingsWindow(_config, async () =>
+            {
+                if (_calendarWindow != null) await _calendarWindow.RefreshEventsAsync();
+            }), tag),
+            _ => throw new InvalidOperationException($"Unknown widget: {tag}"),
+        };
+    }
+
+    private T TrackWidget<T>(T widget, string tag) where T : Window
+    {
+        WindowSessionService.Track(widget, _config, tag, tag);
+        return widget;
+    }
+
+    private static void RefreshWidget(Window widget)
+    {
+        if (widget is TimersWindow timers) timers.Refresh();
+        if (widget is ProjectsWindow projects) projects.Render();
+        if (widget is TasksWindow tasks) tasks.Refresh();
+        if (widget is LabelsWindow labels) labels.Render();
+        if (widget is TranslationWindow translation) translation.Refresh();
+    }
+
+    private Button? WidgetButton(string tag) => tag switch
+    {
+        "Projects" => BtnProjects,
+        "Calendar" => BtnCalendar,
+        "Tasks" => BtnTasks,
+        "Notes" => BtnNotes,
+        "Timers" => BtnTimers,
+        "Focus" => BtnFocus,
+        "Translate" => BtnTranslate,
+        "Labels" => BtnLabels,
+        "Settings" => BtnSettings,
+        _ => null,
+    };
+
+    private static void SetWidgetButtonState(Button button, bool active)
+    {
+        button.Background = active
+            ? new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF))
+            : Brushes.Transparent;
+        button.Foreground = active
+            ? Brushes.White
+            : new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x93));
+    }
+
+    private void RestoreWindowSession()
+    {
+        if (_sessionRestored) return;
+        _sessionRestored = true;
+
+        foreach (var entry in WindowSessionService.OpenWindows(_config))
+        {
+            Window? widget = entry.Kind switch
+            {
+                "NotesPopout" when !string.IsNullOrWhiteSpace(entry.ContextId) =>
+                    RestorePopout(new NotesWindow(_config, entry.ContextId), entry),
+                "TasksPopout" when !string.IsNullOrWhiteSpace(entry.ContextId) =>
+                    RestorePopout(new TasksWindow(_config, entry.ContextId), entry),
+                "Projects" or "Calendar" or "Tasks" or "Notes" or "Timers" or "Focus" or
+                    "Translate" or "Labels" or "Settings" => GetOrCreateWidget(entry.Kind),
+                _ => null,
+            };
+            if (widget == null) continue;
+
+            RefreshWidget(widget);
+            widget.Show();
+            if (WidgetButton(entry.Kind) is { } button) SetWidgetButtonState(button, true);
+        }
+    }
+
+    private Window RestorePopout(Window widget, WindowSessionEntry entry)
+    {
+        WindowSessionService.Track(widget, _config, entry.Key, entry.Kind, entry.ContextId);
+        return widget;
     }
 
     private void OpenSearch_Click(object sender, RoutedEventArgs e)
@@ -280,19 +356,19 @@ public partial class MainWindow : Window
             _searchWindow = new WorkspaceSearchWindow();
             _searchWindow.NoteSelected += id =>
             {
-                var notes = _notesWindow ??= new NotesWindow(_config);
+                var notes = (NotesWindow)GetOrCreateWidget("Notes");
                 notes.Show();
                 notes.OpenNoteFromSearch(id);
             };
             _searchWindow.TagSelected += tag =>
             {
-                var notes = _notesWindow ??= new NotesWindow(_config);
+                var notes = (NotesWindow)GetOrCreateWidget("Notes");
                 notes.Show();
                 notes.FilterByTagFromSearch(tag);
             };
             _searchWindow.ProjectSelected += id =>
             {
-                var projects = _projectsWindow ??= new ProjectsWindow();
+                var projects = (ProjectsWindow)GetOrCreateWidget("Projects");
                 projects.OpenProjectFromSearch(id);
                 projects.Show();
                 projects.Activate();

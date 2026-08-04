@@ -45,4 +45,10 @@ public partial class App : Application
 
         TimerNotifier.Start();
     }
+
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        WindowSessionService.CaptureForShutdown();
+        base.OnSessionEnding(e);
+    }
 }

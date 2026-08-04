@@ -94,6 +94,7 @@ internal static class Program
             "Two-sided sync conflict resolution");
         TestBareDomainLinkify();
         TestVocabularyStorage();
+        TestWindowSessionStorage();
 
         using var notionJson = JsonDocument.Parse("""
         [
@@ -174,6 +175,46 @@ internal static class Program
             "Bare .space link detection");
         AssertEqual("https://vincea.com/", targets.ElementAtOrDefault(1) ?? "",
             "Bare .com link detection");
+    }
+
+    private static void TestWindowSessionStorage()
+    {
+        var originalDataDir = Environment.GetEnvironmentVariable("NATIVEWIDGET_DATA_DIR");
+        var root = Path.Combine(Path.GetTempPath(), "nativewidget-session-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
+            AppConfig.EnsureFolder();
+            File.WriteAllText(AppConfig.TokenPath("window-session.json"), JsonSerializer.Serialize(
+                new WindowSessionSnapshot
+                {
+                    Windows =
+                    {
+                        new WindowSessionEntry
+                        {
+                            Key = "Translate", Kind = "Translate", IsOpen = true,
+                            Left = 120, Top = 80, Width = 420, Height = 500,
+                        },
+                        new WindowSessionEntry
+                        {
+                            Key = "Launcher", Kind = "Launcher", IsOpen = true,
+                            Left = 20, Top = 20, Width = 52, Height = 52,
+                        },
+                    },
+                }));
+
+            var enabled = new AppConfig { RestoreWindowSessionEnabled = true };
+            var restored = WindowSessionService.OpenWindows(enabled);
+            if (restored.Count != 1 || restored[0].Kind != "Translate" || restored[0].Width != 420)
+                throw new InvalidOperationException("Window-session persistence did not restore the open widget.");
+            if (WindowSessionService.OpenWindows(new AppConfig()).Count != 0)
+                throw new InvalidOperationException("Window-session restoration ignored its disabled setting.");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", originalDataDir);
+            try { Directory.Delete(root, recursive: true); } catch { }
+        }
     }
 
     private static void RunSelectionHarness()

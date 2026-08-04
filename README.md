@@ -63,6 +63,9 @@ widgets affect memory. The numbers are a reproducible reference, not a universal
 Tasks and Notes can be assigned to projects and filtered by them. A workspace search finds
 matching notes, tasks, projects, labels, events and timers from one place.
 
+Settings can optionally restore the previous desktop session: every widget that was still
+open returns at its last position and size after Native Widget or Windows starts again.
+
 ## See it in action
 
 | Idle hover rail | Dictionary meanings and real usage context |
@@ -75,7 +78,7 @@ matching notes, tasks, projects, labels, events and timers from one place.
 
 ## Privacy and integrations
 
-- Local notes, timers, projects, settings and vocabulary live under `%AppData%\NativeWidget`.
+- Local notes, timers, projects, settings, window-session state and vocabulary live under `%AppData%\NativeWidget`.
 - Credentials are entered in the Settings widget; they are never committed to this repository.
 - Google and Notion integrations are optional. Local widgets work without an online account.
 - The translation provider currently uses an undocumented Google endpoint; see the

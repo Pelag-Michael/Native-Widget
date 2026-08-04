@@ -39,6 +39,21 @@ internal static class UiRenderSmoke
             }));
 
         Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
+        new AppConfig { RestoreWindowSessionEnabled = true }.Save();
+        File.WriteAllText(AppConfig.TokenPath("window-session.json"), JsonSerializer.Serialize(
+            new WindowSessionSnapshot
+            {
+                Windows =
+                {
+                    new WindowSessionEntry
+                    {
+                        Key = "Notes", Kind = "Notes", IsOpen = true,
+                        Left = SystemParameters.VirtualScreenLeft + 80,
+                        Top = SystemParameters.VirtualScreenTop + 80,
+                        Width = 410, Height = 530,
+                    },
+                },
+            }));
         var savedTranslation = VocabularyService.Add(
             new TranslationResult("Hello world", "Xin chào thế giới", "en", "vi"), "clipboard", "Clipboard");
         VocabularyService.SetTags(savedTranslation.Id, new[] { "greeting", "daily" });
@@ -46,9 +61,17 @@ internal static class UiRenderSmoke
         app.InitializeComponent();
         // Construct every custom window while the app resources are live. This catches a
         // broken XAML resource/template even when the screenshot below only covers Notes.
+        var launcher = new MainWindow();
+        launcher.Show();
+        var restoredNotes = app.Windows.OfType<NotesWindow>()
+            .FirstOrDefault(candidate => candidate.IsVisible);
+        if (restoredNotes == null || Math.Abs(restoredNotes.Width - 410) > 1 ||
+            Math.Abs(restoredNotes.Height - 530) > 1)
+            throw new InvalidOperationException("Startup did not restore the saved Notes window bounds.");
+
         var parserSmoke = new Window[]
         {
-            new MainWindow(),
+            launcher,
             new CalendarWindow(new AppConfig()),
             new TasksWindow(new AppConfig()),
             new TimersWindow(),
@@ -93,6 +116,7 @@ internal static class UiRenderSmoke
             window.Close();
             translation.Close();
             resultPopup.Close();
+            restoredNotes.Close();
             foreach (var parserWindow in parserSmoke) parserWindow.Close();
             app.Shutdown();
             Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", null);

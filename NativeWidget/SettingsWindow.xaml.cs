@@ -23,6 +23,7 @@ public partial class SettingsWindow : Window
             GoogleClientIdInput.Text = _config.GoogleClientId;
             GoogleClientSecretInput.Password = _config.GoogleClientSecret;
             AutoStartCheck.IsChecked = AutoStartService.IsEnabled();
+            RestoreSessionCheck.IsChecked = _config.RestoreWindowSessionEnabled;
             NotionTokenInput.Password = _config.NotionToken;
             NotionPageIdInput.Text = _config.NotionParentPageId;
             NotionEnabledCheck.IsChecked = _config.NotionSyncEnabled;
@@ -33,6 +34,16 @@ public partial class SettingsWindow : Window
     private void AutoStartCheck_Click(object sender, RoutedEventArgs e)
     {
         AutoStartService.SetEnabled(AutoStartCheck.IsChecked == true);
+    }
+
+    private void RestoreSessionCheck_Click(object sender, RoutedEventArgs e)
+    {
+        _config.RestoreWindowSessionEnabled = RestoreSessionCheck.IsChecked == true;
+        _config.Save();
+        if (_config.RestoreWindowSessionEnabled) WindowSessionService.SaveCurrentSession();
+        SettingsStatus.Text = _config.RestoreWindowSessionEnabled
+            ? "Đã bật khôi phục phiên làm việc."
+            : "Đã tắt khôi phục phiên làm việc.";
     }
 
     private void DragBar_MouseDown(object sender, MouseButtonEventArgs e)
@@ -57,6 +68,7 @@ public partial class SettingsWindow : Window
         {
             _config.GoogleClientId = GoogleClientIdInput.Text.Trim();
             _config.GoogleClientSecret = GoogleClientSecretInput.Password.Trim();
+            _config.RestoreWindowSessionEnabled = RestoreSessionCheck.IsChecked == true;
 
             var newPageId = NotionPageIdInput.Text.Trim();
             // A changed parent page orphans whatever database was cached under the old one -

@@ -29,7 +29,7 @@ NativeWidget/
   TranslationResultPopup   Near-cursor original/translation actions and link rendering
   ScreenRegionOverlay      Full-desktop drag overlay used by Windows OCR capture
   LabelsWindow             Shared label registry and rename/delete UI
-  SettingsWindow           Google OAuth credentials + auto-start toggle
+  SettingsWindow           Integrations, auto-start and optional session-restore toggles
   PromptDialog             Small themed "enter a value" modal, used for renaming
   ItemDetailsDialog        Shared Calendar/Tasks details modal with linkified descriptions
   Models/AppConfig.cs      User-editable settings, persisted to %AppData%\NativeWidget\config.json
@@ -47,6 +47,7 @@ NativeWidget/
     TimersService.cs          Countdown timer persistence (absolute deadlines)
     TimerNotifier.cs          App-wide watcher that announces finished timers exactly once
     AutoStartService.cs       HKCU Run-key toggle for "start with Windows"
+    WindowSessionService.cs   Debounced visibility/bounds persistence and safe startup restore
     WindowInterop.cs          Win32 interop: hide from Alt-Tab, toggle always-on-top (pin)
   icon.ico                Generated app icon (see "Icon" below)
 ```
@@ -58,6 +59,14 @@ Each widget (Calendar, Notes, Focus, Settings) is its **own top-level `Window`**
 first click, then just toggles `Show()`/`Hide()` afterward — state and position persist for
 the process lifetime. This was a deliberate pivot from an earlier single-window-with-tabs
 design, so the user can have several widgets visible on screen simultaneously.
+
+When `RestoreWindowSessionEnabled` is checked, `WindowSessionService` continuously records
+visibility and restored bounds to `%AppData%\NativeWidget\window-session.json` (bounds writes
+are debounced while dragging/resizing). Startup recreates only windows that were still visible,
+including Notes and Tasks pop-outs with their note/list IDs. `App.OnSessionEnding` snapshots the
+session before the widgets' normal hide-on-close handlers run. Restored bounds are clamped to the
+current virtual desktop so removing a monitor cannot strand a window off-screen. The transient
+workspace-search popup is deliberately excluded.
 
 Every widget window:
 - `WindowStyle="None"`, `AllowsTransparency="True"`, `Topmost="True"`, `ShowInTaskbar="False"`
@@ -386,7 +395,9 @@ the existing `AppConfig` file after the user chooses `Lưu cài đặt`.
 
 Google OAuth Client ID/Secret input (with inline step-by-step instructions for the Google
 Cloud Console flow) + `Load` (saves to `AppConfig`) + `Logout` (clears the Calendar token) +
-auto-start-with-Windows checkbox (`AutoStartService`, HKCU Run key).
+auto-start-with-Windows checkbox (`AutoStartService`, HKCU Run key). The independent
+`Khôi phục phiên làm việc` checkbox persists immediately and controls `WindowSessionService`;
+auto-start and session restore are intentionally separate choices.
 
 ## Removed features (do not re-add without asking)
 
