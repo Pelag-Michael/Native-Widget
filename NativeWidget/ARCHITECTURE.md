@@ -71,7 +71,9 @@ are debounced while dragging/resizing). Startup recreates only windows that were
 including Notes and Tasks pop-outs with their note/list IDs. `App.OnSessionEnding` snapshots the
 session before the widgets' normal hide-on-close handlers run. Restored bounds are clamped to the
 current virtual desktop so removing a monitor cannot strand a window off-screen. The transient
-workspace-search popup is deliberately excluded.
+workspace-search popup is deliberately excluded. The launcher is tracked for **position only**
+(`restoreSize: false`) and always stays 52×52 — restoring a poisoned width once flattened the
+circle into a horizontal pill.
 
 Every widget window:
 - `WindowStyle="None"`, `AllowsTransparency="True"`, `Topmost="True"`, `ShowInTaskbar="False"`

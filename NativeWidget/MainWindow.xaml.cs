@@ -51,7 +51,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
-        WindowSessionService.Track(this, _config, "Launcher", "Launcher", trackVisibility: false);
+        // Position only — never restore size. A poisoned session once stretched this to 80×52
+        // and turned the circular dock into a horizontal pill.
+        WindowSessionService.Track(this, _config, "Launcher", "Launcher",
+            trackVisibility: false, restoreSize: false);
         _launcherCloseTimer.Tick += (_, _) =>
         {
             if (IsMouseOver || LauncherPopupContent.IsMouseOver) return;
