@@ -44,7 +44,7 @@ public static class ScreenOcrService
         var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(randomStream);
         using var bitmap = await decoder.GetSoftwareBitmapAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied);
         var engine = OcrEngine.TryCreateFromUserProfileLanguages()
-            ?? throw new InvalidOperationException("Windows OCR chưa có gói ngôn ngữ phù hợp.");
+            ?? throw new InvalidOperationException("Windows OCR has no suitable language pack installed.");
         var result = await engine.RecognizeAsync(bitmap);
         return result.Text.Trim();
     }
@@ -58,7 +58,7 @@ public static class ScreenOcrService
         try
         {
             if (!BitBlt(memoryDc, 0, 0, width, height, screenDc, x, y, Srccopy | Captureblt))
-                throw new InvalidOperationException("Không chụp được vùng màn hình.");
+                throw new InvalidOperationException("Couldn't capture the screen region.");
             var source = Imaging.CreateBitmapSourceFromHBitmap(bitmap, IntPtr.Zero, Int32Rect.Empty,
                 BitmapSizeOptions.FromEmptyOptions());
             source.Freeze();

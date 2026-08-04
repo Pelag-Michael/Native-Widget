@@ -47,7 +47,7 @@ public partial class LabelPickerDialog : Window
     private void AddLabel_Click(object sender, RoutedEventArgs e)
     {
         CaptureSelection();
-        var label = PromptDialog.Show(this, "Tạo nhãn");
+        var label = PromptDialog.Show(this, "Create label");
         if (string.IsNullOrWhiteSpace(label)) return;
         LabelsService.Add(label);
         _selected.Add(label.Trim().TrimStart('#'));

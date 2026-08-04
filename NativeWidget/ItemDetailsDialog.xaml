@@ -19,7 +19,7 @@
             </StackPanel>
 
             <StackPanel Grid.Row="1">
-                <TextBlock Text="Mô tả" Foreground="{StaticResource MutedBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <TextBlock Text="Description" Foreground="{StaticResource MutedBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <Border Background="#401F1E25" CornerRadius="10" Padding="10" MaxHeight="330">
                     <Grid>
                         <RichTextBox x:Name="DescriptionView" Background="Transparent" BorderThickness="0" Padding="0"
@@ -37,15 +37,15 @@
 
             <Grid Grid.Row="3" Margin="0,16,0,0">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                    <Button x:Name="EditButton" Content="Sửa mô tả" Click="EditButton_Click"
+                    <Button x:Name="EditButton" Content="Edit description" Click="EditButton_Click"
                             Style="{StaticResource SecondaryBtnStyle}" Visibility="Collapsed"/>
                     <Button x:Name="ExternalButton" Click="ExternalButton_Click"
                             Style="{StaticResource SecondaryBtnStyle}" Margin="8,0,0,0"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="CancelEditButton" Content="Huỷ" Click="CancelEditButton_Click"
+                    <Button x:Name="CancelEditButton" Content="Cancel" Click="CancelEditButton_Click"
                             Style="{StaticResource SecondaryBtnStyle}" Visibility="Collapsed" Margin="0,0,8,0"/>
-                    <Button x:Name="CloseButton" Content="Đóng" Click="CloseButton_Click"
+                    <Button x:Name="CloseButton" Content="Close" Click="CloseButton_Click"
                             Style="{StaticResource PrimaryBtnStyle}" MinWidth="72"/>
                 </StackPanel>
             </Grid>

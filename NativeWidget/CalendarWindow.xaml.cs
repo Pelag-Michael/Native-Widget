@@ -55,10 +55,10 @@ public partial class CalendarWindow : Window
     {
         if (string.IsNullOrWhiteSpace(_config.GoogleClientId) || string.IsNullOrWhiteSpace(_config.GoogleClientSecret))
         {
-            MessageBox.Show("Chưa điền Client ID / Client Secret trong Settings.", "Thiếu cấu hình");
+            MessageBox.Show("Client ID / Client Secret not set in Settings.", "Missing configuration");
             return;
         }
-        GoogleConnectBtn.Content = "Đang mở trình duyệt...";
+        GoogleConnectBtn.Content = "Opening browser...";
         try
         {
             await GoogleCalendarService.ConnectAsync(_config);
@@ -66,7 +66,7 @@ public partial class CalendarWindow : Window
         }
         catch
         {
-            GoogleConnectBtn.Content = "Lỗi, thử lại";
+            GoogleConnectBtn.Content = "Error, try again";
         }
     }
 
@@ -90,7 +90,7 @@ public partial class CalendarWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Không tạo được sự kiện: {ex.Message}", "Lỗi");
+            MessageBox.Show($"Could not create event: {ex.Message}", "Error");
         }
     }
 
@@ -108,11 +108,11 @@ public partial class CalendarWindow : Window
             GoogleDisconnectBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
             if (!connected)
             {
-                CalendarStatus.Text = "Chưa kết nối";
+                CalendarStatus.Text = "Not connected";
                 return;
             }
 
-            CalendarStatus.Text = "Đang đồng bộ...";
+            CalendarStatus.Text = "Syncing...";
             LoadingHint.Visibility = Visibility.Visible;
             var events = await GoogleCalendarService.GetUpcomingEventsAsync(_config);
             LoadingHint.Visibility = Visibility.Collapsed;
@@ -120,7 +120,7 @@ public partial class CalendarWindow : Window
             _eventItems.Clear();
 
             DateTime? lastDay = null;
-            var vi = new System.Globalization.CultureInfo("vi-VN");
+            var en = new System.Globalization.CultureInfo("en-US");
             var eventColors = EventColorsService.Load();
 
             foreach (var ev in events)
@@ -129,9 +129,9 @@ public partial class CalendarWindow : Window
             if (lastDay != day)
             {
                 lastDay = day;
-                string label = day == DateTime.Today ? "Hôm nay"
-                    : day == DateTime.Today.AddDays(1) ? "Ngày mai"
-                    : day.ToString("dddd, dd/MM", vi);
+                string label = day == DateTime.Today ? "Today"
+                    : day == DateTime.Today.AddDays(1) ? "Tomorrow"
+                    : day.ToString("dddd, dd/MM", en);
                 EventList.Items.Add(new TextBlock
                 {
                     Text = label,
@@ -178,7 +178,7 @@ public partial class CalendarWindow : Window
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             var time = new TextBlock
             {
-                Text = ev.AllDay ? "Cả ngày" : DateTime.Parse(ev.Start).ToString("HH:mm"),
+                Text = ev.AllDay ? "All day" : DateTime.Parse(ev.Start).ToString("HH:mm"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x9B, 0x9B, 0xA6)),
                 FontSize = 11,
                 FontWeight = FontWeights.Medium,
@@ -234,7 +234,7 @@ public partial class CalendarWindow : Window
             {
                 Content = "\uE8A5", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 11,
                 Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0),
-                ToolTip = "Gán dự án", Style = (Style)FindResource("IconBtnStyle"), Opacity = 0,
+                ToolTip = "Assign project", Style = (Style)FindResource("IconBtnStyle"), Opacity = 0,
                 Foreground = ItemProjectTagsService.Get("event", eventId) != null ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
             };
             projectBtn.Click += (_, _) =>
@@ -249,7 +249,7 @@ public partial class CalendarWindow : Window
             {
                 Content = "\uE8EC", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 11,
                 Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0),
-                ToolTip = "Nhãn", Style = (Style)FindResource("IconBtnStyle"), Opacity = 0,
+                ToolTip = "Labels", Style = (Style)FindResource("IconBtnStyle"), Opacity = 0,
                 Foreground = labels.Count > 0 ? (Brush)FindResource("AccentBrush") : (Brush)FindResource("MutedBrush"),
             };
             labelBtn.Click += (_, _) =>
@@ -275,7 +275,7 @@ public partial class CalendarWindow : Window
             var eventTitle = ev.Title;
             delBtn.Click += async (_, _) =>
             {
-                if (MessageBox.Show($"Xoá sự kiện \"{eventTitle}\"?", "Xác nhận xoá", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+                if (MessageBox.Show($"Delete event \"{eventTitle}\"?", "Confirm delete", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
                     return;
                 try
                 {
@@ -284,7 +284,7 @@ public partial class CalendarWindow : Window
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Không xoá được: {ex.Message}", "Lỗi");
+                    MessageBox.Show($"Could not delete: {ex.Message}", "Error");
                 }
             };
 
@@ -307,7 +307,7 @@ public partial class CalendarWindow : Window
             _eventItems[card] = ev;
             EventList.Items.Add(card);
         }
-            CalendarStatus.Text = $"Đã cập nhật {DateTime.Now:HH:mm}";
+            CalendarStatus.Text = $"Updated {DateTime.Now:HH:mm}";
         }
         finally
         {
@@ -326,10 +326,10 @@ public partial class CalendarWindow : Window
 
         var start = DateTime.Parse(ev.Start);
         var metadata = ev.AllDay
-            ? $"Cả ngày · {start:dd/MM/yyyy}"
+            ? $"All day · {start:dd/MM/yyyy}"
             : $"{start:HH:mm} · {start:dd/MM/yyyy}";
         ItemDetailsDialog.Show(this, ev.Title, metadata, ev.Description,
-            "Mở Google Calendar", ev.Link, canEditDescription: false);
+            "Open Google Calendar", ev.Link, canEditDescription: false);
     }
 
     private static T? FindAncestor<T>(DependencyObject d) where T : DependencyObject

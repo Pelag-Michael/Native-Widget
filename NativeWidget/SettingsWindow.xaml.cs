@@ -42,8 +42,8 @@ public partial class SettingsWindow : Window
         _config.Save();
         if (_config.RestoreWindowSessionEnabled) WindowSessionService.SaveCurrentSession();
         SettingsStatus.Text = _config.RestoreWindowSessionEnabled
-            ? "Đã bật khôi phục phiên làm việc."
-            : "Đã tắt khôi phục phiên làm việc.";
+            ? "Work session restore enabled."
+            : "Work session restore disabled.";
     }
 
     private void DragBar_MouseDown(object sender, MouseButtonEventArgs e)
@@ -82,12 +82,12 @@ public partial class SettingsWindow : Window
             _config.Save();
             Diag("Save() returned OK");
             UpdateConnectionBadges();
-            SettingsStatus.Text = "Đã lưu. Mở widget Calendar bấm Kết nối nếu Google chưa hoạt động.";
+            SettingsStatus.Text = "Saved. Open the Calendar widget and connect if Google is not working yet.";
         }
         catch (Exception ex)
         {
             Diag("EXCEPTION: " + ex);
-            SettingsStatus.Text = "Lỗi khi lưu: " + ex.Message;
+            SettingsStatus.Text = "Error saving: " + ex.Message;
         }
     }
 
@@ -106,20 +106,20 @@ public partial class SettingsWindow : Window
         GoogleCalendarService.Disconnect();
         await _onCalendarChanged();
         UpdateConnectionBadges();
-        SettingsStatus.Text = "Đã log out Google Calendar.";
+        SettingsStatus.Text = "Logged out of Google Calendar.";
     }
 
     private void UpdateConnectionBadges()
     {
         var googleConnected = GoogleCalendarService.IsConnected();
-        GoogleStatusText.Text = googleConnected ? "Đã kết nối" : "Chưa kết nối";
+        GoogleStatusText.Text = googleConnected ? "Connected" : "Not connected";
         GoogleStatusText.Foreground = googleConnected
             ? new SolidColorBrush(Color.FromRgb(0x8F, 0xE0, 0xA8)) : (Brush)FindResource("MutedBrush");
         GoogleStatusBadge.Background = googleConnected
             ? new SolidColorBrush(Color.FromArgb(0x22, 0x8F, 0xE0, 0xA8)) : new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
 
         var notionEnabled = _config.NotionSyncEnabled && !string.IsNullOrWhiteSpace(_config.NotionToken);
-        NotionStatusText.Text = notionEnabled ? "Đang bật" : "Tắt";
+        NotionStatusText.Text = notionEnabled ? "On" : "Off";
         NotionStatusText.Foreground = notionEnabled
             ? new SolidColorBrush(Color.FromRgb(0x8F, 0xE0, 0xA8)) : (Brush)FindResource("MutedBrush");
         NotionStatusBadge.Background = notionEnabled

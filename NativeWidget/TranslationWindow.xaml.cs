@@ -12,6 +12,9 @@ namespace NativeWidget;
 
 public partial class TranslationWindow : Window
 {
+    private const string DirectInputSourceApp = "Direct input";
+    private const string LegacyDirectInputSourceApp = "Nhập trực tiếp";
+
     private readonly AppConfig _config;
     private readonly GlobalSelectionService _selectionService;
     private TranslationResultPopup? _resultPopup;
@@ -157,7 +160,7 @@ public partial class TranslationWindow : Window
         if (IsVisible && TrackingCheck.IsChecked == true)
         {
             _selectionService.Start();
-            TrackingState.Text = _selectionService.IsRunning ? "Đang bật" : "Không khởi động được";
+            TrackingState.Text = _selectionService.IsRunning ? "On" : "Couldn't start";
             TrackingState.Foreground = _selectionService.IsRunning
                 ? new SolidColorBrush(Color.FromRgb(0x8F, 0xE0, 0xA8))
                 : new SolidColorBrush(Color.FromRgb(0xE5, 0x60, 0x5A));
@@ -165,7 +168,7 @@ public partial class TranslationWindow : Window
         else
         {
             _selectionService.Stop();
-            TrackingState.Text = "Đã tắt";
+            TrackingState.Text = "Off";
             TrackingState.Foreground = (Brush)FindResource("MutedBrush");
         }
     }
@@ -194,12 +197,12 @@ public partial class TranslationWindow : Window
         {
             if (!Clipboard.ContainsText())
             {
-                TranslateStatus.Text = "Clipboard không có văn bản.";
+                TranslateStatus.Text = "Clipboard has no text.";
                 return;
             }
             await TranslateAsync(Clipboard.GetText(), "clipboard", "Clipboard");
         }
-        catch (Exception ex) { TranslateStatus.Text = $"Không đọc được clipboard: {ex.Message}"; }
+        catch (Exception ex) { TranslateStatus.Text = $"Couldn't read clipboard: {ex.Message}"; }
     }
 
     private async void TranslateManual_Click(object sender, RoutedEventArgs e)
@@ -208,11 +211,11 @@ public partial class TranslationWindow : Window
         if (string.IsNullOrWhiteSpace(text))
         {
             TranslateStatus.Foreground = (Brush)FindResource("MutedBrush");
-            TranslateStatus.Text = "Hãy nhập văn bản cần dịch.";
+            TranslateStatus.Text = "Enter text to translate.";
             ManualTextInput.Focus();
             return;
         }
-        await TranslateAsync(text, "manual", "Nhập trực tiếp");
+        await TranslateAsync(text, "manual", DirectInputSourceApp);
     }
 
     private async void CaptureScreen_Click(object sender, RoutedEventArgs e)
@@ -224,19 +227,19 @@ public partial class TranslationWindow : Window
         {
             var region = ScreenRegionOverlay.Select(this);
             if (region == null) return;
-            TranslateStatus.Text = "Đang nhận diện chữ trong ảnh...";
+            TranslateStatus.Text = "Recognizing text in image...";
             await Task.Delay(100);
             var text = await ScreenOcrService.CaptureAndReadAsync(region.Value);
             if (string.IsNullOrWhiteSpace(text))
             {
-                TranslateStatus.Text = "Không tìm thấy chữ trong vùng đã chọn.";
+                TranslateStatus.Text = "No text found in the selected region.";
                 return;
             }
-            await TranslateAsync(text, "ocr", "Ảnh màn hình");
+            await TranslateAsync(text, "ocr", "Screen capture");
         }
         catch (Exception ex)
         {
-            TranslateStatus.Text = $"OCR thất bại: {ex.Message}";
+            TranslateStatus.Text = $"OCR failed: {ex.Message}";
         }
         finally
         {
@@ -252,17 +255,17 @@ public partial class TranslationWindow : Window
         if (_translating)
         {
             _queuedTranslation = (text, captureMethod, sourceApp);
-            TranslateStatus.Text = "Đã xếp bản dịch mới tiếp theo...";
+            TranslateStatus.Text = "Queued next translation...";
             return;
         }
         _translating = true;
         TranslateStatus.Foreground = (Brush)FindResource("MutedBrush");
-        TranslateStatus.Text = "Đang dịch...";
+        TranslateStatus.Text = "Translating...";
         try
         {
             var result = await TranslationService.TranslateAsync(text, SourceCode, TargetCode);
             TranslateStatus.Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xE0, 0xA8));
-            TranslateStatus.Text = $"Đã dịch {result.SourceText.Length} ký tự · {TranslationLanguages.NameOf(result.SourceLanguage)} → {TranslationLanguages.NameOf(result.TargetLanguage)}";
+            TranslateStatus.Text = $"Translated {result.SourceText.Length} characters · {TranslationLanguages.NameOf(result.SourceLanguage)} → {TranslationLanguages.NameOf(result.TargetLanguage)}";
             ShowResult(result, captureMethod, sourceApp);
         }
         catch (Exception ex)
@@ -301,8 +304,8 @@ public partial class TranslationWindow : Window
             }
             catch (Exception ex)
             {
-                ShowTranslationError(ex, "Dịch lại thất bại");
-                popup.SetStatus("Dịch lại thất bại", isError: true);
+                ShowTranslationError(ex, "Retry failed");
+                popup.SetStatus("Retry failed", isError: true);
             }
         };
         popup.SwapRequested += async () =>
@@ -315,19 +318,19 @@ public partial class TranslationWindow : Window
             }
             catch (Exception ex)
             {
-                ShowTranslationError(ex, "Đảo chiều thất bại");
-                popup.SetStatus("Đảo chiều thất bại", isError: true);
+                ShowTranslationError(ex, "Swap failed");
+                popup.SetStatus("Swap failed", isError: true);
             }
         };
         popup.Show();
     }
 
-    private void ShowTranslationError(Exception exception, string prefix = "Dịch thất bại")
+    private void ShowTranslationError(Exception exception, string prefix = "Translation failed")
     {
         var message = exception switch
         {
-            TimeoutException => "Dịch vụ phản hồi quá chậm. Hãy thử lại.",
-            HttpRequestException => "Không thể kết nối dịch vụ dịch. Hãy kiểm tra mạng.",
+            TimeoutException => "The translation service timed out. Please try again.",
+            HttpRequestException => "Couldn't reach the translation service. Check your network.",
             _ => exception.Message,
         };
         TranslateStatus.Text = $"{prefix}: {message}";
@@ -350,7 +353,7 @@ public partial class TranslationWindow : Window
         _vocabularyExpanded = expanded;
         VocabularySection.Visibility = _vocabularyExpanded ? Visibility.Visible : Visibility.Collapsed;
         VocabularyChevron.Text = _vocabularyExpanded ? "\uE70D" : "\uE76C";
-        VocabularyOpenHint.Text = _vocabularyExpanded ? "Thu gọn" : "Mở";
+        VocabularyOpenHint.Text = _vocabularyExpanded ? "Collapse" : "Open";
         if (_vocabularyExpanded) RenderVocabulary();
         if (_panelExpanded) SetPanelExpanded(true);
     }
@@ -373,7 +376,7 @@ public partial class TranslationWindow : Window
     {
         _interactionDepth++;
         string? tag;
-        try { tag = PromptDialog.Show(this, "Tạo tag từ vựng"); }
+        try { tag = PromptDialog.Show(this, "Create vocabulary tag"); }
         finally
         {
             _interactionDepth--;
@@ -407,14 +410,14 @@ public partial class TranslationWindow : Window
                            item.Tags.Any(itemTag => itemTag.Contains(search, StringComparison.OrdinalIgnoreCase)))
             .Where(item => pair.Length == 0 || $"{item.SourceLanguage}>{item.TargetLanguage}" == pair)
             .Where(item => method.Length == 0 || item.CaptureMethod == method)
-            .Where(item => sourceApp.Length == 0 || item.SourceApp == sourceApp)
+            .Where(item => sourceApp.Length == 0 || MatchesSourceAppFilter(item.SourceApp, sourceApp))
             .Where(item => tag.Length == 0 || item.Tags.Any(itemTag => string.Equals(itemTag, tag, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(item => item.CreatedAtUnix).ToList();
 
         VocabularyList.Items.Clear();
         VocabularyTitle.Text = items.Count == allItems.Count
-            ? $"SỔ TỪ VỰNG ({allItems.Count})"
-            : $"SỔ TỪ VỰNG ({items.Count}/{allItems.Count})";
+            ? $"VOCABULARY ({allItems.Count})"
+            : $"VOCABULARY ({items.Count}/{allItems.Count})";
         EmptyVocabulary.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var item in items) VocabularyList.Items.Add(BuildVocabularyCard(item));
     }
@@ -424,17 +427,23 @@ public partial class TranslationWindow : Window
         _updatingFilters = true;
         try
         {
-            PopulateFilter(LanguagePairFilter, "Mọi cặp ngôn ngữ", items
+            PopulateFilter(LanguagePairFilter, "All language pairs", items
                 .Select(item => ($"{item.SourceLanguage}>{item.TargetLanguage}",
                     $"{TranslationLanguages.NameOf(item.SourceLanguage)} → {TranslationLanguages.NameOf(item.TargetLanguage)}"))
                 .Distinct().OrderBy(option => option.Item2));
-            PopulateFilter(CaptureMethodFilter, "Mọi nguồn lưu", items
+            PopulateFilter(CaptureMethodFilter, "All capture methods", items
                 .Select(item => (item.CaptureMethod, CaptureMethodName(item.CaptureMethod)))
                 .Distinct().OrderBy(option => option.Item2));
-            PopulateFilter(SourceAppFilter, "Mọi ứng dụng", items
+            PopulateFilter(SourceAppFilter, "All apps", items
                 .Where(item => !string.IsNullOrWhiteSpace(item.SourceApp))
-                .Select(item => (item.SourceApp, item.SourceApp)).Distinct().OrderBy(option => option.Item2));
-            PopulateFilter(VocabularyTagFilter, "Mọi tag", VocabularyTagsService.LoadAll().Select(tag => (tag, $"#{tag}")));
+                .Select(item =>
+                {
+                    var display = DisplaySourceApp(item.SourceApp);
+                    var key = IsDirectInput(item.SourceApp) ? DirectInputSourceApp : item.SourceApp;
+                    return (key, display);
+                })
+                .Distinct().OrderBy(option => option.Item2));
+            PopulateFilter(VocabularyTagFilter, "All tags", VocabularyTagsService.LoadAll().Select(tag => (tag, $"#{tag}")));
         }
         finally { _updatingFilters = false; }
     }
@@ -442,6 +451,7 @@ public partial class TranslationWindow : Window
     private static void PopulateFilter(ComboBox comboBox, string allLabel, IEnumerable<(string Key, string Label)> options)
     {
         var selected = SelectedFilter(comboBox);
+        if (IsDirectInput(selected)) selected = DirectInputSourceApp;
         comboBox.Items.Clear();
         comboBox.Items.Add(new ComboBoxItem { Content = allLabel, Tag = "" });
         foreach (var (key, label) in options)
@@ -459,12 +469,24 @@ public partial class TranslationWindow : Window
             ?? comboBox.Items[0];
     }
 
+    private static bool IsDirectInput(string? sourceApp) =>
+        string.Equals(sourceApp, DirectInputSourceApp, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(sourceApp, LegacyDirectInputSourceApp, StringComparison.OrdinalIgnoreCase);
+
+    private static string DisplaySourceApp(string? sourceApp) =>
+        IsDirectInput(sourceApp) ? DirectInputSourceApp : sourceApp ?? "";
+
+    private static bool MatchesSourceAppFilter(string? itemSourceApp, string filterValue) =>
+        IsDirectInput(filterValue)
+            ? IsDirectInput(itemSourceApp)
+            : string.Equals(itemSourceApp, filterValue, StringComparison.Ordinal);
+
     private static string CaptureMethodName(string method) => method switch
     {
-        "selection" => "Vùng chọn",
+        "selection" => "Selection",
         "clipboard" => "Clipboard",
-        "ocr" => "Ảnh / OCR",
-        "manual" => "Nhập trực tiếp",
+        "ocr" => "Image / OCR",
+        "manual" => "Direct input",
         _ => method,
     };
 
@@ -490,7 +512,7 @@ public partial class TranslationWindow : Window
         if (alternativeMeanings.Count > 0)
             text.Children.Add(new TextBlock
             {
-                Text = "Nghĩa khác: " + string.Join(" · ", alternativeMeanings),
+                Text = "Other meanings: " + string.Join(" · ", alternativeMeanings),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x8E, 0x9A, 0xB8)), FontSize = 9.5,
                 TextWrapping = TextWrapping.Wrap, MaxHeight = 30, TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(0, 4, 0, 0),
@@ -498,7 +520,7 @@ public partial class TranslationWindow : Window
         if (item.Examples.Count > 0)
             text.Children.Add(new TextBlock
             {
-                Text = "Ví dụ: " + item.Examples[0], Foreground = new SolidColorBrush(Color.FromRgb(0x78, 0x78, 0x86)),
+                Text = "Example: " + item.Examples[0], Foreground = new SolidColorBrush(Color.FromRgb(0x78, 0x78, 0x86)),
                 FontSize = 9.5, FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap,
                 MaxHeight = 28, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 4, 0, 0),
             });
@@ -519,14 +541,14 @@ public partial class TranslationWindow : Window
         var created = DateTimeOffset.FromUnixTimeSeconds(item.CreatedAtUnix).LocalDateTime;
         text.Children.Add(new TextBlock
         {
-            Text = $"{TranslationLanguages.NameOf(item.SourceLanguage)} → {TranslationLanguages.NameOf(item.TargetLanguage)} · {created:dd/MM HH:mm}",
+            Text = $"{TranslationLanguages.NameOf(item.SourceLanguage)} → {TranslationLanguages.NameOf(item.TargetLanguage)} · {created:MMM d, HH:mm}",
             Foreground = new SolidColorBrush(Color.FromRgb(0x72, 0x72, 0x80)), FontSize = 9.5, Margin = new Thickness(0, 5, 0, 0),
         });
 
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Opacity = 0.48, VerticalAlignment = VerticalAlignment.Center };
-        var copy = new Button { Content = "\uE8C8", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Sao chép bản dịch", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
+        var copy = new Button { Content = "\uE8C8", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Copy translation", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
         copy.Click += (_, e) => { Clipboard.SetText(item.TranslatedText); e.Handled = true; };
-        var tagButton = new Button { Content = "\uE8EC", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Gắn tag từ vựng", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
+        var tagButton = new Button { Content = "\uE8EC", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Tag vocabulary entry", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
         tagButton.Click += (_, e) =>
         {
             _interactionDepth++;
@@ -537,7 +559,7 @@ public partial class TranslationWindow : Window
             e.Handled = true;
             ScheduleCollapseIfIdle();
         };
-        var delete = new Button { Content = "\uE74D", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Xoá khỏi sổ", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
+        var delete = new Button { Content = "\uE74D", FontFamily = new FontFamily("Segoe MDL2 Assets"), ToolTip = "Remove from vocabulary", Style = (Style)FindResource("IconBtnStyle"), Width = 24, Height = 24 };
         delete.Click += (_, e) => { VocabularyService.Delete(item.Id); RenderVocabulary(); e.Handled = true; };
         actions.Children.Add(copy);
         actions.Children.Add(tagButton);

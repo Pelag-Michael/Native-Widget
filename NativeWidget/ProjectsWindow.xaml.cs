@@ -47,7 +47,7 @@ public partial class ProjectsWindow : Window
         // ---- Current project card ----
         if (current == null)
         {
-            CurrentName.Text = "Chưa chọn dự án";
+            CurrentName.Text = "No project selected";
             CurrentName.Foreground = (Brush)FindResource("MutedBrush");
             CurrentFolder.Visibility = Visibility.Collapsed;
             CurrentNote.Visibility = Visibility.Collapsed;
@@ -124,12 +124,12 @@ public partial class ProjectsWindow : Window
             text.MouseLeftButtonUp += (_, _) => { ProjectsService.SetCurrent(project.Id); Render(); };
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
-            var editBtn = new Button { Content = "\uE70F", Style = (Style)FindResource("IconBtnStyle"), Width = 22, Height = 22, FontSize = 11, ToolTip = "Sửa" };
+            var editBtn = new Button { Content = "\uE70F", Style = (Style)FindResource("IconBtnStyle"), Width = 22, Height = 22, FontSize = 11, ToolTip = "Edit" };
             editBtn.Click += (_, _) => EditProject(project.Id);
-            var delBtn = new Button { Content = "\uE74D", Style = (Style)FindResource("IconBtnStyle"), Width = 22, Height = 22, FontSize = 11, ToolTip = "Xoá" };
+            var delBtn = new Button { Content = "\uE74D", Style = (Style)FindResource("IconBtnStyle"), Width = 22, Height = 22, FontSize = 11, ToolTip = "Delete" };
             delBtn.Click += (_, _) =>
             {
-                if (MessageBox.Show($"Xoá dự án \"{project.Name}\"?", "Xác nhận", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                if (MessageBox.Show($"Delete project \"{project.Name}\"?", "Confirm", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
                 {
                     ProjectsService.Delete(project.Id);
                     Render();
@@ -169,7 +169,7 @@ public partial class ProjectsWindow : Window
     {
         if (string.IsNullOrWhiteSpace(path) || !System.IO.Directory.Exists(path))
         {
-            MessageBox.Show("Không tìm thấy folder này.", "Lỗi");
+            MessageBox.Show("This folder could not be found.", "Error");
             return;
         }
         Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
@@ -177,7 +177,7 @@ public partial class ProjectsWindow : Window
 
     private void AddBtn_Click(object sender, RoutedEventArgs e)
     {
-        var result = ProjectEditDialog.Show(this, "Dự án mới");
+        var result = ProjectEditDialog.Show(this, "New project");
         if (result == null) return;
         var id = ProjectsService.Add(result.Value.Name, result.Value.Folder, result.Value.Note);
 
@@ -198,7 +198,7 @@ public partial class ProjectsWindow : Window
         var project = data.Items.FirstOrDefault(p => p.Id == id);
         if (project == null) return;
 
-        var result = ProjectEditDialog.Show(this, "Sửa dự án", project.Name, project.FolderPath, project.Note);
+        var result = ProjectEditDialog.Show(this, "Edit project", project.Name, project.FolderPath, project.Note);
         if (result == null) return;
         ProjectsService.Update(id, result.Value.Name, result.Value.Folder, result.Value.Note);
         Render();

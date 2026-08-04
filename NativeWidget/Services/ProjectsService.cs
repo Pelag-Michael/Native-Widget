@@ -49,7 +49,7 @@ public static class ProjectsService
         var project = new Project
         {
             Id = Guid.NewGuid().ToString("N"),
-            Name = string.IsNullOrWhiteSpace(name) ? "Dự án mới" : name.Trim(),
+            Name = string.IsNullOrWhiteSpace(name) ? "New project" : name.Trim(),
             FolderPath = string.IsNullOrWhiteSpace(folderPath) ? null : folderPath.Trim(),
             Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
             CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),

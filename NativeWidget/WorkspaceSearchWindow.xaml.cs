@@ -50,13 +50,15 @@ public partial class WorkspaceSearchWindow : Window
 
         foreach (var project in projects.Where(project => Matches(project.Name) || Matches(project.Note) || Matches(project.FolderPath)))
             results.Add(new SearchResult(ResultKind.Project, project.Id, project.Name,
-                string.IsNullOrWhiteSpace(project.Note) ? "Dự án" : project.Note));
+                string.IsNullOrWhiteSpace(project.Note) ? "Project" : project.Note));
 
         foreach (var tag in tags.Where(Matches))
         {
             var noteCount = notes.Count(note => note.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase));
             results.Add(new SearchResult(ResultKind.Tag, tag, tag,
-                noteCount > 0 ? $"Nhãn · {noteCount} ghi chú" : "Nhãn cục bộ"));
+                noteCount > 0
+                    ? noteCount == 1 ? "Label · 1 note" : $"Label · {noteCount} notes"
+                    : "Local label"));
         }
 
         foreach (var note in notes.Where(note =>
@@ -66,7 +68,7 @@ public partial class WorkspaceSearchWindow : Window
             var projectName = assignments.TryGetValue($"note:{note.Id}", out var projectId) && projectsById.TryGetValue(projectId, out var project)
                 ? $" · {project.Name}" : "";
             results.Add(new SearchResult(ResultKind.Note, note.Id, note.Title,
-                string.IsNullOrWhiteSpace(note.Preview) ? $"Ghi chú{projectName}" : $"{note.Preview}{projectName}"));
+                string.IsNullOrWhiteSpace(note.Preview) ? $"Note{projectName}" : $"{note.Preview}{projectName}"));
         }
 
         ResultsList.Items.Clear();

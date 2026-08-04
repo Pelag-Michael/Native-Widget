@@ -34,7 +34,7 @@ public partial class ProjectEditDialog : Window
 
     private void Browse_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFolderDialog { Title = "Chọn folder dự án" };
+        var dialog = new OpenFolderDialog { Title = "Choose project folder" };
         if (dialog.ShowDialog(this) == true) FolderInput.Text = dialog.FolderName;
     }
 
@@ -42,7 +42,7 @@ public partial class ProjectEditDialog : Window
     {
         if (string.IsNullOrWhiteSpace(NameInput.Text))
         {
-            MessageBox.Show("Nhập tên dự án.", "Thiếu thông tin");
+            MessageBox.Show("Enter a project name.", "Missing information");
             return;
         }
         DialogResult = true;

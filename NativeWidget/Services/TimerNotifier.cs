@@ -38,13 +38,13 @@ public static class TimerNotifier
             message.Append("• ").Append(timer.Title);
             // On a catch-up sweep the timer may have finished long ago (e.g. while the
             // machine was off), so say how long has passed since it ran out.
-            if (catchUp) message.Append("  —  kết thúc ").Append(TimersService.DescribeOverdue(timer));
+            if (catchUp) message.Append("  —  ended ").Append(TimersService.DescribeOverdue(timer));
             message.AppendLine();
         }
 
         TimersService.MarkNotified(due.Select(t => t.Id));
 
-        var header = due.Count == 1 ? "Hết giờ!" : $"{due.Count} bộ đếm đã hết giờ!";
+        var header = due.Count == 1 ? "Time's up!" : $"{due.Count} timers finished!";
         MessageBox.Show(message.ToString().TrimEnd(), header, MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }

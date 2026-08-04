@@ -6,24 +6,24 @@
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize">
     <Border Background="#F2131217" CornerRadius="16" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="16">
         <StackPanel>
-            <TextBlock Text="Sự kiện mới" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10"/>
+            <TextBlock Text="New event" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,10"/>
             <TextBox x:Name="TitleInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
             <DatePicker x:Name="EventDatePicker" Margin="0,0,0,8"/>
-            <CheckBox x:Name="AllDayCheck" Content="Cả ngày" Foreground="White" Margin="0,0,0,8" Checked="AllDayCheck_Changed" Unchecked="AllDayCheck_Changed"/>
+            <CheckBox x:Name="AllDayCheck" Content="All day" Foreground="White" Margin="0,0,0,8" Checked="AllDayCheck_Changed" Unchecked="AllDayCheck_Changed"/>
             <TextBox x:Name="TimeInput" Style="{StaticResource InputStyle}" Text="09:00" Margin="0,0,0,8"/>
-            <TextBlock Text="Ghi chú" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
+            <TextBlock Text="Notes" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
             <TextBox x:Name="NoteInput" Style="{StaticResource InputStyle}" Height="54" AcceptsReturn="True"
                      TextWrapping="Wrap" VerticalContentAlignment="Top" Margin="0,0,0,8"/>
-            <TextBlock Text="Lặp lại" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
+            <TextBlock Text="Repeat" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
             <ComboBox x:Name="RepeatCombo" SelectedIndex="0">
-                <ComboBoxItem Content="Không lặp"/>
-                <ComboBoxItem Content="Hằng ngày"/>
-                <ComboBoxItem Content="Hằng tuần"/>
-                <ComboBoxItem Content="Hằng tháng"/>
+                <ComboBoxItem Content="Does not repeat"/>
+                <ComboBoxItem Content="Daily"/>
+                <ComboBoxItem Content="Weekly"/>
+                <ComboBoxItem Content="Monthly"/>
             </ComboBox>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                <Button Content="Huỷ" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="70" Margin="0,0,8,0"/>
-                <Button Content="Tạo" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="70"/>
+                <Button Content="Cancel" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="70" Margin="0,0,8,0"/>
+                <Button Content="Create" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="70"/>
             </StackPanel>
         </StackPanel>
     </Border>

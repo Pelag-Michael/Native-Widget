@@ -8,7 +8,7 @@ namespace NativeWidget.Services;
 
 public static class LinkDocumentBuilder
 {
-    public static FlowDocument Build(string text, FrameworkElement resourceOwner, string emptyText = "Không có nội dung")
+    public static FlowDocument Build(string text, FrameworkElement resourceOwner, string emptyText = "No content")
     {
         var paragraph = new Paragraph { Margin = new Thickness(0), LineHeight = 19 };
         if (string.IsNullOrWhiteSpace(text))

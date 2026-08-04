@@ -7,15 +7,15 @@ public static class ColorTags
 {
     public static readonly (string Name, string Hex)[] Palette =
     {
-        ("Mặc định", ""),
-        ("Xanh dương", "#4A7DFF"),
-        ("Tím", "#9C6BFF"),
-        ("Hồng", "#FF6B9C"),
-        ("Đỏ", "#E5605A"),
-        ("Cam", "#F0A050"),
-        ("Vàng", "#E8D25A"),
-        ("Xanh lá", "#5AC98A"),
-        ("Ngọc", "#4AC9C9"),
+        ("Default", ""),
+        ("Blue", "#4A7DFF"),
+        ("Purple", "#9C6BFF"),
+        ("Pink", "#FF6B9C"),
+        ("Red", "#E5605A"),
+        ("Orange", "#F0A050"),
+        ("Yellow", "#E8D25A"),
+        ("Green", "#5AC98A"),
+        ("Teal", "#4AC9C9"),
     };
 
     public static Brush Resolve(string? hex, Brush fallback) =>

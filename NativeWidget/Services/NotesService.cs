@@ -80,7 +80,7 @@ public static class NotesService
     {
         var id = Guid.NewGuid().ToString("N");
         var index = LoadIndex();
-        index.Insert(0, new NoteMeta { Id = id, Title = "Ghi chú mới", Preview = "", UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+        index.Insert(0, new NoteMeta { Id = id, Title = "New note", Preview = "", UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
         SaveIndex(index);
         SaveNote(id, new FlowDocument(new Paragraph()));
         return id;
@@ -94,7 +94,7 @@ public static class NotesService
         var plain = new TextRange(doc.ContentStart, doc.ContentEnd).Text.Trim();
         var firstLine = plain.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
         var title = firstLine.Length > 40 ? firstLine[..40] + "…" : firstLine;
-        if (string.IsNullOrWhiteSpace(title)) title = "Ghi chú trống";
+        if (string.IsNullOrWhiteSpace(title)) title = "Empty note";
         var preview = plain.Length > 80 ? plain[..80] : plain;
 
         var index = LoadIndex();
@@ -314,7 +314,7 @@ public static class NotesService
         if (legacyDoc != null)
         {
             var id = Guid.NewGuid().ToString("N");
-            SaveIndex(new List<NoteMeta> { new() { Id = id, Title = "Ghi chú", UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() } });
+            SaveIndex(new List<NoteMeta> { new() { Id = id, Title = "Note", UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() } });
             SaveNote(id, legacyDoc);
         }
         else

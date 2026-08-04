@@ -47,7 +47,7 @@ public partial class ItemDetailsDialog : Window
         var paragraph = new Paragraph { Margin = new Thickness(0), LineHeight = 19 };
         if (string.IsNullOrWhiteSpace(text))
         {
-            paragraph.Inlines.Add(new Run("Chưa có mô tả")
+            paragraph.Inlines.Add(new Run("No description")
             {
                 Foreground = (Brush)FindResource("MutedBrush"),
                 FontStyle = FontStyles.Italic,
@@ -107,7 +107,7 @@ public partial class ItemDetailsDialog : Window
         DescriptionEditor.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
         EditButton.Visibility = editing ? Visibility.Collapsed : Visibility.Visible;
         CancelEditButton.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
-        CloseButton.Content = editing ? "Lưu" : "Đóng";
+        CloseButton.Content = editing ? "Save" : "Close";
         if (editing)
         {
             DescriptionEditor.Focus();

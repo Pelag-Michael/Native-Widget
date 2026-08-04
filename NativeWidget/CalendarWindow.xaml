@@ -28,20 +28,20 @@
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="&#xE787;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
                     <TextBlock Text="Calendar" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="CalendarStatus" Text="Chưa kết nối" Foreground="{StaticResource MutedBrush}" FontSize="10.5" Margin="8,1,0,0" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="CalendarStatus" Text="Not connected" Foreground="{StaticResource MutedBrush}" FontSize="10.5" Margin="8,1,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button x:Name="AddEventBtn" Content="&#xE710;" ToolTip="Sự kiện mới" Click="AddEvent_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
-                    <Button x:Name="RefreshBtn" Content="&#xE72C;" ToolTip="Làm mới lịch" Click="RefreshBtn_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
-                    <Button x:Name="GoogleDisconnectBtn" Content="&#xE711;" ToolTip="Ngắt kết nối Google" Click="GoogleDisconnectBtn_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
+                    <Button x:Name="AddEventBtn" Content="&#xE710;" ToolTip="New event" Click="AddEvent_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
+                    <Button x:Name="RefreshBtn" Content="&#xE72C;" ToolTip="Refresh calendar" Click="RefreshBtn_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
+                    <Button x:Name="GoogleDisconnectBtn" Content="&#xE711;" ToolTip="Disconnect Google" Click="GoogleDisconnectBtn_Click" Style="{StaticResource IconBtnStyle}" Visibility="Collapsed"/>
                     <local:WidgetHeaderControls x:Name="HeaderControls"/>
                 </StackPanel>
             </Grid>
 
             <Grid Grid.Row="1">
                 <StackPanel x:Name="CalDisconnected">
-                    <TextBlock Text="Chưa kết nối Google Calendar." Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
-                    <Button x:Name="GoogleConnectBtn" Content="Kết nối Google Calendar" Click="GoogleConnectBtn_Click" Style="{StaticResource PrimaryBtnStyle}" HorizontalAlignment="Left"/>
+                    <TextBlock Text="Not connected to Google Calendar." Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
+                    <Button x:Name="GoogleConnectBtn" Content="Connect Google Calendar" Click="GoogleConnectBtn_Click" Style="{StaticResource PrimaryBtnStyle}" HorizontalAlignment="Left"/>
                 </StackPanel>
                 <Grid x:Name="CalConnected" Visibility="Collapsed">
                     <ListBox x:Name="EventList" Background="Transparent" BorderThickness="0"
@@ -49,7 +49,7 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              VirtualizingPanel.IsVirtualizing="False"
                              ItemContainerStyle="{StaticResource ListItemStyle}" MouseUp="EventList_MouseUp"/>
-                    <TextBlock x:Name="LoadingHint" Text="Đang tải..." Foreground="{StaticResource MutedBrush}"
+                    <TextBlock x:Name="LoadingHint" Text="Loading..." Foreground="{StaticResource MutedBrush}"
                                FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                 </Grid>
             </Grid>

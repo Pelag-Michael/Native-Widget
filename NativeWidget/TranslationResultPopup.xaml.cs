@@ -33,7 +33,7 @@ public partial class TranslationResultPopup : Window
     {
         _result = result;
         SaveButton.IsEnabled = true;
-        SaveButton.Content = "Lưu";
+        SaveButton.Content = "Save";
         SetStatus("");
         Render();
     }
@@ -97,14 +97,14 @@ public partial class TranslationResultPopup : Window
 
     private static string PartOfSpeechName(string value) => value.ToLowerInvariant() switch
     {
-        "noun" => "Danh từ",
-        "verb" => "Động từ",
-        "adjective" => "Tính từ",
-        "adverb" => "Trạng từ",
-        "pronoun" => "Đại từ",
-        "preposition" => "Giới từ",
-        "conjunction" => "Liên từ",
-        "interjection" => "Thán từ",
+        "noun" => "Noun",
+        "verb" => "Verb",
+        "adjective" => "Adjective",
+        "adverb" => "Adverb",
+        "pronoun" => "Pronoun",
+        "preposition" => "Preposition",
+        "conjunction" => "Conjunction",
+        "interjection" => "Interjection",
         _ => value,
     };
 
@@ -125,27 +125,27 @@ public partial class TranslationResultPopup : Window
     private void Copy_Click(object sender, RoutedEventArgs e)
     {
         Clipboard.SetText(_result.TranslatedText);
-        PopupStatus.Text = "Đã sao chép bản dịch";
+        PopupStatus.Text = "Translation copied";
     }
 
     private async void Retry_Click(object sender, RoutedEventArgs e)
     {
-        PopupStatus.Text = "Đang dịch lại...";
+        PopupStatus.Text = "Retrying translation...";
         if (RetryRequested != null) await RetryRequested();
     }
 
     private async void Swap_Click(object sender, RoutedEventArgs e)
     {
-        PopupStatus.Text = "Đang đảo chiều...";
+        PopupStatus.Text = "Swapping languages...";
         if (SwapRequested != null) await SwapRequested();
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         VocabularyService.Add(_result, _captureMethod, _sourceApp);
-        SaveButton.Content = "Đã lưu";
+        SaveButton.Content = "Saved";
         SaveButton.IsEnabled = false;
-        PopupStatus.Text = "Đã thêm vào sổ từ vựng";
+        PopupStatus.Text = "Added to vocabulary";
         Saved?.Invoke();
     }
 

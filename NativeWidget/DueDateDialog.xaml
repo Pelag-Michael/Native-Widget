@@ -6,12 +6,12 @@
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize">
     <Border Background="#F2131217" CornerRadius="16" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="16">
         <StackPanel>
-            <TextBlock Text="Đặt hạn hoàn thành" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,12"/>
+            <TextBlock Text="Set due date" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,12"/>
             <DatePicker x:Name="DueDatePicker"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                <Button Content="Xoá hạn" Click="Clear_Click" Style="{StaticResource DangerBtnStyle}" Margin="0,0,8,0"/>
-                <Button Content="Huỷ" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="60" Margin="0,0,8,0"/>
-                <Button Content="Lưu" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="60"/>
+                <Button Content="Clear due date" Click="Clear_Click" Style="{StaticResource DangerBtnStyle}" Margin="0,0,8,0"/>
+                <Button Content="Cancel" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="60" Margin="0,0,8,0"/>
+                <Button Content="Save" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="60"/>
             </StackPanel>
         </StackPanel>
     </Border>

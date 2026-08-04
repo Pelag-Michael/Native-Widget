@@ -57,7 +57,7 @@ public static class TimersService
         var timer = new CountdownTimer
         {
             Id = Guid.NewGuid().ToString("N"),
-            Title = string.IsNullOrWhiteSpace(title) ? "Bộ đếm" : title.Trim(),
+            Title = string.IsNullOrWhiteSpace(title) ? "Timer" : title.Trim(),
             DurationSeconds = (long)duration.TotalSeconds,
             EndsAtUnix = DateTimeOffset.UtcNow.Add(duration).ToUnixTimeSeconds(),
             Notified = false,
@@ -122,16 +122,16 @@ public static class TimersService
     public static string DescribeOverdue(CountdownTimer timer)
     {
         var overdue = DateTime.Now - timer.EndsAt;
-        if (overdue < TimeSpan.FromMinutes(1)) return "vừa xong";
-        if (overdue.TotalHours < 1) return $"{(int)overdue.TotalMinutes} phút trước";
-        if (overdue.TotalDays < 1) return $"{(int)overdue.TotalHours} giờ {overdue.Minutes} phút trước";
-        return $"{(int)overdue.TotalDays} ngày {overdue.Hours} giờ trước";
+        if (overdue < TimeSpan.FromMinutes(1)) return "just now";
+        if (overdue.TotalHours < 1) return $"{(int)overdue.TotalMinutes} min ago";
+        if (overdue.TotalDays < 1) return $"{(int)overdue.TotalHours}h {overdue.Minutes}m ago";
+        return $"{(int)overdue.TotalDays}d {overdue.Hours}h ago";
     }
 
     public static string FormatRemaining(TimeSpan remaining)
     {
-        if (remaining <= TimeSpan.Zero) return "Hết giờ";
-        if (remaining.TotalDays >= 1) return $"{(int)remaining.TotalDays}n {remaining.Hours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
+        if (remaining <= TimeSpan.Zero) return "Time's up";
+        if (remaining.TotalDays >= 1) return $"{(int)remaining.TotalDays}d {remaining.Hours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
         return $"{(int)remaining.TotalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}";
     }
 }

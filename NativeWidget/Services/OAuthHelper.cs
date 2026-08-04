@@ -35,8 +35,8 @@ public static class OAuthHelper
         var error = query["error"];
 
         var html = error == null
-            ? "<h2>Đăng nhập thành công. Đóng tab này lại.</h2>"
-            : "<h2>Đăng nhập thất bại. Đóng tab này lại.</h2>";
+            ? "<h2>Sign-in successful. You can close this tab.</h2>"
+            : "<h2>Sign-in failed. You can close this tab.</h2>";
         var buffer = System.Text.Encoding.UTF8.GetBytes(html);
         context.Response.ContentType = "text/html; charset=utf-8";
         context.Response.OutputStream.Write(buffer, 0, buffer.Length);

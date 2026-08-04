@@ -6,7 +6,7 @@
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize">
     <Border Background="#F2131217" CornerRadius="16" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="16">
         <StackPanel>
-            <TextBlock Text="Đặt nhắc nhở" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <TextBlock Text="Set reminder" Foreground="White" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4"/>
             <TextBlock x:Name="ExistingHint" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,10" TextWrapping="Wrap" Visibility="Collapsed"/>
             <Grid Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>
@@ -15,17 +15,17 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <TextBox x:Name="DaysInput" Grid.Column="0" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
-                         Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Ngày"/>
+                         Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Days"/>
                 <TextBox x:Name="HoursInput" Grid.Column="1" Style="{StaticResource InputStyle}" Margin="0,0,4,0"
-                         Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Giờ"/>
+                         Text="0" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Hours"/>
                 <TextBox x:Name="MinsInput" Grid.Column="2" Style="{StaticResource InputStyle}"
-                         Text="30" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Phút"/>
+                         Text="30" TextAlignment="Center" PreviewTextInput="Digits_PreviewTextInput" ToolTip="Minutes"/>
             </Grid>
-            <TextBlock Text="ngày · giờ · phút, tính từ bây giờ" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center"/>
+            <TextBlock Text="days · hours · minutes from now" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                <Button x:Name="ClearBtn" Content="Xoá nhắc" Click="Clear_Click" Style="{StaticResource DangerBtnStyle}" Margin="0,0,8,0" Visibility="Collapsed"/>
-                <Button Content="Huỷ" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="60" Margin="0,0,8,0"/>
-                <Button Content="Đặt" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="60"/>
+                <Button x:Name="ClearBtn" Content="Clear reminder" Click="Clear_Click" Style="{StaticResource DangerBtnStyle}" Margin="0,0,8,0" Visibility="Collapsed"/>
+                <Button Content="Cancel" Click="Cancel_Click" Style="{StaticResource SecondaryBtnStyle}" Width="60" Margin="0,0,8,0"/>
+                <Button Content="Set" Click="Ok_Click" Style="{StaticResource PrimaryBtnStyle}" Width="60"/>
             </StackPanel>
         </StackPanel>
     </Border>
