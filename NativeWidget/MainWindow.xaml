@@ -6,6 +6,8 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
         MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave"
+        MouseMove="Window_MouseMove" MouseLeftButtonUp="Window_MouseLeftButtonUp"
+        LostMouseCapture="Window_LostMouseCapture"
         Left="40" Top="40">
     <Grid Background="Transparent">
         <!-- The launcher itself stays compact. Its menu is a separate round Popup, so

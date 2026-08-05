@@ -21,6 +21,10 @@ public partial class MainWindow : Window
     private bool _updatingGlobalControls;
     private bool _launcherClosing;
     private bool _draggingDock;
+    /// Blocks hover-open while dragging and until the pointer leaves after a drag
+    /// (otherwise SnapClose → MouseEnter immediately reopens the menu and hides the dock).
+    private bool _suppressMenuOpen;
+    private Point _dragCursorOffset;
     private Button? _hintOwner;
 
     // title, optional shortcut, optional extra line — keyed by button Name
@@ -53,6 +57,16 @@ public partial class MainWindow : Window
 
     [DllImport("user32.dll")]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out Win32Point point);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Win32Point
+    {
+        public int X;
+        public int Y;
+    }
 
     private readonly AppConfig _config = AppConfig.Load();
 
@@ -232,25 +246,46 @@ public partial class MainWindow : Window
     {
         if (e.ChangedButton != MouseButton.Left || e.ButtonState != MouseButtonState.Pressed) return;
 
-        // While the radial menu is open, RootBorder is invisible and the Popup is a separate
-        // HWND that does not track DragMove. Dragging the hub moved the 52px window under the
-        // cursor but left the menu stranded at the old spot — user had to return there to
-        // release. Snap the menu shut and show the dock first so the control follows the mouse.
-        _draggingDock = true;
+        // Do not use DragMove here: after closing the Popup the original mouse-down target is
+        // gone, DragMove often fails, and hover immediately re-opens the menu (dock vanishes).
+        // Manual capture + move keeps the visible dock glued to the cursor for the whole drag.
         _launcherCloseTimer.Stop();
+        _suppressMenuOpen = true;
+        _draggingDock = true;
         SnapCloseLauncherForDrag();
-        try
-        {
-            DragMove();
-        }
-        catch
-        {
-            /* DragMove throws if the button is no longer down after the tree change. */
-        }
-        finally
-        {
-            _draggingDock = false;
-        }
+
+        var cursor = GetCursorInDip();
+        _dragCursorOffset = new Point(cursor.X - Left, cursor.Y - Top);
+        CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void Window_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_draggingDock || e.LeftButton != MouseButtonState.Pressed) return;
+        var cursor = GetCursorInDip();
+        Left = cursor.X - _dragCursorOffset.X;
+        Top = cursor.Y - _dragCursorOffset.Y;
+    }
+
+    private void Window_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_draggingDock) return;
+        EndDockDrag();
+        e.Handled = true;
+    }
+
+    private void Window_LostMouseCapture(object sender, MouseEventArgs e)
+    {
+        if (_draggingDock) EndDockDrag();
+    }
+
+    private void EndDockDrag()
+    {
+        _draggingDock = false;
+        if (IsMouseCaptured) ReleaseMouseCapture();
+        // Keep _suppressMenuOpen until MouseLeave so the menu does not pop open under a
+        // still-hovering cursor and hide the dock again (felt like lag + flicker).
     }
 
     /// Instantly collapses the radial menu and restores the dock — no close animation.
@@ -276,14 +311,29 @@ public partial class MainWindow : Window
         RootBorder.IsHitTestVisible = true;
     }
 
+    /// Cursor position in WPF device-independent pixels (matches Left/Top).
+    private Point GetCursorInDip()
+    {
+        GetCursorPos(out var pt);
+        var source = PresentationSource.FromVisual(this);
+        if (source?.CompositionTarget != null)
+        {
+            var fromDevice = source.CompositionTarget.TransformFromDevice;
+            return fromDevice.Transform(new Point(pt.X, pt.Y));
+        }
+        return new Point(pt.X, pt.Y);
+    }
+
     private void Window_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (_draggingDock) return;
+        if (_draggingDock || _suppressMenuOpen) return;
         ShowLauncher();
     }
 
     private void Window_MouseLeave(object sender, MouseEventArgs e)
     {
+        if (_draggingDock) return;
+        _suppressMenuOpen = false;
         _launcherCloseTimer.Start();
     }
 
@@ -302,7 +352,7 @@ public partial class MainWindow : Window
 
     private void ShowLauncher()
     {
-        if (_draggingDock) return;
+        if (_draggingDock || _suppressMenuOpen) return;
         _launcherCloseTimer.Stop();
         _launcherClosing = false;
         var wasOpen = LauncherPopup.IsOpen;
