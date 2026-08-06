@@ -10,11 +10,32 @@ using NativeWidget.Services;
 
 namespace NativeWidget;
 
+internal interface ICalendarEventSource
+{
+    bool IsConnected { get; }
+    Task<List<CalendarEvent>> GetUpcomingEventsAsync(AppConfig config, CancellationToken cancellationToken);
+}
+
+internal sealed class GoogleCalendarEventSource : ICalendarEventSource
+{
+    public bool IsConnected => GoogleCalendarService.IsConnected();
+
+    public Task<List<CalendarEvent>> GetUpcomingEventsAsync(AppConfig config, CancellationToken cancellationToken) =>
+        GoogleCalendarService.GetUpcomingEventsAsync(config, cancellationToken);
+}
+
 public partial class CalendarWindow : Window
 {
     private readonly AppConfig _config;
+    private readonly ICalendarEventSource _eventSource;
     private readonly Dictionary<object, CalendarEvent> _eventItems = new();
     private readonly DispatcherTimer _autoRefreshTimer = new() { Interval = TimeSpan.FromMinutes(5) };
+    private readonly DispatcherTimer _retryTimer = new();
+    private CancellationTokenSource _visibilityCts = new();
+    private int _scheduledRetryAttempt;
+    private bool _requiresReconnect;
+    private bool _stopping;
+    private const int MaxScheduledRetries = 3;
 
     // Loaded, Activated, the 5-minute timer and the refresh button can all fire while a
     // previous load is still awaiting the network. Without this guard the passes interleave:
@@ -23,19 +44,67 @@ public partial class CalendarWindow : Window
     // EventList.Items concurrently. Same fix TasksWindow already carries.
     private bool _isBusy;
 
-    public CalendarWindow(AppConfig config)
+    public CalendarWindow(AppConfig config) : this(config, new GoogleCalendarEventSource())
+    {
+    }
+
+    internal CalendarWindow(AppConfig config, ICalendarEventSource eventSource)
     {
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
         _config = config;
-        Loaded += async (_, _) => await RefreshEventsAsync();
-        Activated += async (_, _) => await RefreshEventsAsync();
-        _autoRefreshTimer.Tick += async (_, _) =>
-        {
-            if (IsVisible) await RefreshEventsAsync();
-        };
-        _autoRefreshTimer.Start();
+        _eventSource = eventSource;
+        Loaded += CalendarWindow_Loaded;
+        Activated += CalendarWindow_Activated;
+        IsVisibleChanged += CalendarWindow_IsVisibleChanged;
+        _autoRefreshTimer.Tick += AutoRefreshTimer_Tick;
+        _retryTimer.Tick += RetryTimer_Tick;
+        if (Application.Current != null) Application.Current.Exit += Application_Exit;
     }
+
+    internal bool IsBusyForTests => _isBusy;
+    internal Visibility LoadingVisibilityForTests => LoadingHint.Visibility;
+    internal int DisplayedEventCountForTests => _eventItems.Count;
+    internal string StatusForTests => CalendarStatus.Text;
+
+    private async void CalendarWindow_Loaded(object sender, RoutedEventArgs e) =>
+        await RunEventBoundaryAsync(() => RefreshEventsAsync());
+
+    private async void CalendarWindow_Activated(object? sender, EventArgs e)
+    {
+        if (IsVisible) await RunEventBoundaryAsync(() => RefreshEventsAsync());
+    }
+
+    private async void AutoRefreshTimer_Tick(object? sender, EventArgs e)
+    {
+        if (IsVisible) await RunEventBoundaryAsync(() => RefreshEventsAsync());
+    }
+
+    private async void RetryTimer_Tick(object? sender, EventArgs e)
+    {
+        _retryTimer.Stop();
+        if (IsVisible && !_stopping) await RunEventBoundaryAsync(() => RefreshEventsAsync());
+    }
+
+    private void CalendarWindow_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (IsVisible)
+        {
+            if (_visibilityCts.IsCancellationRequested)
+            {
+                _visibilityCts.Dispose();
+                _visibilityCts = new CancellationTokenSource();
+            }
+            _stopping = false;
+            _autoRefreshTimer.Start();
+        }
+        else
+        {
+            StopBackgroundRefresh();
+        }
+    }
+
+    private void Application_Exit(object? sender, ExitEventArgs e) => StopBackgroundRefresh();
 
     private void DragBar_MouseDown(object sender, MouseButtonEventArgs e)
     {
@@ -47,6 +116,7 @@ public partial class CalendarWindow : Window
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        StopBackgroundRefresh();
         e.Cancel = true;
         Hide();
     }
@@ -61,22 +131,49 @@ public partial class CalendarWindow : Window
         GoogleConnectBtn.Content = "Opening browser...";
         try
         {
-            await GoogleCalendarService.ConnectAsync(_config);
+            await GoogleCalendarService.ConnectAsync(_config, _visibilityCts.Token);
+            _requiresReconnect = false;
+            _scheduledRetryAttempt = 0;
             await RefreshEventsAsync();
         }
-        catch
+        catch (OperationCanceledException) when (_visibilityCts.IsCancellationRequested)
         {
-            GoogleConnectBtn.Content = "Error, try again";
+        }
+        catch (GoogleCalendarTransientException)
+        {
+            CalendarStatus.Text = "Offline — try reconnect";
+        }
+        catch (GoogleCalendarAuthenticationException)
+        {
+            _requiresReconnect = true;
+            ShowReconnectState();
+        }
+        catch (Exception)
+        {
+            CalendarStatus.Text = "Could not connect";
+        }
+        finally
+        {
+            GoogleConnectBtn.Content = _requiresReconnect ? "Reconnect Google Calendar" : "Connect Google Calendar";
         }
     }
 
     private async void GoogleDisconnectBtn_Click(object sender, RoutedEventArgs e)
     {
-        GoogleCalendarService.Disconnect();
-        await RefreshEventsAsync();
+        await RunEventBoundaryAsync(async () =>
+        {
+            CancelScheduledRetry(resetAttempts: true);
+            _requiresReconnect = false;
+            GoogleCalendarService.Disconnect();
+            await RefreshEventsAsync();
+        });
     }
 
-    private async void RefreshBtn_Click(object sender, RoutedEventArgs e) => await RefreshEventsAsync();
+    private async void RefreshBtn_Click(object sender, RoutedEventArgs e)
+    {
+        CancelScheduledRetry(resetAttempts: true);
+        await RunEventBoundaryAsync(() => RefreshEventsAsync());
+    }
 
     private async void AddEvent_Click(object sender, RoutedEventArgs e)
     {
@@ -85,8 +182,17 @@ public partial class CalendarWindow : Window
         try
         {
             await GoogleCalendarService.CreateEventAsync(_config, dialog.EventTitle, dialog.Start, dialog.AllDay,
-                dialog.RecurrenceFreq, dialog.EventNote);
+                dialog.RecurrenceFreq, dialog.EventNote, _visibilityCts.Token);
+            CancelScheduledRetry(resetAttempts: true);
             await RefreshEventsAsync();
+        }
+        catch (OperationCanceledException) when (_visibilityCts.IsCancellationRequested)
+        {
+        }
+        catch (GoogleCalendarAuthenticationException)
+        {
+            _requiresReconnect = true;
+            ShowReconnectState();
         }
         catch (Exception ex)
         {
@@ -98,9 +204,16 @@ public partial class CalendarWindow : Window
     {
         if (_isBusy) return;
         _isBusy = true;
+        _retryTimer.Stop();
         try
         {
-            var connected = GoogleCalendarService.IsConnected();
+            if (_requiresReconnect)
+            {
+                ShowReconnectState();
+                return;
+            }
+
+            var connected = _eventSource.IsConnected;
             CalDisconnected.Visibility = connected ? Visibility.Collapsed : Visibility.Visible;
             CalConnected.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
             AddEventBtn.Visibility = connected ? Visibility.Visible : Visibility.Collapsed;
@@ -109,13 +222,15 @@ public partial class CalendarWindow : Window
             if (!connected)
             {
                 CalendarStatus.Text = "Not connected";
+                DisconnectedMessage.Text = "Not connected to Google Calendar.";
+                GoogleConnectBtn.Content = "Connect Google Calendar";
+                CancelScheduledRetry(resetAttempts: true);
                 return;
             }
 
             CalendarStatus.Text = "Syncing...";
             LoadingHint.Visibility = Visibility.Visible;
-            var events = await GoogleCalendarService.GetUpcomingEventsAsync(_config);
-            LoadingHint.Visibility = Visibility.Collapsed;
+            var events = await _eventSource.GetUpcomingEventsAsync(_config, _visibilityCts.Token);
             EventList.Items.Clear();
             _eventItems.Clear();
 
@@ -308,12 +423,104 @@ public partial class CalendarWindow : Window
             EventList.Items.Add(card);
         }
             CalendarStatus.Text = $"Updated {DateTime.Now:HH:mm}";
+            CancelScheduledRetry(resetAttempts: true);
+        }
+        catch (OperationCanceledException) when (_visibilityCts.IsCancellationRequested)
+        {
+            // Hiding the widget or shutting down cancels in-flight HTTP without turning
+            // normal window lifecycle into an error state.
+        }
+        catch (GoogleCalendarTransientException)
+        {
+            ScheduleRetry();
+        }
+        catch (GoogleCalendarAuthenticationException)
+        {
+            _requiresReconnect = true;
+            CancelScheduledRetry(resetAttempts: true);
+            ShowReconnectState();
+        }
+        catch (Exception)
+        {
+            CancelScheduledRetry(resetAttempts: false);
+            CalendarStatus.Text = "Calendar unavailable — press Refresh";
         }
         finally
         {
+            LoadingHint.Visibility = Visibility.Collapsed;
             _isBusy = false;
         }
     }
+
+    private void ScheduleRetry()
+    {
+        if (_stopping || !IsVisible)
+        {
+            CalendarStatus.Text = "Offline — press Refresh";
+            return;
+        }
+
+        if (_scheduledRetryAttempt >= MaxScheduledRetries)
+        {
+            CalendarStatus.Text = "Offline — press Refresh";
+            return;
+        }
+
+        _scheduledRetryAttempt++;
+        var seconds = 5 * (1 << (_scheduledRetryAttempt - 1));
+        _retryTimer.Interval = TimeSpan.FromMilliseconds(seconds * 1000 + Random.Shared.Next(250, 1000));
+        CalendarStatus.Text = "Offline — will retry";
+        _retryTimer.Stop();
+        _retryTimer.Start();
+    }
+
+    private void CancelScheduledRetry(bool resetAttempts)
+    {
+        _retryTimer.Stop();
+        if (resetAttempts) _scheduledRetryAttempt = 0;
+    }
+
+    private void ShowReconnectState()
+    {
+        CalendarStatus.Text = "Reconnect Google";
+        DisconnectedMessage.Text = "Google authorization expired. Reconnect to continue syncing.";
+        GoogleConnectBtn.Content = "Reconnect Google Calendar";
+        CalDisconnected.Visibility = Visibility.Visible;
+        CalConnected.Visibility = Visibility.Collapsed;
+        AddEventBtn.Visibility = Visibility.Collapsed;
+        RefreshBtn.Visibility = Visibility.Collapsed;
+        GoogleDisconnectBtn.Visibility = Visibility.Visible;
+    }
+
+    private async Task RunEventBoundaryAsync(Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (OperationCanceledException) when (_visibilityCts.IsCancellationRequested)
+        {
+        }
+        catch (Exception)
+        {
+            // This is the final WPF async-void boundary. Network and API failures are
+            // handled more specifically inside RefreshEventsAsync, but no unexpected
+            // exception is allowed to reach DispatcherUnhandledException.
+            LoadingHint.Visibility = Visibility.Collapsed;
+            CalendarStatus.Text = "Calendar unavailable — press Refresh";
+            _isBusy = false;
+        }
+    }
+
+    private void StopBackgroundRefresh()
+    {
+        _stopping = true;
+        _autoRefreshTimer.Stop();
+        _retryTimer.Stop();
+        if (!_visibilityCts.IsCancellationRequested) _visibilityCts.Cancel();
+    }
+
+    internal void StopForTests() => StopBackgroundRefresh();
 
     private void EventList_MouseUp(object sender, MouseButtonEventArgs e)
     {

@@ -167,6 +167,16 @@ color; these never alter the Google Calendar event.
 `AddEventDialog` also accepts a short note, stored in Google Calendar's real `description`
 field and rendered as a compact muted excerpt beneath the event title.
 
+Calendar reads and OAuth token refreshes use three cancellation-aware attempts with short
+exponential backoff and jitter for DNS/socket failures, timeouts, HTTP 408/429, and 5xx.
+Responses are status-checked before JSON parsing. `CalendarWindow` owns one five-minute timer
+and one bounded one-shot retry timer; `_isBusy` prevents `Loaded`, `Activated`, timer ticks,
+and manual refresh from overlapping. A transient failure keeps rendered events, hides the
+loading state in `finally`, and reports `Offline — will retry`; invalid/revoked authorization
+is not retried and instead exposes an explicit reconnect state. Hiding the window or shutting
+down cancels both in-flight HTTP and scheduled retries. Network behavior is covered by the
+injectable-handler executable in `NativeWidget.CalendarNetworkTests`.
+
 ### Notes
 Google-Keep-style: a **list of notes** (title + preview) that opens into an editor, with
 back / new / rename / delete. Stored as `%AppData%\NativeWidget\notes\index.json` plus one

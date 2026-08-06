@@ -40,7 +40,7 @@
 
             <Grid Grid.Row="1">
                 <StackPanel x:Name="CalDisconnected">
-                    <TextBlock Text="Not connected to Google Calendar." Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="DisconnectedMessage" Text="Not connected to Google Calendar." Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap"/>
                     <Button x:Name="GoogleConnectBtn" Content="Connect Google Calendar" Click="GoogleConnectBtn_Click" Style="{StaticResource PrimaryBtnStyle}" HorizontalAlignment="Left"/>
                 </StackPanel>
                 <Grid x:Name="CalConnected" Visibility="Collapsed">
