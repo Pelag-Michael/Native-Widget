@@ -42,7 +42,7 @@ public partial class MainWindow : Window
         ["BtnTranslate"] = ("Translate", null, null),
         ["BtnLabels"] = ("Labels", null, null),
         ["BtnSettings"] = ("Settings", null, null),
-        ["BtnWindowTools"] = ("Window tools", null, "Pin, ghost, opacity for open widgets"),
+        ["BtnWindowTools"] = ("Window tools", null, "Pin, ghost, shelf, opacity for open widgets"),
     };
 
     private const int HotkeyId = 0xB001;
@@ -83,11 +83,34 @@ public partial class MainWindow : Window
     private SettingsWindow? _settingsWindow;
     private WorkspaceSearchWindow? _searchWindow;
     private bool _sessionRestored;
+    private AppShelf? _shelf;
 
     public MainWindow()
     {
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
+        _shelf = new AppShelf(
+            this,
+            () => EnumerateVisibleWidgets().Select(item => item.Window),
+            pinned =>
+            {
+                foreach (var (_, header) in EnumerateWidgets())
+                    header.SetPinVisual(pinned);
+            },
+            ghosted =>
+            {
+                foreach (var (_, header) in EnumerateWidgets())
+                    header.SetGhostVisual(ghosted);
+            },
+            () =>
+            {
+                // Stop reasserting topmost while shelved — shelf deliberately unpins everything.
+                if (_shelf?.IsShelved == true)
+                    _topmostGuardTimer.Stop();
+                else if (IsLoaded)
+                    _topmostGuardTimer.Start();
+                UpdateGlobalWindowControls();
+            });
         // Position only — never restore size. A poisoned session once stretched this to 80×52
         // and turned the circular dock into a horizontal pill.
         WindowSessionService.Track(this, _config, "Launcher", "Launcher",
@@ -111,7 +134,11 @@ public partial class MainWindow : Window
             if (BtnWindowTools.IsMouseOver || WindowToolsPanel.IsMouseOver) return;
             SetWindowToolsOpen(false);
         };
-        _topmostGuardTimer.Tick += (_, _) => EnsureLauncherTopmost();
+        _topmostGuardTimer.Tick += (_, _) =>
+        {
+            if (_shelf?.IsShelved == true) return;
+            EnsureLauncherTopmost();
+        };
 
         // A ghosted window can't be clicked at all - not even its own un-ghost button - so
         // the only way back is this app-wide hotkey.
@@ -128,13 +155,21 @@ public partial class MainWindow : Window
             HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
             EnsureLauncherTopmost();
         };
-        Activated += (_, _) => EnsureLauncherTopmost();
-        Deactivated += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle,
-            new Action(EnsureLauncherTopmost));
+        Activated += (_, _) =>
+        {
+            if (_shelf?.IsShelved == true) return;
+            EnsureLauncherTopmost();
+        };
+        Deactivated += (_, _) =>
+        {
+            if (_shelf?.IsShelved == true) return;
+            Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(EnsureLauncherTopmost));
+        };
         Closed += (_, _) =>
         {
             _windowToolsCloseTimer.Stop();
             _topmostGuardTimer.Stop();
+            _shelf?.Clear();
             var hwnd = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(hwnd, HotkeyId);
             UnregisterHotKey(hwnd, LocateHotkeyId);
@@ -216,12 +251,15 @@ public partial class MainWindow : Window
 
     private void UnghostAll()
     {
+        // Ctrl+Alt+G also exits app-wide shelf (only way back once launcher is click-through).
+        _shelf?.Clear();
         foreach (var (window, header) in EnumerateWidgets())
         {
-            header.ClearShelf();
             WindowInterop.SetClickThrough(window, false);
             header.SetGhostVisual(false);
         }
+        WindowInterop.SetClickThrough(this, false);
+        UpdateGlobalWindowControls();
     }
 
     private IEnumerable<(Window Window, WidgetHeaderControls Header)> EnumerateWidgets()
@@ -565,23 +603,21 @@ public partial class MainWindow : Window
         var header = EnumerateWidgets().FirstOrDefault(w => w.Window == widget).Header;
         if (widget.IsVisible)
         {
-            // Drop a stranded taskbar button if the widget was shelved when hidden.
-            header?.ClearShelf();
             widget.Hide();
         }
         else
         {
+            // Opening any widget from the launcher also clears app-wide shelf so the dock
+            // and peers are not left click-through with only a taskbar exit.
+            _shelf?.Clear();
             RefreshWidget(widget);
             widget.Show();
             widget.Activate();
             Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle,
                 new Action(EnsureLauncherTopmost));
 
-            // Bringing a widget back from the launcher also un-ghosts / unshelves it, so a
-            // forgotten toggle can't leave a window permanently unclickable.
             if (header != null)
             {
-                header.ClearShelf();
                 WindowInterop.SetClickThrough(widget, false);
                 header.SetGhostVisual(false);
             }
@@ -817,18 +853,24 @@ public partial class MainWindow : Window
         var widgets = EnumerateVisibleWidgets().ToList();
         GlobalWindowCount.Text = $"{widgets.Count} đang mở";
         var hasWidgets = widgets.Count > 0;
-        GlobalPinBtn.IsEnabled = hasWidgets;
-        GlobalGhostBtn.IsEnabled = hasWidgets;
+        GlobalPinBtn.IsEnabled = hasWidgets && _shelf?.IsShelved != true;
+        GlobalGhostBtn.IsEnabled = hasWidgets && _shelf?.IsShelved != true;
         GlobalCloseBtn.IsEnabled = hasWidgets;
         GlobalOpacitySlider.IsEnabled = hasWidgets;
+        GlobalShelfBtn.IsEnabled = true;
 
         var muted = new SolidColorBrush(Color.FromRgb(0x77, 0x77, 0x8A));
         var allPinned = hasWidgets && widgets.All(item => item.Window.Topmost);
         var allGhosted = hasWidgets && widgets.All(item => WindowInterop.IsClickThrough(item.Window));
+        var shelved = _shelf?.IsShelved == true;
         GlobalPinBtn.Foreground = allPinned ? (Brush)FindResource("AccentBrush") : muted;
         GlobalGhostBtn.Foreground = allGhosted ? (Brush)FindResource("AccentBrush") : muted;
+        GlobalShelfBtn.Foreground = shelved ? (Brush)FindResource("AccentBrush") : new SolidColorBrush(Color.FromRgb(0xA8, 0xB4, 0xFF));
         GlobalPinBtn.ToolTip = allPinned ? "Bỏ ghim tất cả" : "Ghim tất cả";
         GlobalGhostBtn.ToolTip = allGhosted ? "Tắt ghost cho tất cả" : "Bật ghost cho tất cả";
+        GlobalShelfBtn.ToolTip = shelved
+            ? "Unshelf all (or click the Widgets taskbar icon / Ctrl+Alt+G)"
+            : "Shelf all: unpin + non-interactive + one taskbar icon";
 
         _updatingGlobalControls = true;
         try
@@ -856,6 +898,7 @@ public partial class MainWindow : Window
 
     private void EnsureLauncherTopmost()
     {
+        if (_shelf?.IsShelved == true) return;
         WindowInterop.EnsureTopmost(this);
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
         {
@@ -867,15 +910,23 @@ public partial class MainWindow : Window
 
     internal void EnsureLauncherTopmostForTests() => EnsureLauncherTopmost();
 
+    private void GlobalShelf_Click(object sender, RoutedEventArgs e)
+    {
+        // Close menus first — once shelved, the launcher is click-through.
+        SetWindowToolsOpen(false);
+        HideLauncher();
+        _shelf?.Toggle();
+        UpdateGlobalWindowControls();
+    }
+
     private void GlobalGhost_Click(object sender, RoutedEventArgs e)
     {
+        // Ghost is per-widget click-through without a taskbar exit; clear app shelf first.
+        _shelf?.Clear();
         var widgets = EnumerateVisibleWidgets().ToList();
         var ghost = widgets.Any(item => !WindowInterop.IsClickThrough(item.Window));
         foreach (var (window, header) in widgets)
         {
-            // Pure ghost has no taskbar exit; drop any shelf icon so Ctrl+Alt+G remains
-            // the only recovery path for this global toggle.
-            header.ClearShelf();
             WindowInterop.SetClickThrough(window, ghost);
             header.SetGhostVisual(ghost);
         }

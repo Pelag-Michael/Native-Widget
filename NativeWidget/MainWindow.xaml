@@ -107,7 +107,8 @@
                     <Border Background="{StaticResource ChipBg}" CornerRadius="11" Padding="5">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Button x:Name="GlobalPinBtn" Content="&#xE718;" FontFamily="Segoe MDL2 Assets"
                                     ToolTip="Pin / unpin all open widgets" Click="GlobalPin_Click"
@@ -115,7 +116,12 @@
                             <Button x:Name="GlobalGhostBtn" Grid.Column="1" Content="&#xE890;" FontFamily="Segoe MDL2 Assets"
                                     ToolTip="Ghost / unghost all (Ctrl+Alt+G unghosts)" Click="GlobalGhost_Click"
                                     Style="{StaticResource IconBtnStyle}" Width="34" Height="34"/>
-                            <Button x:Name="GlobalCloseBtn" Grid.Column="2" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                            <Button x:Name="GlobalShelfBtn" Grid.Column="2" Content="S" FontFamily="Segoe UI"
+                                    FontWeight="Bold" FontSize="13"
+                                    ToolTip="Shelf all: unpin + non-interactive + one taskbar icon (click icon to restore)"
+                                    Click="GlobalShelf_Click"
+                                    Style="{StaticResource IconBtnStyle}" Width="34" Height="34" Foreground="#A8B4FF"/>
+                            <Button x:Name="GlobalCloseBtn" Grid.Column="3" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
                                     ToolTip="Close all open widgets" Click="GlobalCloseAll_Click"
                                     Style="{StaticResource IconBtnStyle}" Width="34" Height="34" Foreground="#D46B68"/>
                         </Grid>

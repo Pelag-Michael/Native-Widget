@@ -116,33 +116,32 @@ internal static class UiRenderSmoke
         if (WindowInterop.IsClickThrough(restoredNotes))
             throw new InvalidOperationException("Global ghost could not restore the visible widget.");
 
-        // Shelf on the already-live restored Notes window (proxy owns the taskbar button).
-        var shelfWin = restoredNotes;
-        if (new WindowInteropHelper(shelfWin).Handle == IntPtr.Zero)
+        // App-wide shelf from Window Tools: launcher + all widgets, one taskbar proxy.
+        if (new WindowInteropHelper(restoredNotes).Handle == IntPtr.Zero)
             throw new InvalidOperationException("Notes HWND missing before shelf test.");
-        var shelfTitle = shelfWin.Title;
-        var shelfBtn = (Button)shelfWin.Header.FindName("ShelfBtn")
-            ?? throw new InvalidOperationException("ShelfBtn not found on Notes header.");
-        shelfBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        if (!WindowInterop.IsClickThrough(shelfWin) || !shelfWin.Header.IsShelved)
-            throw new InvalidOperationException(
-                $"Shelf did not enable click-through (clickThrough={WindowInterop.IsClickThrough(shelfWin)}, " +
-                $"shelved={shelfWin.Header.IsShelved}, hwnd={new WindowInteropHelper(shelfWin).Handle}).");
-        if (!shelfWin.IsLoaded)
-            throw new InvalidOperationException("Notes died immediately after shelf enable.");
+        var globalShelf = (Button)launcher.FindName("GlobalShelfBtn")
+            ?? throw new InvalidOperationException("GlobalShelfBtn missing from Window Tools.");
+        globalShelf.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        launcher.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Loaded);
+        if (!WindowInterop.IsClickThrough(restoredNotes) || !WindowInterop.IsClickThrough(launcher))
+            throw new InvalidOperationException("Global shelf did not click-through Notes + launcher.");
+        if (restoredNotes.Topmost || launcher.Topmost)
+            throw new InvalidOperationException("Global shelf did not unpin Notes + launcher.");
         var proxy = Application.Current.Windows.OfType<Window>()
-            .FirstOrDefault(w => !ReferenceEquals(w, shelfWin) && w.ShowInTaskbar && w.Title == shelfTitle);
+            .FirstOrDefault(w => w.ShowInTaskbar && w.Title == "Widgets");
         if (proxy == null)
-            throw new InvalidOperationException("Shelf did not create a taskbar proxy window.");
-        // Restore via ClearShelf (Ctrl+Alt+G / launcher path). Taskbar-icon click is the
-        // same RestoreFromShelf() used when the proxy raises Activated after arming.
-        shelfWin.Header.ClearShelf();
-        if (shelfWin.Header.IsShelved || WindowInterop.IsClickThrough(shelfWin))
-            throw new InvalidOperationException("ClearShelf did not fully restore the widget.");
-        if (proxy.IsVisible || proxy.ShowInTaskbar)
-            throw new InvalidOperationException("ClearShelf did not dismiss the taskbar proxy.");
-        if (!shelfWin.IsLoaded || !shelfWin.IsVisible)
-            throw new InvalidOperationException("ClearShelf destroyed Notes.");
+            throw new InvalidOperationException("Global shelf did not create the Widgets taskbar proxy.");
+        if (proxy.WindowStyle == WindowStyle.ToolWindow)
+            throw new InvalidOperationException("Taskbar proxy must not use ToolWindow (hides taskbar icon).");
+        // Ctrl+Alt+G / second shelf click path: clear via GlobalShelf again.
+        globalShelf.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        launcher.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Loaded);
+        if (WindowInterop.IsClickThrough(restoredNotes) || WindowInterop.IsClickThrough(launcher))
+            throw new InvalidOperationException("Global unshelf left click-through on.");
+        if (!restoredNotes.Topmost || !launcher.Topmost)
+            throw new InvalidOperationException("Global unshelf did not re-pin Notes + launcher.");
+        if (proxy.IsVisible && proxy.ShowInTaskbar)
+            throw new InvalidOperationException("Global unshelf did not dismiss the taskbar proxy.");
 
         var windowToolsPath = Path.Combine(root, "global-window-tools.png");
         Render((FrameworkElement)launcher.FindName("WindowToolsPanel"), windowToolsPath);

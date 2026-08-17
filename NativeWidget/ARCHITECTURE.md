@@ -81,13 +81,12 @@ Every widget window:
 - Calls `WindowInterop.HideFromAltTab(this)` in its constructor (sets `WS_EX_TOOLWINDOW`)
 - Has a pin button in its header calling `WindowInterop.TogglePin` — pinned (always-on-top)
   is the default; unpinning lets other windows cover it
-- Header also has **shelf**: click-through like ghost, plus a tiny opaque **taskbar proxy**
-  window (WPF `ShowInTaskbar` cannot be flipped on `AllowsTransparency` widgets without
-  destroying their HWND). Clicking the proxy’s taskbar icon restores interactivity and
-  closes the proxy (icon gone). Ghost and shelf both use `WS_EX_TRANSPARENT`; enabling one
-  converts the other. `Ctrl+Alt+G`, global unghost, and launcher reopen/hide all clear shelf.
-- Keeps local opacity, ghost, shelf, pin, and close controls even though the launcher also exposes
-  the same operations globally for every currently visible widget
+- **App-wide shelf** (Window Tools → **S**, not per-window): unpins and click-throughs the
+  **launcher and every visible widget**, then shows one opaque **taskbar proxy** titled
+  "Widgets" (transparent WPF windows cannot own a stable `ShowInTaskbar` button). Click the
+  taskbar icon, press `Ctrl+Alt+G`, toggle Shelf again, or open a widget from the launcher
+  to restore interactivity, re-pin, and drop the icon.
+- Keeps local opacity, ghost, pin, and close controls; shelf is **global only** (Window Tools)
 - Overrides `Closing` to `e.Cancel = true; Hide();` — the ✕ button hides, it never actually
   closes/disposes the window (so reopening from the launcher is instant, state intact)
 - Root `Border` uses `CornerRadius="18"` + `ClipToBounds="True"` consistently — don't let
@@ -97,9 +96,10 @@ Every widget window:
 `MainWindow` itself remains a fixed 52px circular drag handle. Hover opens a separate radial
 launcher popup, so adding icons never stretches the dock into a horizontal bar. The former
 one-click Close All radial action is now a window-tools action. Clicking it opens a compact
-secondary popup with global pin, ghost, opacity, and close-all controls. Operations enumerate
-visible widget windows through their `WidgetHeaderControls`, including Notes/Tasks pop-outs,
-but deliberately exclude the launcher, search, translation-result popup, and modal dialogs.
+secondary popup with global pin, ghost, **shelf**, opacity, and close-all controls. Operations
+enumerate visible widget windows through their `WidgetHeaderControls`, including Notes/Tasks
+pop-outs, but deliberately exclude the launcher, search, translation-result popup, and modal
+dialogs — except **shelf**, which also targets the launcher itself.
 Mixed pin/ghost state converges to enabled on the first click; opacity shows an approximate
 average until the slider is moved, then applies one value to all visible widgets.
 Window Tools is the only radial action that opens its secondary panel on hover. Leaving both

@@ -73,6 +73,17 @@ public static class WindowInterop
         return (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TRANSPARENT) != 0;
     }
 
+    /// Force a normal taskbar button: APPWINDOW on, TOOLWINDOW off. Call after the HWND
+    /// exists (SourceInitialized / Show). WindowStyle=ToolWindow alone will hide the button.
+    public static void ForceTaskbarButton(Window window)
+    {
+        window.ShowInTaskbar = true;
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        var style = GetWindowLong(hwnd, GWL_EXSTYLE);
+        SetWindowLong(hwnd, GWL_EXSTYLE, (style | WS_EX_APPWINDOW) & ~WS_EX_TOOLWINDOW);
+    }
+
     /// Reasserts the window at the front of the topmost band without stealing keyboard
     /// focus. Setting WPF Topmost=true alone does not reorder it above another topmost
     /// window that was activated later.
