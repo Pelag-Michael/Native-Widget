@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="NativeWidget.CalendarNetworkTests" />
+    <InternalsVisibleTo Include="NativeWidget.RoundTripTests" />
   </ItemGroup>
 
 </Project>

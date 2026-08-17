@@ -1,7 +1,11 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Interop;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using NativeWidget;
@@ -70,7 +74,32 @@ internal static class UiRenderSmoke
             Math.Abs(restoredNotes.Height - 530) > 1)
             throw new InvalidOperationException("Startup did not restore the saved Notes window bounds.");
 
-        launcher.SetWindowToolsOpen(true);
+        var topmostChallenger = new Window
+        {
+            Width = 80, Height = 80, Left = launcher.Left + 70, Top = launcher.Top,
+            Topmost = true, ShowInTaskbar = false, WindowStyle = WindowStyle.None,
+        };
+        topmostChallenger.Show();
+        topmostChallenger.Activate();
+        launcher.EnsureLauncherTopmostForTests();
+        var launcherHandle = (PresentationSource.FromVisual(launcher) as HwndSource)?.Handle ?? IntPtr.Zero;
+        var challengerHandle = (PresentationSource.FromVisual(topmostChallenger) as HwndSource)?.Handle ?? IntPtr.Zero;
+        if (!IsAbove(launcherHandle, challengerHandle))
+        {
+            var zOrder = TopLevelWindows();
+            throw new InvalidOperationException(
+                $"Launcher did not reclaim the front of the topmost z-order (launcherHandle={launcherHandle}, challengerHandle={challengerHandle}, launcher={zOrder.IndexOf(launcherHandle)}, challenger={zOrder.IndexOf(challengerHandle)}, windows={zOrder.Count}, launcherTopmost={launcher.Topmost}).");
+        }
+        launcher.SetWindowToolsOpen(false);
+        var windowToolsButton = (Button)launcher.FindName("BtnWindowTools");
+        windowToolsButton.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, Environment.TickCount)
+        {
+            RoutedEvent = Mouse.MouseEnterEvent,
+        });
+        var windowToolsPopup = (Popup)launcher.FindName("WindowToolsPopup");
+        if (!windowToolsPopup.IsOpen)
+            throw new InvalidOperationException("Hovering Window Tools did not open its panel.");
+        topmostChallenger.Close();
         restoredNotes.Topmost = false;
         var globalPin = (Button)launcher.FindName("GlobalPinBtn");
         globalPin.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -86,6 +115,35 @@ internal static class UiRenderSmoke
         globalGhost.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         if (WindowInterop.IsClickThrough(restoredNotes))
             throw new InvalidOperationException("Global ghost could not restore the visible widget.");
+
+        // Shelf on the already-live restored Notes window (proxy owns the taskbar button).
+        var shelfWin = restoredNotes;
+        if (new WindowInteropHelper(shelfWin).Handle == IntPtr.Zero)
+            throw new InvalidOperationException("Notes HWND missing before shelf test.");
+        var shelfTitle = shelfWin.Title;
+        var shelfBtn = (Button)shelfWin.Header.FindName("ShelfBtn")
+            ?? throw new InvalidOperationException("ShelfBtn not found on Notes header.");
+        shelfBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (!WindowInterop.IsClickThrough(shelfWin) || !shelfWin.Header.IsShelved)
+            throw new InvalidOperationException(
+                $"Shelf did not enable click-through (clickThrough={WindowInterop.IsClickThrough(shelfWin)}, " +
+                $"shelved={shelfWin.Header.IsShelved}, hwnd={new WindowInteropHelper(shelfWin).Handle}).");
+        if (!shelfWin.IsLoaded)
+            throw new InvalidOperationException("Notes died immediately after shelf enable.");
+        var proxy = Application.Current.Windows.OfType<Window>()
+            .FirstOrDefault(w => !ReferenceEquals(w, shelfWin) && w.ShowInTaskbar && w.Title == shelfTitle);
+        if (proxy == null)
+            throw new InvalidOperationException("Shelf did not create a taskbar proxy window.");
+        // Restore via ClearShelf (Ctrl+Alt+G / launcher path). Taskbar-icon click is the
+        // same RestoreFromShelf() used when the proxy raises Activated after arming.
+        shelfWin.Header.ClearShelf();
+        if (shelfWin.Header.IsShelved || WindowInterop.IsClickThrough(shelfWin))
+            throw new InvalidOperationException("ClearShelf did not fully restore the widget.");
+        if (proxy.IsVisible || proxy.ShowInTaskbar)
+            throw new InvalidOperationException("ClearShelf did not dismiss the taskbar proxy.");
+        if (!shelfWin.IsLoaded || !shelfWin.IsVisible)
+            throw new InvalidOperationException("ClearShelf destroyed Notes.");
+
         var windowToolsPath = Path.Combine(root, "global-window-tools.png");
         Render((FrameworkElement)launcher.FindName("WindowToolsPanel"), windowToolsPath);
         globalOpacity.Value = 1;
@@ -162,4 +220,30 @@ internal static class UiRenderSmoke
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
         encoder.Save(stream);
     }
+
+    private static bool IsAbove(IntPtr expectedUpper, IntPtr expectedLower)
+    {
+        var windows = TopLevelWindows();
+        var upperIndex = windows.IndexOf(expectedUpper);
+        var lowerIndex = windows.IndexOf(expectedLower);
+        return upperIndex >= 0 && lowerIndex >= 0 && upperIndex < lowerIndex;
+    }
+
+    private static int ZOrderIndex(IntPtr target) => TopLevelWindows().IndexOf(target);
+
+    private static List<IntPtr> TopLevelWindows()
+    {
+        var windows = new List<IntPtr>();
+        EnumWindows((hwnd, _) =>
+        {
+            windows.Add(hwnd);
+            return true;
+        }, IntPtr.Zero);
+        return windows;
+    }
+
+    private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
 }

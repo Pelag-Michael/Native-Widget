@@ -8,7 +8,8 @@ icon, launched from a small hover-expand dock.
 
 - **.NET 8 / WPF** (`net8.0-windows`), framework-dependent (not self-contained) — relies on
   the `Microsoft.WindowsDesktop.App 8.0` shared runtime already on the machine. Baseline RAM
-  ~100MB per running widget window.
+  ~100MB per running widget window. `ShutdownMode=OnMainWindowClose` so transient windows
+  (shelf taskbar proxy, dialogs) cannot shut the app down when they hide.
 - No third-party UI libs. No MVVM framework — plain code-behind, kept small on purpose.
 - OAuth (Google) implemented by hand (PKCE + loopback `HttpListener`), no Google SDK.
 - **UI language is English** (hard-coded chrome strings; no i18n framework). Default Translate
@@ -53,7 +54,7 @@ NativeWidget/
     TimerNotifier.cs          App-wide watcher that announces finished timers exactly once
     AutoStartService.cs       HKCU Run-key toggle for "start with Windows"
     WindowSessionService.cs   Debounced visibility/bounds persistence and safe startup restore
-    WindowInterop.cs          Win32 interop: hide from Alt-Tab, toggle always-on-top (pin)
+    WindowInterop.cs          Win32 interop: hide from Alt-Tab, pin, click-through, taskbar button
   icon.ico                Generated app icon (see "Icon" below)
 ```
 
@@ -80,7 +81,12 @@ Every widget window:
 - Calls `WindowInterop.HideFromAltTab(this)` in its constructor (sets `WS_EX_TOOLWINDOW`)
 - Has a pin button in its header calling `WindowInterop.TogglePin` — pinned (always-on-top)
   is the default; unpinning lets other windows cover it
-- Keeps local opacity, ghost, pin, and close controls even though the launcher also exposes
+- Header also has **shelf**: click-through like ghost, plus a tiny opaque **taskbar proxy**
+  window (WPF `ShowInTaskbar` cannot be flipped on `AllowsTransparency` widgets without
+  destroying their HWND). Clicking the proxy’s taskbar icon restores interactivity and
+  closes the proxy (icon gone). Ghost and shelf both use `WS_EX_TRANSPARENT`; enabling one
+  converts the other. `Ctrl+Alt+G`, global unghost, and launcher reopen/hide all clear shelf.
+- Keeps local opacity, ghost, shelf, pin, and close controls even though the launcher also exposes
   the same operations globally for every currently visible widget
 - Overrides `Closing` to `e.Cancel = true; Hide();` — the ✕ button hides, it never actually
   closes/disposes the window (so reopening from the launcher is instant, state intact)
@@ -96,6 +102,15 @@ visible widget windows through their `WidgetHeaderControls`, including Notes/Tas
 but deliberately exclude the launcher, search, translation-result popup, and modal dialogs.
 Mixed pin/ghost state converges to enabled on the first click; opacity shows an approximate
 average until the slider is moved, then applies one value to all visible widgets.
+Window Tools is the only radial action that opens its secondary panel on hover. Leaving both
+the button and panel starts a 240ms grace timer, allowing the pointer to cross the popup gap
+without flicker; clicking the icon simply keeps the same panel open.
+
+The launcher is kept at the front of the Win32 topmost band independently of widget pin state.
+`WindowInterop.EnsureTopmost` uses `SetWindowPos` with `SWP_NOACTIVATE`, and a 500ms launcher
+guard reasserts the z-order when an external topmost window appears without stealing focus.
+The radial menu, hover hint, and window-tools popup have separate HWNDs and are reasserted when
+open. The UI smoke test creates a later topmost challenger and verifies the launcher moves above it.
 
 Three global hotkeys (`RegisterHotKey`, all `Ctrl+Alt+<key>`, handled in `HotkeyHook` off
 `WM_HOTKEY`): `Ctrl+Alt+G` un-ghosts every widget (the only way back once one is
@@ -309,7 +324,16 @@ list (`_lastRenderedTasks`) instead of re-fetching from Google.
 
 Tasks can carry a **due date** (`GoogleTasksService.SetDueDateAsync`) shown as a day-count
 under the title ("Due in N days" / "Overdue by N days"). Google Tasks only stores a date, never a
-time of day, so the countdown is always in whole days.
+time of day, so the countdown is always in whole days. Active tasks due in three days or less
+(including today and overdue tasks) get a subtle red card/badge treatment and are promoted above
+non-urgent tasks. The badge font scales from the normal 10.5pt up to 13.5pt as the deadline
+approaches; overdue age is clamped to that maximum rather than growing without bound.
+
+`SortSelect` provides three display-only modes: **Deadline** (default, nearest date first),
+**Google** (API order), and **Name**. Google/Name mode still lifts the urgent group first. Sorting
+does not PATCH Google's task position. A parent block uses the earliest active due date among the
+parent and its immediate children, so an urgent collapsed subtask also promotes its parent block;
+completed tasks remain below the Completed divider.
 
 Clicking a task opens the same `ItemDetailsDialog` used by Calendar. Its description is the
 real Google Tasks `notes` field (not local metadata): it can be edited and patched back with

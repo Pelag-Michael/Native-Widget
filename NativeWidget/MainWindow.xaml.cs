@@ -18,6 +18,8 @@ public partial class MainWindow : Window
     // The dock itself is fixed at 52px; a round Popup holds the icon menu on hover.
     private readonly DispatcherTimer _launcherCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(220) };
     private readonly DispatcherTimer _hintHideTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
+    private readonly DispatcherTimer _windowToolsCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(240) };
+    private readonly DispatcherTimer _topmostGuardTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private bool _updatingGlobalControls;
     private bool _launcherClosing;
     private bool _draggingDock;
@@ -103,6 +105,13 @@ public partial class MainWindow : Window
             _hintOwner = null;
             CloseLauncherHintNow();
         };
+        _windowToolsCloseTimer.Tick += (_, _) =>
+        {
+            _windowToolsCloseTimer.Stop();
+            if (BtnWindowTools.IsMouseOver || WindowToolsPanel.IsMouseOver) return;
+            SetWindowToolsOpen(false);
+        };
+        _topmostGuardTimer.Tick += (_, _) => EnsureLauncherTopmost();
 
         // A ghosted window can't be clicked at all - not even its own un-ghost button - so
         // the only way back is this app-wide hotkey.
@@ -117,9 +126,15 @@ public partial class MainWindow : Window
             RegisterHotKey(hwnd, LocateHotkeyId, ModControl | ModAlt, VkF);
             RegisterHotKey(hwnd, SearchHotkeyId, ModControl | ModAlt, VkK);
             HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
+            EnsureLauncherTopmost();
         };
+        Activated += (_, _) => EnsureLauncherTopmost();
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle,
+            new Action(EnsureLauncherTopmost));
         Closed += (_, _) =>
         {
+            _windowToolsCloseTimer.Stop();
+            _topmostGuardTimer.Stop();
             var hwnd = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(hwnd, HotkeyId);
             UnregisterHotKey(hwnd, LocateHotkeyId);
@@ -138,7 +153,12 @@ public partial class MainWindow : Window
         }
         else
         {
-            Loaded += (_, _) => RestoreWindowSession();
+            Loaded += (_, _) =>
+            {
+                RestoreWindowSession();
+                EnsureLauncherTopmost();
+                _topmostGuardTimer.Start();
+            };
         }
     }
 
@@ -167,8 +187,7 @@ public partial class MainWindow : Window
     private async Task LocateAsync()
     {
         Activate();
-        Topmost = false;
-        Topmost = true;
+        EnsureLauncherTopmost();
 
         var glow = new DropShadowEffect
         {
@@ -199,6 +218,7 @@ public partial class MainWindow : Window
     {
         foreach (var (window, header) in EnumerateWidgets())
         {
+            header.ClearShelf();
             WindowInterop.SetClickThrough(window, false);
             header.SetGhostVisual(false);
         }
@@ -343,8 +363,17 @@ public partial class MainWindow : Window
         HideLauncherHint();
         _launcherCloseTimer.Start();
     }
-    private void WindowToolsPanel_MouseEnter(object sender, MouseEventArgs e) => _launcherCloseTimer.Stop();
-    private void WindowToolsPanel_MouseLeave(object sender, MouseEventArgs e) => _launcherCloseTimer.Start();
+    private void WindowToolsPanel_MouseEnter(object sender, MouseEventArgs e)
+    {
+        _launcherCloseTimer.Stop();
+        _windowToolsCloseTimer.Stop();
+    }
+
+    private void WindowToolsPanel_MouseLeave(object sender, MouseEventArgs e)
+    {
+        _windowToolsCloseTimer.Stop();
+        _windowToolsCloseTimer.Start();
+    }
 
     // Dock is 52px; radial chrome is 232px — open scale starts at dock/menu so growth
     // reads as the same control expanding, not a second panel popping in.
@@ -357,6 +386,7 @@ public partial class MainWindow : Window
         _launcherClosing = false;
         var wasOpen = LauncherPopup.IsOpen;
         LauncherPopup.IsOpen = true;
+        EnsureLauncherTopmost();
 
         // Hide the collapsed dock immediately so the hub inside the menu is the only button.
         RootBorder.Opacity = 0;
@@ -532,8 +562,11 @@ public partial class MainWindow : Window
 
         var widget = GetOrCreateWidget(tag);
 
+        var header = EnumerateWidgets().FirstOrDefault(w => w.Window == widget).Header;
         if (widget.IsVisible)
         {
+            // Drop a stranded taskbar button if the widget was shelved when hidden.
+            header?.ClearShelf();
             widget.Hide();
         }
         else
@@ -541,12 +574,14 @@ public partial class MainWindow : Window
             RefreshWidget(widget);
             widget.Show();
             widget.Activate();
+            Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle,
+                new Action(EnsureLauncherTopmost));
 
-            // Bringing a widget back from the launcher also un-ghosts it, so a forgotten
-            // ghost toggle can't leave a window permanently unclickable.
-            var header = EnumerateWidgets().FirstOrDefault(w => w.Window == widget).Header;
+            // Bringing a widget back from the launcher also un-ghosts / unshelves it, so a
+            // forgotten toggle can't leave a window permanently unclickable.
             if (header != null)
             {
+                header.ClearShelf();
                 WindowInterop.SetClickThrough(widget, false);
                 header.SetGhostVisual(false);
             }
@@ -738,7 +773,21 @@ public partial class MainWindow : Window
     private void WindowTools_Click(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
-        SetWindowToolsOpen(!WindowToolsPopup.IsOpen);
+        SetWindowToolsOpen(true);
+    }
+
+    private void WindowToolsButton_MouseEnter(object sender, MouseEventArgs e)
+    {
+        _launcherCloseTimer.Stop();
+        _windowToolsCloseTimer.Stop();
+        HideLauncherHint();
+        SetWindowToolsOpen(true);
+    }
+
+    private void WindowToolsButton_MouseLeave(object sender, MouseEventArgs e)
+    {
+        _windowToolsCloseTimer.Stop();
+        _windowToolsCloseTimer.Start();
     }
 
     public void SetWindowToolsOpen(bool open)
@@ -749,11 +798,16 @@ public partial class MainWindow : Window
             UpdateGlobalWindowControls();
         }
         WindowToolsPopup.IsOpen = open;
-        if (open) _launcherCloseTimer.Stop();
+        if (open)
+        {
+            _launcherCloseTimer.Stop();
+            _windowToolsCloseTimer.Stop();
+        }
     }
 
     private void WindowToolsPopup_Closed(object? sender, EventArgs e)
     {
+        _windowToolsCloseTimer.Stop();
         _launcherCloseTimer.Stop();
         _launcherCloseTimer.Start();
     }
@@ -797,7 +851,21 @@ public partial class MainWindow : Window
             header.SetPinVisual(pin);
         }
         UpdateGlobalWindowControls();
+        EnsureLauncherTopmost();
     }
+
+    private void EnsureLauncherTopmost()
+    {
+        WindowInterop.EnsureTopmost(this);
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            if (LauncherPopup.IsOpen) WindowInterop.EnsureTopmost(LauncherPopupContent);
+            if (LauncherHintPopup.IsOpen) WindowInterop.EnsureTopmost(LauncherHintChrome);
+            if (WindowToolsPopup.IsOpen) WindowInterop.EnsureTopmost(WindowToolsPanel);
+        }));
+    }
+
+    internal void EnsureLauncherTopmostForTests() => EnsureLauncherTopmost();
 
     private void GlobalGhost_Click(object sender, RoutedEventArgs e)
     {
@@ -805,6 +873,9 @@ public partial class MainWindow : Window
         var ghost = widgets.Any(item => !WindowInterop.IsClickThrough(item.Window));
         foreach (var (window, header) in widgets)
         {
+            // Pure ghost has no taskbar exit; drop any shelf icon so Ctrl+Alt+G remains
+            // the only recovery path for this global toggle.
+            header.ClearShelf();
             WindowInterop.SetClickThrough(window, ghost);
             header.SetGhostVisual(ghost);
         }

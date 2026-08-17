@@ -71,7 +71,8 @@
             <Grid Grid.Row="3" Margin="0,0,0,6">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="86"/>
+                    <ColumnDefinition Width="78"/>
+                    <ColumnDefinition Width="88"/>
                 </Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Margin="0,0,6,0">
                     <TextBox x:Name="SearchBox" Style="{StaticResource InputStyle}" Padding="8,5" TextChanged="SearchBox_TextChanged"/>
@@ -89,7 +90,13 @@
                         </TextBlock.Style>
                     </TextBlock>
                 </Grid>
-                <ComboBox x:Name="ProjectFilter" Grid.Column="1" Padding="8,5" ToolTip="Filter by project" SelectionChanged="ProjectFilter_Changed"/>
+                <ComboBox x:Name="ProjectFilter" Grid.Column="1" Padding="7,5" ToolTip="Filter by project" SelectionChanged="ProjectFilter_Changed"/>
+                <ComboBox x:Name="SortSelect" Grid.Column="2" Padding="7,5" Margin="5,0,0,0"
+                          ToolTip="Sort tasks" SelectedIndex="0" SelectionChanged="SortSelect_Changed">
+                    <ComboBoxItem Content="Deadline" ToolTip="Nearest deadlines first"/>
+                    <ComboBoxItem Content="Google" ToolTip="Google Tasks order, with urgent tasks lifted"/>
+                    <ComboBoxItem Content="Name" ToolTip="Alphabetical, with urgent tasks lifted"/>
+                </ComboBox>
             </Grid>
 
             <Grid Grid.Row="4">

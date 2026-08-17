@@ -57,7 +57,7 @@
                         <Button x:Name="BtnSettings" Content="&#xE713;" Click="ToggleWidget_Click" Tag="Settings" Style="{StaticResource TabIconStyle}" Width="38" Height="38"
                                 MouseEnter="LauncherAction_MouseEnter" MouseLeave="LauncherAction_MouseLeave"/>
                         <Button x:Name="BtnWindowTools" Content="&#xE7C4;" Click="WindowTools_Click" Style="{StaticResource TabIconStyle}" Width="38" Height="38"
-                                MouseEnter="LauncherAction_MouseEnter" MouseLeave="LauncherAction_MouseLeave"/>
+                                MouseEnter="WindowToolsButton_MouseEnter" MouseLeave="WindowToolsButton_MouseLeave"/>
                     </local:RadialPanel>
                     <!-- Continuity hub: same 52px dock look, replaces RootBorder while open. -->
                     <Border x:Name="LauncherHub" Width="52" Height="52" Background="{StaticResource PanelBg}" CornerRadius="26"

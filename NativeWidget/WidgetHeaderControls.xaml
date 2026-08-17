@@ -24,6 +24,10 @@
                 ToolTip="Ghost: click-through (Ctrl+Alt+G to disable)"
                 Style="{StaticResource IconBtnStyle}"/>
 
+        <Button x:Name="ShelfBtn" Content="&#xE8AE;" Click="ShelfBtn_Click"
+                ToolTip="Shelf: non-interactive + taskbar icon (click icon to restore)"
+                Style="{StaticResource IconBtnStyle}"/>
+
         <Button x:Name="PinBtn" Content="&#xE718;" Click="PinBtn_Click" ToolTip="Pin on top"
                 Style="{StaticResource IconBtnStyle}" Foreground="{StaticResource AccentBrush}"/>
 

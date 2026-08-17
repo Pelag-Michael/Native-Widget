@@ -29,6 +29,15 @@ public partial class TasksWindow : Window
     private List<GoogleTaskItem>? _lastRenderedTasks;
     private string _searchText = "";
 
+    private enum TaskSortMode { Deadline, GoogleOrder, Name }
+
+    private TaskSortMode CurrentSortMode => SortSelect.SelectedIndex switch
+    {
+        1 => TaskSortMode.GoogleOrder,
+        2 => TaskSortMode.Name,
+        _ => TaskSortMode.Deadline,
+    };
+
     // "" (index 0, "All projects") = no filter. Index-to-projectId map rebuilt whenever the
     // combo is repopulated, since Google Tasks IDs and local project GUIDs share no order.
     private readonly List<string?> _projectFilterIds = new();
@@ -200,6 +209,12 @@ public partial class TasksWindow : Window
             RenderTasks(_lastRenderedListId, _lastRenderedTasks);
     }
 
+    private void SortSelect_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_lastRenderedListId != null && _lastRenderedTasks != null)
+            RenderTasks(_lastRenderedListId, _lastRenderedTasks);
+    }
+
     private async void ListSelect_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressSelectionChanged) return;
@@ -310,6 +325,45 @@ public partial class TasksWindow : Window
         var childrenByParent = tasks.Where(t => t.ParentId != null)
             .GroupBy(t => t.ParentId!)
             .ToDictionary(g => g.Key, g => g.ToList());
+        var sourceOrder = allTasks.Select((task, index) => (task.Id, index))
+            .ToDictionary(item => item.Id, item => item.index);
+
+        DateTime? EarliestActiveDue(GoogleTaskItem task, bool includeChildren)
+        {
+            var dates = new List<DateTime>();
+            if (!task.Completed && task.Due != null) dates.Add(task.Due.Value.Date);
+            if (includeChildren && childrenByParent.TryGetValue(task.Id, out var childTasks))
+                dates.AddRange(childTasks.Where(child => !child.Completed && child.Due != null)
+                    .Select(child => child.Due!.Value.Date));
+            return dates.Count == 0 ? null : dates.Min();
+        }
+
+        bool IsUrgentBlock(GoogleTaskItem task, bool includeChildren)
+        {
+            var due = EarliestActiveDue(task, includeChildren);
+            return due != null && (due.Value - DateTime.Today).Days <= 3;
+        }
+
+        List<GoogleTaskItem> SortForDisplay(IEnumerable<GoogleTaskItem> source, bool includeChildren)
+        {
+            var items = source.ToList();
+            return CurrentSortMode switch
+            {
+                TaskSortMode.GoogleOrder => items
+                    .OrderBy(task => IsUrgentBlock(task, includeChildren) ? 0 : 1)
+                    .ThenBy(task => sourceOrder.GetValueOrDefault(task.Id, int.MaxValue))
+                    .ToList(),
+                TaskSortMode.Name => items
+                    .OrderBy(task => IsUrgentBlock(task, includeChildren) ? 0 : 1)
+                    .ThenBy(task => task.Title, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList(),
+                _ => items
+                    .OrderBy(task => EarliestActiveDue(task, includeChildren) == null ? 1 : 0)
+                    .ThenBy(task => EarliestActiveDue(task, includeChildren))
+                    .ThenBy(task => sourceOrder.GetValueOrDefault(task.Id, int.MaxValue))
+                    .ToList(),
+            };
+        }
 
         // A parent moves below the divider only when it is itself done - its subtasks travel
         // with it either way, so the nesting never gets split across the divider.
@@ -317,7 +371,10 @@ public partial class TasksWindow : Window
         {
             childrenByParent.TryGetValue(task.Id, out var kids);
             // Done subtasks sink within their own parent's block, same rule one level down.
-            kids = kids?.OrderBy(k => k.Completed).ToList();
+            kids = kids == null
+                ? null
+                : SortForDisplay(kids.Where(k => !k.Completed), includeChildren: false)
+                    .Concat(kids.Where(k => k.Completed)).ToList();
             // Collapsed by default the first time a parent is ever seen; after that the user's
             // own chevron clicks (tracked in _collapsedParents) are what decide.
             if (kids is { Count: > 0 } && _seenParents.Add(task.Id))
@@ -330,7 +387,7 @@ public partial class TasksWindow : Window
                     TasksList.Items.Add(BuildRow(listId, kid, indent: 22, children: null));
         }
 
-        foreach (var task in topLevel.Where(t => !t.Completed)) Emit(task);
+        foreach (var task in SortForDisplay(topLevel.Where(t => !t.Completed), includeChildren: true)) Emit(task);
 
         var done = topLevel.Where(t => t.Completed).ToList();
         if (done.Count > 0)
@@ -422,13 +479,33 @@ public partial class TasksWindow : Window
             await RefreshTasksAsync();
         };
 
-        var content = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) };
+        var daysUntilDue = task.Due == null || task.Completed
+            ? (int?)null
+            : (task.Due.Value.Date - DateTime.Today).Days;
+        var isUrgent = daysUntilDue <= 3;
+        if (isUrgent)
+        {
+            var warningBackground = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0x5D, 0x62)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0x6B, 0x70)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(-2, 0, -2, 0),
+                IsHitTestVisible = false,
+            };
+            Grid.SetColumnSpan(warningBackground, 4);
+            row.Children.Add(warningBackground);
+        }
+
+        var content = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 2, 0, 2) };
         content.Children.Add(new TextBlock
         {
             Text = task.Title,
             Foreground = task.Completed ? (Brush)FindResource("MutedBrush") : Brushes.White,
             TextDecorations = task.Completed ? TextDecorations.Strikethrough : null,
             FontSize = 12.5,
+            FontWeight = isUrgent ? FontWeights.SemiBold : FontWeights.Normal,
             TextWrapping = TextWrapping.Wrap,
         });
         if (!string.IsNullOrWhiteSpace(task.Description))
@@ -444,9 +521,9 @@ public partial class TasksWindow : Window
                 Margin = new Thickness(0, 2, 0, 0),
             });
         }
-        if (task.Due != null && !task.Completed)
+        if (daysUntilDue != null)
         {
-            var days = (task.Due.Value.Date - DateTime.Today).Days;
+            var days = daysUntilDue.Value;
             var (text, overdue) = days switch
             {
                 0 => ("Today", false),
@@ -455,12 +532,33 @@ public partial class TasksWindow : Window
                 -1 => ("Overdue by 1 day", true),
                 _ => ($"Overdue by {-days} days", true),
             };
-            content.Children.Add(new TextBlock
+            var urgencyFontSize = days switch
+            {
+                <= 0 => 13.5,
+                1 => 13.0,
+                2 => 12.2,
+                3 => 11.5,
+                _ => 10.5,
+            };
+            var dueText = new TextBlock
             {
                 Text = text,
-                FontSize = 10.5,
-                Foreground = overdue ? new SolidColorBrush(Color.FromRgb(0xE5, 0x60, 0x5A)) : (Brush)FindResource("MutedBrush"),
+                FontSize = urgencyFontSize,
+                FontWeight = isUrgent ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = isUrgent
+                    ? new SolidColorBrush(Color.FromRgb(0xFF, 0x78, 0x7C))
+                    : (Brush)FindResource("MutedBrush"),
+            };
+            content.Children.Add(new Border
+            {
+                Background = isUrgent
+                    ? new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0x5D, 0x62))
+                    : Brushes.Transparent,
+                CornerRadius = new CornerRadius(7),
+                Padding = isUrgent ? new Thickness(6, 2, 6, 2) : new Thickness(0),
                 Margin = new Thickness(0, 1, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = dueText,
             });
         }
 
