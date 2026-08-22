@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
@@ -95,6 +95,7 @@ internal static class Program
         TestBareDomainLinkify();
         TestVocabularyStorage();
         TestWindowSessionStorage();
+        TestNotionMalformedBlock();
 
         using var notionJson = JsonDocument.Parse("""
         [
@@ -107,13 +108,15 @@ internal static class Program
           {"id":"q","type":"quote","quote":{"rich_text":[{"plain_text":"quote","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
           {"id":"c","type":"code","code":{"rich_text":[{"plain_text":"code","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
           {"id":"i","type":"image","image":{"type":"external","external":{"url":"https://example.com/image.png"}}},
+          {"id":"i2","type":"image","image":{"file":{"url":"https://example.com/plain.png"}}},
           {"id":"f","type":"file","file":{"type":"external","external":{"url":"https://example.com/sample.pdf"},"name":"sample.pdf","caption":[{"plain_text":"📎 sample.pdf","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
           {"id":"u","type":"toggle","toggle":{"rich_text":[]}}
         ]
         """);
         var notionDocument = NotionMarkdownConverter.FromBlocks(notionJson.RootElement);
-        if (!notionDocument.HasUnsupportedBlocks || notionDocument.SupportedBlockIds.Count != 10 ||
-            !notionDocument.Markdown.Contains("2. number2", StringComparison.Ordinal))
+        if (!notionDocument.HasUnsupportedBlocks || notionDocument.SupportedBlockIds.Count != 11 ||
+            !notionDocument.Markdown.Contains("2. number2", StringComparison.Ordinal) ||
+            !notionDocument.Markdown.Contains("https://example.com/plain.png", StringComparison.Ordinal))
             throw new InvalidOperationException("Notion unsupported-block preservation metadata failed.");
         var notionRoundTripJson = JsonSerializer.Serialize(
             NotionMarkdownConverter.ToBlocks(notionDocument.Markdown));
@@ -332,6 +335,34 @@ internal static class Program
     private static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")]
     private static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+
+    /// A single block whose payload does not match the expected shape once aborted the whole
+    /// sync pass, leaving Notion sync permanently broken behind a repeating error dialog.
+    private static void TestNotionMalformedBlock()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "nativewidget-notion-block-test-" + Guid.NewGuid().ToString("N"));
+        Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
+        try
+        {
+            using var json = JsonDocument.Parse("""
+            [
+              {"id":"ok","type":"paragraph","paragraph":{"rich_text":[{"plain_text":"kept","href":null,"annotations":{"bold":false,"italic":false,"strikethrough":false}}]}},
+              {"id":"bad","type":"paragraph","paragraph":{}},
+              {"id":"noimage","type":"image","image":{"caption":[]}},
+              {"type":"paragraph","paragraph":{"rich_text":[]}}
+            ]
+            """);
+            var document = NotionMarkdownConverter.FromBlocks(json.RootElement);
+            if (!document.HasUnsupportedBlocks || !document.SupportedBlockIds.SequenceEqual(new[] { "ok" }) ||
+                document.Markdown != "kept")
+                throw new InvalidOperationException("Malformed Notion block was not isolated from the sync pass.");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", null);
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
 
     private static void TestVocabularyStorage()
     {
