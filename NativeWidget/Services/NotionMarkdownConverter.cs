@@ -1,3 +1,4 @@
+﻿using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -5,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using NativeWidget.Models;
 using FlowList = System.Windows.Documents.List;
 
 namespace NativeWidget.Services;
@@ -43,24 +45,39 @@ public static class NotionMarkdownConverter
 
         foreach (var block in blocks)
         {
-            var type = block.GetProperty("type").GetString() ?? "";
+            var type = block.TryGetProperty("type", out var typeValue) &&
+                       typeValue.ValueKind == JsonValueKind.String ? typeValue.GetString()! : "";
             numberedIndex = type == "numbered_list_item" ? numberedIndex + 1 : 0;
-            var id = block.GetProperty("id").GetString();
-            string? markdown = type switch
+            var id = block.TryGetProperty("id", out var idValue) &&
+                     idValue.ValueKind == JsonValueKind.String ? idValue.GetString() : null;
+            string? markdown;
+            try
             {
-                "paragraph" => RichTextMarkdown(block.GetProperty("paragraph").GetProperty("rich_text")),
-                "heading_1" => "# " + RichTextMarkdown(block.GetProperty("heading_1").GetProperty("rich_text")),
-                "heading_2" => "## " + RichTextMarkdown(block.GetProperty("heading_2").GetProperty("rich_text")),
-                "bulleted_list_item" => "- " + RichTextMarkdown(block.GetProperty("bulleted_list_item").GetProperty("rich_text")),
-                "numbered_list_item" => $"{numberedIndex}. " + RichTextMarkdown(block.GetProperty("numbered_list_item").GetProperty("rich_text")),
-                "to_do" => $"- [{(block.GetProperty("to_do").GetProperty("checked").GetBoolean() ? "x" : " ")}] " +
-                           RichTextMarkdown(block.GetProperty("to_do").GetProperty("rich_text")),
-                "quote" => "> " + RichTextMarkdown(block.GetProperty("quote").GetProperty("rich_text")),
-                "code" => "```\n" + RichTextMarkdown(block.GetProperty("code").GetProperty("rich_text")) + "\n```",
-                "image" => ImageMarkdown(block.GetProperty("image")),
-                "file" => FileMarkdown(block.GetProperty("file")),
-                _ => null,
-            };
+                markdown = type switch
+                {
+                    "paragraph" => RichTextMarkdown(block.GetProperty("paragraph").GetProperty("rich_text")),
+                    "heading_1" => "# " + RichTextMarkdown(block.GetProperty("heading_1").GetProperty("rich_text")),
+                    "heading_2" => "## " + RichTextMarkdown(block.GetProperty("heading_2").GetProperty("rich_text")),
+                    "bulleted_list_item" => "- " + RichTextMarkdown(block.GetProperty("bulleted_list_item").GetProperty("rich_text")),
+                    "numbered_list_item" => $"{numberedIndex}. " + RichTextMarkdown(block.GetProperty("numbered_list_item").GetProperty("rich_text")),
+                    "to_do" => $"- [{(block.GetProperty("to_do").GetProperty("checked").GetBoolean() ? "x" : " ")}] " +
+                               RichTextMarkdown(block.GetProperty("to_do").GetProperty("rich_text")),
+                    "quote" => "> " + RichTextMarkdown(block.GetProperty("quote").GetProperty("rich_text")),
+                    "code" => "```\n" + RichTextMarkdown(block.GetProperty("code").GetProperty("rich_text")) + "\n```",
+                    "image" => ImageMarkdown(block.GetProperty("image")),
+                    "file" => FileMarkdown(block.GetProperty("file")),
+                    _ => null,
+                };
+            }
+            catch (Exception ex)
+            {
+                // One block whose payload does not match the expected shape must not abort the
+                // whole sync pass. Reporting it as unsupported leaves the block untouched in
+                // Notion instead of archiving it, and records the payload so the shape can be
+                // added deliberately later.
+                LogUnexpectedBlock(block, ex);
+                markdown = null;
+            }
 
             if (markdown == null)
             {
@@ -276,20 +293,11 @@ public static class NotionMarkdownConverter
     }
 
     private static string? ImageMarkdown(JsonElement image)
-    {
-        var type = image.GetProperty("type").GetString();
-        if (type == null || !image.TryGetProperty(type, out var value) ||
-            !value.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String)
-            return null;
-        return $"![]({url.GetString()})";
-    }
+        => TryFileUrl(image, out var url) ? $"![]({url})" : null;
 
     private static string? FileMarkdown(JsonElement file)
     {
-        var type = file.GetProperty("type").GetString();
-        if (type == null || !file.TryGetProperty(type, out var value) ||
-            !value.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String)
-            return null;
+        if (!TryFileUrl(file, out var url)) return null;
         var caption = file.TryGetProperty("caption", out var captionValue)
             ? RichTextMarkdown(captionValue).Trim() : "";
         var name = file.TryGetProperty("name", out var nameValue) && nameValue.ValueKind == JsonValueKind.String
@@ -298,7 +306,43 @@ public static class NotionMarkdownConverter
         var label = caption.StartsWith(attachmentPrefix, StringComparison.Ordinal)
             ? caption[attachmentPrefix.Length..] : name;
         label = label.Replace(']', ')');
-        return $"[📎 {label}]({url.GetString()})";
+        return $"[📎 {label}]({url})";
+    }
+
+    private static readonly string[] FileValueKeys = { "file", "external", "file_upload" };
+
+    /// Notion nests a file url under a key named by the block's "type" discriminator. Some
+    /// API versions omit that discriminator, so fall back to probing the known payload keys
+    /// rather than failing the whole page.
+    private static bool TryFileUrl(JsonElement file, out string url)
+    {
+        url = "";
+        var value = default(JsonElement);
+        var found = file.TryGetProperty("type", out var type) &&
+                    type.ValueKind == JsonValueKind.String &&
+                    file.TryGetProperty(type.GetString()!, out value);
+        if (!found)
+            foreach (var key in FileValueKeys)
+                if (file.TryGetProperty(key, out value)) { found = true; break; }
+        if (!found || value.ValueKind != JsonValueKind.Object ||
+            !value.TryGetProperty("url", out var urlValue) ||
+            urlValue.ValueKind != JsonValueKind.String)
+            return false;
+        url = urlValue.GetString()!;
+        return true;
+    }
+
+    private static void LogUnexpectedBlock(JsonElement block, Exception error)
+    {
+        try
+        {
+            var raw = block.GetRawText();
+            if (raw.Length > 2000) raw = raw[..2000] + "...";
+            File.AppendAllText(AppConfig.TokenPath("settings-diag.log"),
+                $"{DateTime.Now:HH:mm:ss.fff} UNCONVERTIBLE NOTION BLOCK: {error.GetType().Name}: " +
+                $"{error.Message}{Environment.NewLine}{raw}{Environment.NewLine}");
+        }
+        catch { }
     }
 
     private static string Escape(string text) => text
