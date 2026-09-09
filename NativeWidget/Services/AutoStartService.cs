@@ -20,8 +20,7 @@ public static class AutoStartService
         if (enabled)
         {
             // Must be quoted: Windows splits the Run value on the first space when
-            // launching it, which silently breaks any install path containing spaces
-            // (this one lives under "Agent antigrav\desktop shit\...").
+            // launching it, which silently breaks install paths containing spaces.
             var path = Environment.ProcessPath ?? "";
             key.SetValue(ValueName, $"\"{path}\"");
         }
