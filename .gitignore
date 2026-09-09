@@ -1,8 +1,27 @@
 # --- Secrets: never commit ---
-# notion-sync-experiment/.env holds a live Notion integration token.
+# Local integration credentials and tokens must stay outside Git history.
 *.env
 .env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
 notion-sync-experiment/
+secrets/
+credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials*.json
+client_secret*.json
+service-account*.json
+service_account*.json
+google-token*.json
+auth-token*.json
+tokens*.json
 
 # --- Build output ---
 # app/ is the published, ready-to-run build (dotnet publish target). Ship it as a
