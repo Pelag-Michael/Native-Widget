@@ -9,6 +9,7 @@ using System.Windows.Documents;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using NativeWidget;
 using NativeWidget.Models;
 using NativeWidget.Services;
 
@@ -22,6 +23,11 @@ internal static class Program
             var targetDir = args.SkipWhile(a => a != "--render-assets").Skip(1).FirstOrDefault()
                 ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "docs", "assets"));
             UiRenderSmoke.RenderDocumentationAssets(targetDir);
+            return;
+        }
+        if (args.Contains("--time-budget-smoke", StringComparer.Ordinal))
+        {
+            TestTimeBudgetService();
             return;
         }
         if (args.Contains("--selection-harness", StringComparer.Ordinal))
@@ -470,5 +476,53 @@ internal static class Program
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
             throw new InvalidOperationException($"{label} failed. Expected {expected}, actual {actual}.");
+    }
+
+    private static void TestTimeBudgetService()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "nativewidget-time-budget-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", tempDir);
+
+        try
+        {
+            var initial = TimeBudgetsService.Load();
+            AssertEqual(0, initial.Items.Count, "Initial items count");
+
+            var budget = new TimeBudget
+            {
+                Title = "Work & Code",
+                TargetHours = 8.0,
+                LoggedSeconds = 3600.0,
+                CurrentWeekKey = TimeBudgetsService.GetCurrentWeekKey(),
+                IsRunning = false,
+            };
+            initial.Items.Add(budget);
+            initial.ActivePanel = "budgets";
+            TimeBudgetsService.Save(initial);
+
+            var reloaded = TimeBudgetsService.Load();
+            AssertEqual(1, reloaded.Items.Count, "Reloaded items count");
+            AssertEqual("Work & Code", reloaded.Items[0].Title, "Reloaded budget title");
+            AssertEqual(8.0, reloaded.Items[0].TargetHours, "Reloaded target hours");
+            AssertEqual(3600.0, reloaded.Items[0].LoggedSeconds, "Reloaded logged seconds");
+            AssertEqual("1h 00m", reloaded.Items[0].FormattedLoggedTime, "Formatted logged time");
+            AssertEqual("8h", reloaded.Items[0].FormattedTargetTime, "Formatted target time");
+            AssertEqual(12, reloaded.Items[0].ProgressPercent, "Progress percent");
+            AssertEqual("budgets", reloaded.ActivePanel, "Active panel");
+
+            var app = Application.Current as App ?? new App();
+            app.InitializeComponent();
+            var window = new FocusWindow();
+            window.Show();
+            window.Close();
+
+            Console.WriteLine("PASS TimeBudgetsService round-trip, calculations, and FocusWindow instantiation");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", null);
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
     }
 }

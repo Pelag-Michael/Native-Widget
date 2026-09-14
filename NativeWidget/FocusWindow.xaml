@@ -2,56 +2,130 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NativeWidget"
-        Title="Focus session" Width="300" Height="260"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Focus &amp; Targets" Width="320" Height="380" MinWidth="280" MinHeight="260"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
         Left="410" Top="480" Closing="Window_Closing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
     <Border Background="{StaticResource PanelBg}" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="14" ClipToBounds="True">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,4">
+            <!-- Row 0: Header -->
+            <Grid Grid.Row="0" MouseLeftButtonDown="DragBar_MouseDown" Cursor="SizeAll" Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="&#xE121;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="White" Margin="0,0,8,0"/>
-                    <TextBlock Text="Focus session" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock Text="Focus &amp; Targets" Foreground="White" FontSize="13" FontWeight="SemiBold"/>
                 </StackPanel>
                 <local:WidgetHeaderControls x:Name="HeaderControls" Grid.Column="1"/>
             </Grid>
 
-            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock x:Name="TitleText" Text="Let's focus" Foreground="White" FontSize="24" FontWeight="Bold"
-                           HorizontalAlignment="Center" Margin="0,0,0,12"/>
-
-                <Grid x:Name="PickerRow" HorizontalAlignment="Center" Margin="0,0,0,10">
+            <!-- Row 1: Mode Switcher -->
+            <Border Grid.Row="1" Background="{StaticResource ChipBg}" CornerRadius="10" Padding="3" Margin="0,0,0,10">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="TabTimerBtn" Content="Focus Timer" Click="TabTimer_Click"
+                            Padding="8,5" FontWeight="SemiBold" FontSize="11.5"
+                            Background="{StaticResource AccentBrush}" Foreground="White"
+                            BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                    <Button x:Name="TabBudgetsBtn" Grid.Column="1" Content="Time Budgets" Click="TabBudgets_Click"
+                            Padding="8,5" FontWeight="SemiBold" FontSize="11.5"
+                            Background="Transparent" Foreground="{StaticResource MutedBrush}"
+                            BorderThickness="0" Cursor="Hand">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="8"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Row 2: Panels Content -->
+            <!-- Panel 1: Focus Session (Pomodoro) -->
+            <Grid x:Name="TimerPanel" Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="TitleText" Text="Let's focus" Foreground="White" FontSize="22" FontWeight="Bold"
+                               HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                    <Grid x:Name="PickerRow" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Background="{StaticResource ChipBg}" CornerRadius="10" Padding="16,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox x:Name="MinutesInput" Text="25" Width="52" Background="Transparent" Foreground="White"
+                                         BorderThickness="0" FontSize="14" TextAlignment="Right" CaretBrush="White"
+                                         MaxLength="5" PreviewTextInput="MinutesInput_PreviewTextInput"
+                                         LostFocus="MinutesInput_LostFocus" KeyDown="MinutesInput_KeyDown"/>
+                                <TextBlock x:Name="MinutesSuffix" Text=" mins" Foreground="White" FontSize="14"/>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                            <Button Content="&#xE70E;" FontFamily="Segoe MDL2 Assets" Click="MinutesUp_Click" Style="{StaticResource IconBtnStyle}" Height="18" FontSize="8"/>
+                            <Button Content="&#xE70D;" FontFamily="Segoe MDL2 Assets" Click="MinutesDown_Click" Style="{StaticResource IconBtnStyle}" Height="18" FontSize="8"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Button x:Name="PlayBtn" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Click="PlayBtn_Click" Style="{StaticResource PrimaryBtnStyle}"
+                            Width="140" Height="40" FontSize="16"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Panel 2: Time Budgets (Goals) -->
+            <Grid x:Name="BudgetsPanel" Grid.Row="2" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Budgets Header: Week info & Add Button -->
+                <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Border Background="{StaticResource ChipBg}" CornerRadius="10" Padding="16,10">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBox x:Name="MinutesInput" Text="25" Width="44" Background="Transparent" Foreground="White"
-                                     BorderThickness="0" FontSize="14" TextAlignment="Right" CaretBrush="White"
-                                     MaxLength="5" PreviewTextInput="MinutesInput_PreviewTextInput"
-                                     LostFocus="MinutesInput_LostFocus" KeyDown="MinutesInput_KeyDown"/>
-                            <TextBlock x:Name="MinutesSuffix" Text=" mins" Foreground="White" FontSize="14"/>
-                        </StackPanel>
-                    </Border>
-                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                        <Button Content="&#xE70E;" FontFamily="Segoe MDL2 Assets" Click="MinutesUp_Click" Style="{StaticResource IconBtnStyle}" Height="18" FontSize="8"/>
-                        <Button Content="&#xE70D;" FontFamily="Segoe MDL2 Assets" Click="MinutesDown_Click" Style="{StaticResource IconBtnStyle}" Height="18" FontSize="8"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="WEEKLY TARGETS" Foreground="#7FA8FF" FontSize="10.5" FontWeight="Bold"/>
+                        <TextBlock x:Name="WeekLabelText" Text="Week" Foreground="{StaticResource MutedBrush}" FontSize="9.5" Margin="0,1,0,0"/>
                     </StackPanel>
+                    <Button Grid.Column="1" Content="&#xE710;" ToolTip="Add new time budget" Click="AddBudget_Click"
+                            Style="{StaticResource IconBtnStyle}" Foreground="White"/>
                 </Grid>
 
-                <Button x:Name="PlayBtn" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Click="PlayBtn_Click" Style="{StaticResource PrimaryBtnStyle}"
-                        Width="140" Height="42" FontSize="16"/>
-            </StackPanel>
+                <!-- Budgets List -->
+                <Grid Grid.Row="1">
+                    <TextBlock x:Name="EmptyBudgetsHint" Text="No time budgets yet.&#x0a;Click + to set a weekly goal (e.g. 8h/week)."
+                               Foreground="{StaticResource MutedBrush}" FontSize="11.5" TextAlignment="Center"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
+                               Visibility="Collapsed"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel x:Name="BudgetsItemsPanel"/>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
         </Grid>
     </Border>
 </Window>
