@@ -493,8 +493,10 @@ internal static class Program
             {
                 Title = "Work & Code",
                 TargetHours = 8.0,
+                PeriodDays = 7,
+                Repeat = true,
+                CycleStartDate = DateTime.Today,
                 LoggedSeconds = 3600.0,
-                CurrentWeekKey = TimeBudgetsService.GetCurrentWeekKey(),
                 IsRunning = false,
             };
             initial.Items.Add(budget);
@@ -505,10 +507,13 @@ internal static class Program
             AssertEqual(1, reloaded.Items.Count, "Reloaded items count");
             AssertEqual("Work & Code", reloaded.Items[0].Title, "Reloaded budget title");
             AssertEqual(8.0, reloaded.Items[0].TargetHours, "Reloaded target hours");
+            AssertEqual(7, reloaded.Items[0].PeriodDays, "Reloaded period days");
+            AssertEqual(true, reloaded.Items[0].Repeat, "Reloaded repeat");
             AssertEqual(3600.0, reloaded.Items[0].LoggedSeconds, "Reloaded logged seconds");
             AssertEqual("1h 00m", reloaded.Items[0].FormattedLoggedTime, "Formatted logged time");
             AssertEqual("8h", reloaded.Items[0].FormattedTargetTime, "Formatted target time");
             AssertEqual(12, reloaded.Items[0].ProgressPercent, "Progress percent");
+            AssertEqual(true, reloaded.Items[0].FormattedPeriodDescription.Contains("7d cycle ↻"), "Formatted period description");
             AssertEqual("budgets", reloaded.ActivePanel, "Active panel");
 
             var app = Application.Current as App ?? new App();

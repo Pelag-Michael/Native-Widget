@@ -48,7 +48,7 @@
                             </Style>
                         </Button.Resources>
                     </Button>
-                    <Button x:Name="TabBudgetsBtn" Grid.Column="1" Content="Time Budgets" Click="TabBudgets_Click"
+                    <Button x:Name="TabBudgetsBtn" Grid.Column="1" Content="Time Targets" Click="TabBudgets_Click"
                             Padding="8,5" FontWeight="SemiBold" FontSize="11.5"
                             Background="Transparent" Foreground="{StaticResource MutedBrush}"
                             BorderThickness="0" Cursor="Hand">
@@ -93,30 +93,30 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Panel 2: Time Budgets (Goals) -->
+            <!-- Panel 2: Time Targets (Goals) -->
             <Grid x:Name="BudgetsPanel" Grid.Row="2" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Budgets Header: Week info & Add Button -->
+                <!-- Budgets Header: Targets info & Add Button -->
                 <Grid Grid.Row="0" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="WEEKLY TARGETS" Foreground="#7FA8FF" FontSize="10.5" FontWeight="Bold"/>
-                        <TextBlock x:Name="WeekLabelText" Text="Week" Foreground="{StaticResource MutedBrush}" FontSize="9.5" Margin="0,1,0,0"/>
+                        <TextBlock Text="TIME TARGETS" Foreground="#7FA8FF" FontSize="10.5" FontWeight="Bold"/>
+                        <TextBlock x:Name="SummaryLabelText" Text="Time targets" Foreground="{StaticResource MutedBrush}" FontSize="9.5" Margin="0,1,0,0"/>
                     </StackPanel>
-                    <Button Grid.Column="1" Content="&#xE710;" ToolTip="Add new time budget" Click="AddBudget_Click"
+                    <Button Grid.Column="1" Content="&#xE710;" ToolTip="Add new time target" Click="AddBudget_Click"
                             Style="{StaticResource IconBtnStyle}" Foreground="White"/>
                 </Grid>
 
                 <!-- Budgets List -->
                 <Grid Grid.Row="1">
-                    <TextBlock x:Name="EmptyBudgetsHint" Text="No time budgets yet.&#x0a;Click + to set a weekly goal (e.g. 8h/week)."
+                    <TextBlock x:Name="EmptyBudgetsHint" Text="No time targets yet.&#x0a;Click + to set a target (e.g. 8h in 7 days)."
                                Foreground="{StaticResource MutedBrush}" FontSize="11.5" TextAlignment="Center"
                                HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
                                Visibility="Collapsed"/>

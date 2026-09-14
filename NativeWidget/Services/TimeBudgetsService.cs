@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using NativeWidget.Models;
@@ -14,22 +13,12 @@ public static class TimeBudgetsService
         WriteIndented = true,
     };
 
-    public static string GetCurrentWeekKey()
+    public static string GetSummaryText(TimeBudgetStore store)
     {
-        var now = DateTime.Now;
-        var year = ISOWeek.GetYear(now);
-        var week = ISOWeek.GetWeekOfYear(now);
-        return $"{year}-W{week:D2}";
-    }
-
-    public static string GetCurrentWeekLabel()
-    {
-        var now = DateTime.Today;
-        var diff = (7 + (now.DayOfWeek - DayOfWeek.Monday)) % 7;
-        var startOfWeek = now.AddDays(-1 * diff);
-        var endOfWeek = startOfWeek.AddDays(6);
-        var weekNum = ISOWeek.GetWeekOfYear(now);
-        return $"Week {weekNum} · {startOfWeek:MMM d} – {endOfWeek:MMM d}";
+        if (store.Items.Count == 0) return "No active targets";
+        var runningCount = store.Items.Count(i => i.IsRunning);
+        if (runningCount > 0) return $"{runningCount} running · {store.Items.Count} total targets";
+        return store.Items.Count == 1 ? "1 target" : $"{store.Items.Count} targets";
     }
 
     public static TimeBudgetStore Load()
@@ -52,20 +41,30 @@ public static class TimeBudgetsService
             store = new();
         }
 
-        var currentWeek = GetCurrentWeekKey();
+        var now = DateTime.Now;
         var modified = false;
 
         foreach (var item in store.Items)
         {
-            if (string.IsNullOrEmpty(item.CurrentWeekKey))
+            if (item.PeriodDays <= 0)
             {
-                item.CurrentWeekKey = currentWeek;
+                item.PeriodDays = 7;
                 modified = true;
             }
-            else if (item.CurrentWeekKey != currentWeek)
+
+            if (item.CycleStartDate == default)
             {
-                // Auto-reset elapsed time on new week
-                item.CurrentWeekKey = currentWeek;
+                item.CycleStartDate = DateTime.Today;
+                modified = true;
+            }
+
+            // Check if duration expired and repeat is on
+            if (item.Repeat && now >= item.CycleEndDate)
+            {
+                while (now >= item.CycleEndDate)
+                {
+                    item.CycleStartDate = item.CycleEndDate;
+                }
                 item.LoggedSeconds = 0;
                 item.IsRunning = false;
                 item.LastStartTimeUtc = null;
@@ -73,7 +72,7 @@ public static class TimeBudgetsService
             }
             else if (item.IsRunning && item.LastStartTimeUtc.HasValue)
             {
-                // Reconcile elapsed time while app was suspended/closed
+                // Reconcile elapsed seconds while app was closed or asleep
                 var elapsed = (DateTime.UtcNow - item.LastStartTimeUtc.Value).TotalSeconds;
                 if (elapsed > 0)
                 {

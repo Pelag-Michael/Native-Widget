@@ -35,7 +35,7 @@ public partial class FocusWindow : Window
         Loaded += (_, _) =>
         {
             _budgetStore = TimeBudgetsService.Load();
-            WeekLabelText.Text = TimeBudgetsService.GetCurrentWeekLabel();
+            SummaryLabelText.Text = TimeBudgetsService.GetSummaryText(_budgetStore);
             SwitchPanel(_budgetStore.ActivePanel == "budgets" ? "budgets" : "timer", saveState: false);
             RenderBudgets();
 
@@ -107,13 +107,14 @@ public partial class FocusWindow : Window
     }
 
     // ==========================================
-    // TIME BUDGETS (Weekly Targets)
+    // TIME TARGETS (Flexible Duration & Goals)
     // ==========================================
 
     private void RenderBudgets()
     {
         BudgetsItemsPanel.Children.Clear();
         _budgetCardViews.Clear();
+        SummaryLabelText.Text = TimeBudgetsService.GetSummaryText(_budgetStore);
 
         if (_budgetStore.Items.Count == 0)
         {
@@ -146,7 +147,7 @@ public partial class FocusWindow : Window
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // Row 0: Play/Pause, Title, Time text, More menu
+            // Row 0: Play/Pause, Title + Period badge, Time text, More menu
             var topGrid = new Grid();
             topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -164,25 +165,38 @@ public partial class FocusWindow : Window
                 FontSize = 11,
                 Foreground = budget.IsRunning ? successBrush : new SolidColorBrush(Color.FromRgb(0xA8, 0xB4, 0xFF)),
                 Margin = new Thickness(0, 0, 8, 0),
-                ToolTip = budget.IsRunning ? "Pause timer" : "Start tracking",
+                ToolTip = budget.IsRunning ? "Pause tracking" : "Start tracking",
             };
             var capturedBudget = budget;
             playBtn.Click += (_, _) => ToggleBudgetRunning(capturedBudget);
             Grid.SetColumn(playBtn, 0);
             topGrid.Children.Add(playBtn);
 
-            // Title
+            // Title and duration subtitle
+            var titleStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0),
+            };
             var titleText = new TextBlock
             {
                 Text = budget.Title,
                 Foreground = Brushes.White,
                 FontSize = 12.5,
                 FontWeight = FontWeights.SemiBold,
-                VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             };
-            Grid.SetColumn(titleText, 1);
-            topGrid.Children.Add(titleText);
+            var badgeText = new TextBlock
+            {
+                Text = budget.FormattedPeriodDescription,
+                Foreground = mutedBrush,
+                FontSize = 9.5,
+                Margin = new Thickness(0, 1, 0, 0),
+            };
+            titleStack.Children.Add(titleText);
+            titleStack.Children.Add(badgeText);
+            Grid.SetColumn(titleStack, 1);
+            topGrid.Children.Add(titleStack);
 
             // Logged / Target time
             var timeText = new TextBlock
@@ -282,7 +296,7 @@ public partial class FocusWindow : Window
 
     private void AddBudget_Click(object sender, RoutedEventArgs e)
     {
-        var (success, title, hours) = TimeBudgetDialog.Show(this);
+        var (success, title, hours, periodDays, repeat) = TimeBudgetDialog.Show(this);
         if (!success) return;
 
         var budget = new TimeBudget
@@ -290,8 +304,10 @@ public partial class FocusWindow : Window
             Id = Guid.NewGuid().ToString("N"),
             Title = title,
             TargetHours = hours,
+            PeriodDays = periodDays,
+            Repeat = repeat,
+            CycleStartDate = DateTime.Today,
             LoggedSeconds = 0,
-            CurrentWeekKey = TimeBudgetsService.GetCurrentWeekKey(),
             IsRunning = false,
         };
 
@@ -304,22 +320,26 @@ public partial class FocusWindow : Window
     {
         var menu = new ContextMenu();
 
-        var editItem = new MenuItem { Header = "Edit budget..." };
+        var editItem = new MenuItem { Header = "Edit target..." };
         editItem.Click += (_, _) =>
         {
-            var (success, title, hours) = TimeBudgetDialog.Show(this, budget.Title, budget.TargetHours);
+            var (success, title, hours, periodDays, repeat) = TimeBudgetDialog.Show(
+                this, budget.Title, budget.TargetHours, budget.PeriodDays, budget.Repeat);
             if (!success) return;
             budget.Title = title;
             budget.TargetHours = hours;
+            budget.PeriodDays = periodDays;
+            budget.Repeat = repeat;
             TimeBudgetsService.Save(_budgetStore);
             RenderBudgets();
         };
         menu.Items.Add(editItem);
 
-        var resetItem = new MenuItem { Header = "Reset this week" };
+        var resetItem = new MenuItem { Header = "Reset current cycle" };
         resetItem.Click += (_, _) =>
         {
             budget.LoggedSeconds = 0;
+            budget.CycleStartDate = DateTime.Today;
             budget.IsRunning = false;
             budget.LastStartTimeUtc = null;
             TimeBudgetsService.Save(_budgetStore);
@@ -333,8 +353,8 @@ public partial class FocusWindow : Window
         deleteItem.Click += (_, _) =>
         {
             var confirm = MessageBox.Show(
-                $"Delete time budget \"{budget.Title}\"?",
-                "Delete budget", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                $"Delete time target \"{budget.Title}\"?",
+                "Delete target", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (confirm != MessageBoxResult.Yes) return;
 
             _budgetStore.Items.Remove(budget);
