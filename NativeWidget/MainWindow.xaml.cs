@@ -851,7 +851,7 @@ public partial class MainWindow : Window
     private void UpdateGlobalWindowControls()
     {
         var widgets = EnumerateVisibleWidgets().ToList();
-        GlobalWindowCount.Text = $"{widgets.Count} đang mở";
+        GlobalWindowCount.Text = widgets.Count == 1 ? "1 open" : $"{widgets.Count} open";
         var hasWidgets = widgets.Count > 0;
         GlobalPinBtn.IsEnabled = hasWidgets && _shelf?.IsShelved != true;
         GlobalGhostBtn.IsEnabled = hasWidgets && _shelf?.IsShelved != true;
@@ -866,8 +866,8 @@ public partial class MainWindow : Window
         GlobalPinBtn.Foreground = allPinned ? (Brush)FindResource("AccentBrush") : muted;
         GlobalGhostBtn.Foreground = allGhosted ? (Brush)FindResource("AccentBrush") : muted;
         GlobalShelfBtn.Foreground = shelved ? (Brush)FindResource("AccentBrush") : new SolidColorBrush(Color.FromRgb(0xA8, 0xB4, 0xFF));
-        GlobalPinBtn.ToolTip = allPinned ? "Bỏ ghim tất cả" : "Ghim tất cả";
-        GlobalGhostBtn.ToolTip = allGhosted ? "Tắt ghost cho tất cả" : "Bật ghost cho tất cả";
+        GlobalPinBtn.ToolTip = allPinned ? "Unpin all" : "Pin all";
+        GlobalGhostBtn.ToolTip = allGhosted ? "Disable ghost for all" : "Enable ghost for all";
         GlobalShelfBtn.ToolTip = shelved
             ? "Unshelf all (or click the Widgets taskbar icon / Ctrl+Alt+G)"
             : "Shelf all: unpin + non-interactive + one taskbar icon";

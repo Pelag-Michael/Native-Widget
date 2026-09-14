@@ -22,6 +22,9 @@ service_account*.json
 google-token*.json
 auth-token*.json
 tokens*.json
+VoiceHub/
+AI-text-Humanization/
+CustomFontGeneratorWebsite/
 
 # --- Build output ---
 # app/ is the published, ready-to-run build (dotnet publish target). Ship it as a
@@ -51,6 +54,15 @@ config.js
 index.html
 style.css
 oauth-google.js
+package.json
+package-lock.json
+main.js
+preload.js
+renderer.js
+config.js
+index.html
+style.css
+oauth-google.js
 oauth-helper.js
 oauth-microsoft.js
 
@@ -59,3 +71,17 @@ run.log
 urls.txt
 *.log
 .claude/
+.agents/
+desktop-controller/
+clicky_all/
+CodexPro/
+LaptopStorageSession/
+VoiceAgent/
+WorkspaceCanvas/
+WorkspaceCanvas.Tests/
+ALLOW-NGROK.*
+START-CODEXPRO.*
+chatgpt-*.png
+grok-browser-mcp/
+resume-coach/
+docs/guides/

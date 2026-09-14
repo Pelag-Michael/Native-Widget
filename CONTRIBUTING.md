@@ -19,7 +19,8 @@ dotnet run --project NativeWidget.RoundTripTests/NativeWidget.RoundTripTests.csp
 ```
 
 Keep changes focused. Native Widget deliberately uses plain WPF and small services rather than
-adding a UI framework or broad dependency for a single feature. Update `ARCHITECTURE.md` when a
+adding a UI framework or broad dependency for a single feature. Update
+`NativeWidget/docs/ARCHITECTURE.md` when a
 change affects persistence, integrations, window behavior or troubleshooting.
 
 ## Pull requests

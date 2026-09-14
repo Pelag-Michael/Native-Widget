@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows.Automation;
@@ -17,6 +17,13 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Contains("--render-assets", StringComparer.Ordinal))
+        {
+            var targetDir = args.SkipWhile(a => a != "--render-assets").Skip(1).FirstOrDefault()
+                ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "docs", "assets"));
+            UiRenderSmoke.RenderDocumentationAssets(targetDir);
+            return;
+        }
         if (args.Contains("--selection-harness", StringComparer.Ordinal))
         {
             RunSelectionHarness();

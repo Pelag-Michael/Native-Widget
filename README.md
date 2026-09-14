@@ -85,7 +85,7 @@ open returns at its last position and size after Native Widget or Windows starts
 - Credentials are entered in the Settings widget; they are never committed to this repository.
 - Google and Notion integrations are optional. Local widgets work without an online account.
 - The translation provider currently uses an undocumented Google endpoint; see the
-  [architecture notes](NativeWidget/ARCHITECTURE.md#translate) before relying on it for sensitive text.
+  [architecture notes](NativeWidget/docs/ARCHITECTURE.md#translate) before relying on it for sensitive text.
 
 <details>
 <summary><strong>Google Calendar and Tasks setup</strong></summary>
@@ -128,7 +128,8 @@ Create the same release archives used by GitHub Releases:
 ```
 
 Architecture, storage formats and troubleshooting notes live in
-[`NativeWidget/ARCHITECTURE.md`](NativeWidget/ARCHITECTURE.md).
+[`NativeWidget/docs/ARCHITECTURE.md`](NativeWidget/docs/ARCHITECTURE.md). The
+workspace-wide documentation map is [`docs/README.md`](docs/README.md).
 
 ## Keyboard shortcuts
 

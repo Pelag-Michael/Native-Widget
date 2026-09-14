@@ -205,6 +205,94 @@ internal static class UiRenderSmoke
         }
     }
 
+    public static void RenderDocumentationAssets(string targetAssetsDir)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "nativewidget-assets-" + Guid.NewGuid().ToString("N"));
+        var notes = Path.Combine(root, "notes");
+        Directory.CreateDirectory(notes);
+        const string id = "feature-overview";
+        File.WriteAllText(Path.Combine(notes, id + ".md"), string.Join('\n',
+            "# Release Overview",
+            "## Native Widget v0.1.1",
+            "Lightweight always-on-top desktop dock for Windows.",
+            "- Fast WPF UI without browser overhead",
+            "- Google Calendar and Tasks integration",
+            "- Offline-first notes and persistent timers"));
+        File.WriteAllText(Path.Combine(notes, "index.json"), JsonSerializer.Serialize(
+            new List<NoteMeta>
+            {
+                new()
+                {
+                    Id = id,
+                    Title = "Release overview & feature roadmap",
+                    TitleIsCustom = true,
+                    Preview = "Lightweight always-on-top desktop dock for Windows\nFast WPF UI without browser overhead\nGoogle Calendar and Tasks integration",
+                },
+            }));
+
+        Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", root);
+        var config = new AppConfig
+        {
+            RestoreWindowSessionEnabled = false,
+            TranslationSourceLanguage = "auto",
+            TranslationTargetLanguage = "es",
+            TranslationSelectionTrackingEnabled = false
+        };
+        config.Save();
+
+        var savedTranslation = VocabularyService.Add(
+            new TranslationResult("Hello world", "Hola mundo", "en", "es"), "clipboard", "Clipboard");
+        VocabularyService.SetTags(savedTranslation.Id, new[] { "greeting", "daily" });
+
+        var app = new App();
+        app.InitializeComponent();
+
+        var window = new NotesWindow(config) { Width = 420, Height = 540 };
+        var translation = new TranslationWindow(config) { Width = 390, Height = 520 };
+        var resultPopup = new TranslationResultPopup(
+            new TranslationResult("engage", "engager", "en", "fr",
+                new[] { new TranslationMeaningGroup("verb", new[] { "occupy", "attract", "involve", "hire", "pledge" }) },
+                new[] { "they attempted to engage Anthony in conversation", "the teams needed to engage with local communities", "the clutch will not engage" }),
+            "selection", "Dictionary lookup");
+
+        try
+        {
+            Directory.CreateDirectory(targetAssetsDir);
+
+            // 1. notes.png
+            window.Show();
+            Render(window, Path.Combine(targetAssetsDir, "notes.png"));
+
+            // 2. translate-idle.png
+            translation.Show();
+            translation.SetVocabularyExpanded(false);
+            translation.SetPanelExpanded(false, animate: false);
+            Render(translation, Path.Combine(targetAssetsDir, "translate-idle.png"));
+
+            // 3. translate-workspace.png
+            translation.SetVocabularyExpanded(true);
+            translation.SetMetadataFiltersVisible(true);
+            translation.SetPanelExpanded(true, animate: false);
+            Render(translation, Path.Combine(targetAssetsDir, "translate-workspace.png"));
+
+            // 4. translate-dictionary.png
+            resultPopup.Owner = translation;
+            resultPopup.Show();
+            Render(resultPopup, Path.Combine(targetAssetsDir, "translate-dictionary.png"));
+
+            Console.WriteLine("ASSETS_RENDERED_SUCCESSFULLY=" + targetAssetsDir);
+        }
+        finally
+        {
+            resultPopup.Close();
+            translation.Close();
+            window.Close();
+            app.Shutdown();
+            Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", null);
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
     private static void Render(FrameworkElement window, string path)
     {
         window.UpdateLayout();
