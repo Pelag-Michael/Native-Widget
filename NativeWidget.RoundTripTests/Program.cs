@@ -18,6 +18,21 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Contains("--folder-search-checks", StringComparer.Ordinal))
+        {
+            FolderSearchChecks.RunAsync().GetAwaiter().GetResult();
+            return;
+        }
+        if (args.Contains("--render-folder-search", StringComparer.Ordinal))
+        {
+            FolderSearchChecks.Render(args.SkipWhile(a => a != "--render-folder-search").Skip(1).First());
+            return;
+        }
+        if (args.Contains("--sync-safety-checks", StringComparer.Ordinal))
+        {
+            SyncSafetyChecks.RunAsync().GetAwaiter().GetResult();
+            return;
+        }
         if (args.Contains("--render-assets", StringComparer.Ordinal))
         {
             var targetDir = args.SkipWhile(a => a != "--render-assets").Skip(1).FirstOrDefault()

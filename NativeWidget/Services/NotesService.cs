@@ -37,6 +37,7 @@ public class NoteMeta
 
 public static class NotesService
 {
+    private static readonly object StorageGate = new();
     private static string NotesFolder => AppConfig.TokenPath("notes");
     private static string IndexPath => Path.Combine(NotesFolder, "index.json");
     private static string MarkdownPath(string id) => Path.Combine(NotesFolder, $"{id}.md");
@@ -44,121 +45,141 @@ public static class NotesService
 
     public static List<NoteMeta> LoadIndex()
     {
-        EnsureMigrated();
-        try
+        lock (StorageGate)
         {
-            return JsonSerializer.Deserialize<List<NoteMeta>>(File.ReadAllText(IndexPath)) ?? new();
-        }
-        catch
-        {
-            return new();
+            EnsureMigrated();
+            // A read failure must never be interpreted as an empty notebook: the next
+            // save would otherwise replace the index and make existing files disappear.
+            return JsonSerializer.Deserialize<List<NoteMeta>>(File.ReadAllText(IndexPath))
+                ?? throw new InvalidDataException("The notes index is invalid. Restore index.json.bak or a backup before saving.");
         }
     }
 
     private static void SaveIndex(List<NoteMeta> index)
     {
         Directory.CreateDirectory(NotesFolder);
-        File.WriteAllText(IndexPath, JsonSerializer.Serialize(index));
+        AtomicFile.WriteText(IndexPath, JsonSerializer.Serialize(index));
     }
 
     public static FlowDocument LoadNote(string id)
     {
-        EnsureMigrated();
-        try
+        lock (StorageGate)
         {
+            EnsureMigrated();
             if (File.Exists(MarkdownPath(id)))
                 return FlowDocumentMarkdownConverter.FromMarkdown(File.ReadAllText(MarkdownPath(id)));
 
             using var stream = File.OpenRead(LegacyXamlPath(id));
-            if (XamlReader.Load(stream) is FlowDocument legacy) return legacy;
+            return XamlReader.Load(stream) as FlowDocument
+                ?? throw new InvalidDataException("The note could not be read. Its existing file was preserved.");
         }
-        catch { }
-        return new FlowDocument(new Paragraph());
     }
 
     public static string CreateNote()
     {
-        var id = Guid.NewGuid().ToString("N");
-        var index = LoadIndex();
-        index.Insert(0, new NoteMeta { Id = id, Title = "New note", Preview = "", UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
-        SaveIndex(index);
-        SaveNote(id, new FlowDocument(new Paragraph()));
-        return id;
+        lock (StorageGate)
+        {
+            var id = Guid.NewGuid().ToString("N");
+            var index = LoadIndex();
+            index.Insert(0, new NoteMeta { Id = id, Title = "New note", Preview = "", UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds() });
+            SaveIndex(index);
+            SaveNote(id, new FlowDocument(new Paragraph()));
+            return id;
+        }
     }
 
     public static void SaveNote(string id, FlowDocument doc)
     {
-        Directory.CreateDirectory(NotesFolder);
-        File.WriteAllText(MarkdownPath(id), FlowDocumentMarkdownConverter.ToMarkdown(doc));
-
-        var plain = new TextRange(doc.ContentStart, doc.ContentEnd).Text.Trim();
-        var firstLine = plain.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-        var title = firstLine.Length > 40 ? firstLine[..40] + "…" : firstLine;
-        if (string.IsNullOrWhiteSpace(title)) title = "Empty note";
-        var preview = plain.Length > 80 ? plain[..80] : plain;
-
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null)
+        lock (StorageGate)
         {
-            meta = new NoteMeta { Id = id };
-            index.Insert(0, meta);
+            var index = LoadIndex();
+            Directory.CreateDirectory(NotesFolder);
+            AtomicFile.WriteText(MarkdownPath(id), FlowDocumentMarkdownConverter.ToMarkdown(doc));
+
+            var plain = new TextRange(doc.ContentStart, doc.ContentEnd).Text.Trim();
+            var firstLine = plain.Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+            var title = firstLine.Length > 40 ? firstLine[..40] + "…" : firstLine;
+            if (string.IsNullOrWhiteSpace(title)) title = "Empty note";
+            var preview = plain.Length > 80 ? plain[..80] : plain;
+
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null)
+            {
+                meta = new NoteMeta { Id = id };
+                index.Insert(0, meta);
+            }
+            if (!meta.TitleIsCustom) meta.Title = title;
+            meta.Preview = preview;
+            meta.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
         }
-        if (!meta.TitleIsCustom) meta.Title = title;
-        meta.Preview = preview;
-        meta.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
     }
 
     public static string GetPlainText(string id)
     {
-        var doc = LoadNote(id);
-        return new TextRange(doc.ContentStart, doc.ContentEnd).Text.TrimEnd();
+        lock (StorageGate)
+        {
+            var doc = LoadNote(id);
+            return new TextRange(doc.ContentStart, doc.ContentEnd).Text.TrimEnd();
+        }
     }
 
     public static string GetMarkdown(string id)
     {
-        EnsureMigrated();
-        try { return File.ReadAllText(MarkdownPath(id)); }
-        catch { return FlowDocumentMarkdownConverter.ToMarkdown(LoadNote(id)); }
+        lock (StorageGate)
+        {
+            EnsureMigrated();
+            if (File.Exists(MarkdownPath(id))) return File.ReadAllText(MarkdownPath(id));
+            if (!File.Exists(LegacyXamlPath(id)))
+                throw new FileNotFoundException("The note body is missing; sync was stopped to preserve its Notion copy.", MarkdownPath(id));
+            return FlowDocumentMarkdownConverter.ToMarkdown(LoadNote(id));
+        }
     }
 
     /// Used by NotionSyncService to pull a change made on the Notion side. Unlike SaveNote,
     /// this does NOT recompute the title from the body's first line - the remote title is
     /// authoritative here, since it may already differ from the body (renamed on either side).
     public static void ApplyRemoteUpdate(string id, string title, string markdownBody, long updatedAtUnix,
-        string syncedHash = "", bool backupLocal = false)
+        string syncedHash = "", bool backupLocal = false, string? expectedMarkdown = null)
     {
-        if (backupLocal && File.Exists(MarkdownPath(id)))
+        lock (StorageGate)
         {
-            var backup = Path.Combine(NotesFolder,
-                $"{id}.conflict-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.md");
-            try { File.Copy(MarkdownPath(id), backup, overwrite: false); } catch { }
+            if (expectedMarkdown != null && GetMarkdown(id) != expectedMarkdown)
+                throw new InvalidOperationException("The note changed while syncing. Its local edits were kept; retry sync.");
+            if (File.Exists(MarkdownPath(id)) && (backupLocal || File.ReadAllText(MarkdownPath(id)) != markdownBody))
+            {
+                var backup = Path.Combine(NotesFolder,
+                    $"{id}.conflict-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmssfff}-{Guid.NewGuid():N}.md");
+                File.Copy(MarkdownPath(id), backup, overwrite: false);
+            }
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null) return;
+            var plainBody = PlainText(markdownBody);
+            WriteMarkdownBody(id, markdownBody);
+            meta.Title = title;
+            meta.TitleIsCustom = true;
+            meta.Preview = plainBody.Length > 80 ? plainBody[..80] : plainBody;
+            meta.UpdatedAt = updatedAtUnix;
+            if (syncedHash.Length > 0) meta.LastSyncedHash = syncedHash;
+            SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
         }
-        WriteMarkdownBody(id, markdownBody);
-        var plainBody = PlainText(markdownBody);
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null) return;
-        meta.Title = title;
-        meta.TitleIsCustom = true;
-        meta.Preview = plainBody.Length > 80 ? plainBody[..80] : plainBody;
-        meta.UpdatedAt = updatedAtUnix;
-        if (syncedHash.Length > 0) meta.LastSyncedHash = syncedHash;
-        SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
     }
 
     /// Title-only counterpart to ApplyRemoteUpdate, used when body hashes already match and
     /// only the Notion title won the timestamp comparison.
     public static void ApplyRemoteTitle(string id, string title, long updatedAtUnix)
     {
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null) return;
-        meta.Title = title;
-        meta.TitleIsCustom = true;
-        meta.UpdatedAt = updatedAtUnix;
-        SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null) return;
+            meta.Title = title;
+            meta.TitleIsCustom = true;
+            meta.UpdatedAt = updatedAtUnix;
+            SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
+        }
     }
 
     /// A page created directly in Notion (not yet known locally) becomes a new local note -
@@ -167,30 +188,36 @@ public static class NotesService
     public static void CreateNoteFromRemote(string id, string title, string markdownBody, long updatedAtUnix,
         string syncedHash = "")
     {
-        var index = LoadIndex();
-        if (index.Any(m => m.Id == id))
+        lock (StorageGate)
         {
-            ApplyRemoteUpdate(id, title, markdownBody, updatedAtUnix, syncedHash);
-            return;
+            var index = LoadIndex();
+            if (index.Any(m => m.Id == id))
+            {
+                ApplyRemoteUpdate(id, title, markdownBody, updatedAtUnix, syncedHash);
+                return;
+            }
+            if (File.Exists(MarkdownPath(id)) && File.ReadAllText(MarkdownPath(id)) != markdownBody)
+                File.Copy(MarkdownPath(id), Path.Combine(NotesFolder,
+                    $"{id}.conflict-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmssfff}-{Guid.NewGuid():N}.md"));
+            var plainBody = PlainText(markdownBody);
+            index.Insert(0, new NoteMeta
+            {
+                Id = id,
+                Title = title,
+                TitleIsCustom = true,
+                Preview = plainBody.Length > 80 ? plainBody[..80] : plainBody,
+                UpdatedAt = updatedAtUnix,
+                LastSyncedHash = syncedHash,
+            });
+            WriteMarkdownBody(id, markdownBody);
+            SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
         }
-        var plainBody = PlainText(markdownBody);
-        index.Insert(0, new NoteMeta
-        {
-            Id = id,
-            Title = title,
-            TitleIsCustom = true,
-            Preview = plainBody.Length > 80 ? plainBody[..80] : plainBody,
-            UpdatedAt = updatedAtUnix,
-            LastSyncedHash = syncedHash,
-        });
-        SaveIndex(index.OrderByDescending(m => m.UpdatedAt).ToList());
-        WriteMarkdownBody(id, markdownBody);
     }
 
     private static void WriteMarkdownBody(string id, string markdownBody)
     {
         Directory.CreateDirectory(NotesFolder);
-        File.WriteAllText(MarkdownPath(id), markdownBody);
+        AtomicFile.WriteText(MarkdownPath(id), markdownBody);
     }
 
     private static string PlainText(string markdown)
@@ -202,14 +229,17 @@ public static class NotesService
 
     public static void RenameNote(string id, string title)
     {
-        if (string.IsNullOrWhiteSpace(title)) return;
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null) return;
-        meta.Title = title.Trim();
-        meta.TitleIsCustom = true;
-        meta.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        SaveIndex(index);
+        lock (StorageGate)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return;
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null) return;
+            meta.Title = title.Trim();
+            meta.TitleIsCustom = true;
+            meta.UpdatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            SaveIndex(index);
+        }
     }
 
     public static string GetTitle(string id) =>
@@ -217,68 +247,89 @@ public static class NotesService
 
     public static void MarkSynced(string id, string hash)
     {
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null) return;
-        meta.LastSyncedHash = hash;
-        SaveIndex(index);
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null) return;
+            meta.LastSyncedHash = hash;
+            SaveIndex(index);
+        }
     }
 
     public static void SetColor(string id, string hex)
     {
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null) return;
-        meta.Color = hex;
-        SaveIndex(index);
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null) return;
+            meta.Color = hex;
+            SaveIndex(index);
+        }
     }
 
     public static void SetTags(string id, List<string> tags)
     {
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null) return;
-        meta.Tags = tags.Select(tag => tag.Trim().TrimStart('#'))
-            .Where(tag => tag.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(12)
-            .ToList();
-        SaveIndex(index);
-        LabelsService.Register(meta.Tags);
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null) return;
+            meta.Tags = tags.Select(tag => tag.Trim().TrimStart('#'))
+                .Where(tag => tag.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(12)
+                .ToList();
+            SaveIndex(index);
+            LabelsService.Register(meta.Tags);
+        }
     }
 
     public static void RenameTag(string oldLabel, string newLabel)
     {
-        var index = LoadIndex();
-        foreach (var note in index)
-            note.Tags = note.Tags.Select(tag => string.Equals(tag, oldLabel, StringComparison.OrdinalIgnoreCase) ? newLabel : tag)
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        SaveIndex(index);
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            foreach (var note in index)
+                note.Tags = note.Tags.Select(tag => string.Equals(tag, oldLabel, StringComparison.OrdinalIgnoreCase) ? newLabel : tag)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            SaveIndex(index);
+        }
     }
 
     public static void RemoveTag(string label)
     {
-        var index = LoadIndex();
-        foreach (var note in index)
-            note.Tags.RemoveAll(tag => string.Equals(tag, label, StringComparison.OrdinalIgnoreCase));
-        SaveIndex(index);
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            foreach (var note in index)
+                note.Tags.RemoveAll(tag => string.Equals(tag, label, StringComparison.OrdinalIgnoreCase));
+            SaveIndex(index);
+        }
     }
 
     public static void SetReminderTimerId(string id, string? timerId)
     {
-        var index = LoadIndex();
-        var meta = index.FirstOrDefault(m => m.Id == id);
-        if (meta == null) return;
-        meta.ReminderTimerId = timerId;
-        SaveIndex(index);
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(m => m.Id == id);
+            if (meta == null) return;
+            meta.ReminderTimerId = timerId;
+            SaveIndex(index);
+        }
     }
 
     public static void DeleteNote(string id)
     {
-        var index = LoadIndex();
-        index.RemoveAll(m => m.Id == id);
-        SaveIndex(index);
-        try { File.Delete(MarkdownPath(id)); } catch { }
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            index.RemoveAll(m => m.Id == id);
+            SaveIndex(index);
+            try { File.Delete(MarkdownPath(id)); } catch { }
+        }
     }
 
     // Migrates the old single-note format (notes.xaml, or legacy notes.txt) into the
@@ -286,7 +337,13 @@ public static class NotesService
     private static void EnsureMigrated()
     {
         Directory.CreateDirectory(NotesFolder);
-        if (!File.Exists(IndexPath)) MigrateSingleLegacyNote();
+        if (!File.Exists(IndexPath))
+        {
+            if (Directory.EnumerateFiles(NotesFolder, "*.md").Any() ||
+                Directory.EnumerateFiles(NotesFolder, "*.xaml").Any())
+                throw new InvalidDataException("The notes index is missing but note files remain. Restore the index backup before saving.");
+            MigrateSingleLegacyNote();
+        }
         MigrateXamlNotes();
     }
 

@@ -85,7 +85,11 @@ public static class NotionMarkdownConverter
                 continue;
             }
             lines.Add(markdown);
-            if (id != null) supportedIds.Add(id);
+            // Archiving a parent also archives all its descendants. A flat converter
+            // must never classify a nested list/toggle parent as safe to replace.
+            if (block.TryGetProperty("has_children", out var nested) && nested.GetBoolean())
+                unsupported = true;
+            else if (id != null) supportedIds.Add(id);
         }
 
         return new NotionMarkdownDocument(string.Join('\n', lines).TrimEnd('\n'), supportedIds, unsupported);

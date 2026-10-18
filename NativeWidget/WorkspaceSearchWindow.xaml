@@ -2,18 +2,49 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:NativeWidget"
-        Title="Workspace search" Width="420" Height="480" MinWidth="320" MinHeight="280"
+        Title="Workspace search" Width="560" Height="520" MinWidth="440" MinHeight="320"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="CanResize"
         Closing="Window_Closing" PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <Style x:Key="SearchModeToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Padding" Value="9,5"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#241F28"/>
+            <Setter Property="BorderBrush" Value="#514A58"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ToggleBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ToggleBorder" Property="Background" Value="#39333F"/>
+                                <Setter TargetName="ToggleBorder" Property="BorderBrush" Value="#8D76A8"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ToggleBorder" Property="Background" Value="#453D4D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <Border Background="#FA131217" CornerRadius="18" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" Padding="14">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0" Margin="0,0,0,10">
+            <Grid Grid.Row="0" Margin="0,0,0,10" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -27,7 +58,7 @@
 
             <Grid Grid.Row="1" Margin="0,0,0,8">
                 <TextBox x:Name="SearchBox" Style="{StaticResource InputStyle}" Padding="10,8" TextChanged="SearchBox_TextChanged"/>
-                <TextBlock Text="Search notes, labels, or projects..." Foreground="{StaticResource MutedBrush}" FontSize="12"
+                <TextBlock x:Name="SearchPlaceholder" Text="Search notes, projects, or folders..." Foreground="{StaticResource MutedBrush}" FontSize="12"
                            Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
@@ -42,12 +73,57 @@
                 </TextBlock>
             </Grid>
 
-            <Grid Grid.Row="2">
+            <Grid Grid.Row="2" Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <ToggleButton x:Name="WorkspaceModeButton" Content="Workspace" IsChecked="True" Click="WorkspaceMode_Click"
+                                  Style="{StaticResource SearchModeToggleStyle}"/>
+                    <ToggleButton x:Name="FoldersOnlyButton" Content="Folders" Click="FoldersOnly_Click" Margin="5,0,0,0"
+                                  Style="{StaticResource SearchModeToggleStyle}"/>
+                </StackPanel>
+                <TextBlock x:Name="FolderStatus" Grid.Column="1" Margin="8,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                           FontSize="10.5" TextTrimming="CharacterEllipsis" ToolTip="Indexed folders only. AppData, .git, node_modules and junctions are skipped."/>
+                <Button x:Name="RootsButton" Grid.Column="2" Content="&#xE8B7;" Style="{StaticResource IconBtnStyle}"
+                        IsEnabled="False" Click="Roots_Click" ToolTip="Choose folders to search"/>
+                <Button x:Name="RefreshButton" Grid.Column="3" Content="&#xE72C;" Style="{StaticResource IconBtnStyle}"
+                        Click="Refresh_Click" ToolTip="Refresh folder index"/>
+            </Grid>
+
+            <Grid Grid.Row="3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border x:Name="FolderActions" Grid.Row="0" Margin="0,0,0,8" Padding="8,5" CornerRadius="8"
+                        Background="#28242D" BorderBrush="#514A58" BorderThickness="1" Visibility="Collapsed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="SelectedFolderPath" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
+                                   FontSize="10.5" TextTrimming="CharacterEllipsis" ToolTip="Selected folder path"/>
+                        <Button Grid.Column="1" Content="Copy path" Click="CopySelectedPath_Click" Margin="6,0,0,0"
+                                Style="{StaticResource SecondaryBtnStyle}" Padding="8,4" FontSize="10.5" ToolTip="Copy full folder path"/>
+                        <Button Grid.Column="2" Content="Copy CMD" Click="CopySelectedCommand_Click" Margin="5,0,0,0"
+                                Style="{StaticResource SecondaryBtnStyle}" Padding="8,4" FontSize="10.5" ToolTip="Copy cd /d command"/>
+                        <Button Grid.Column="3" Content="Open" Click="OpenSelectedFolder_Click" Margin="5,0,0,0"
+                                Style="{StaticResource PrimaryBtnStyle}" Padding="8,4" FontSize="10.5" ToolTip="Open this folder"/>
+                    </Grid>
+                </Border>
                 <TextBlock x:Name="EmptyHint" Text="No matching results." Foreground="{StaticResource MutedBrush}"
-                           FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
-                <ListBox x:Name="ResultsList" Background="Transparent" BorderThickness="0"
+                           Grid.Row="1" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                <ListBox x:Name="ResultsList" Grid.Row="1" Background="Transparent" BorderThickness="0"
                          ScrollViewer.CanContentScroll="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ItemContainerStyle="{StaticResource ListItemStyle}" MouseUp="ResultsList_MouseUp"/>
+                         ItemContainerStyle="{StaticResource ListItemStyle}" MouseUp="ResultsList_MouseUp"
+                         SelectionChanged="ResultsList_SelectionChanged"/>
             </Grid>
         </Grid>
     </Border>

@@ -74,6 +74,32 @@ Local and remote changes are reconciled conservatively. Conflicting local conten
 
 Notion credentials and database identifiers are runtime data, not repository configuration.
 
+Database identity is retained across API/network/schema failures: these stop the sync pass
+instead of creating another table. With no saved identity, the service first discovers
+existing `NativeWidget Notes` child databases under the configured parent. Multiple matches
+require an explicit Database ID in Settings. Newly created database IDs are saved before
+follow-up requests. Equivalent hyphenated and compact IDs do not reset the selected table.
+
+Note/index and settings saves use a flushed temporary file plus atomic replacement with a
+rolling `.bak`. NotesService serializes index read/modify/write transactions. Unreadable or
+missing indexes with surviving note files stop saves rather than returning an empty list.
+Every differing remote body pull preserves the local Markdown in a uniquely named
+`.conflict-*.md` file; a stale pull cannot replace a local body saved during network I/O.
+Nested/unsupported remote bodies are not allowed to overwrite existing local notes, and
+parent blocks containing children are never archived by the flat converter.
+
+## Folder search
+
+`WorkspaceSearchWindow` shares its search UI with a Folders mode. `FolderSearchService`
+stores roots and its bounded directory index in `folder-search.json` under the data folder.
+Traversal runs off the UI thread, skips inaccessible directories, junctions, dependency and
+build directories, and stops at 100,000 entries. Refresh can be cancelled; changing roots
+immediately prunes excluded cached results and invalidates older refreshes. Search matches
+are ranked by exact name, name prefix, name substring, then path, with up to 60 rows shown.
+Selecting a folder exposes copy-path, copy-CMD and Explorer actions. `Down` moves from input
+to results; `Enter` opens the selection, `Ctrl+C` copies its path, and `Ctrl+Shift+C` copies
+the CMD command when the search text box is not focused.
+
 ## Tasks, labels and projects
 
 Google Tasks data remains in Google. Local labels, colours and project associations are stored in small local side tables so those UI features do not mutate unrelated Google fields.

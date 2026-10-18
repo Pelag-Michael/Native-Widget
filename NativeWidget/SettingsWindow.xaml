@@ -82,7 +82,7 @@
                                 </Border>
                             </StackPanel>
                             <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" LineHeight="17">
-                                Syncs plain text only (no bold/images yet). Two-way, every 15s, last-write-wins.<LineBreak/><LineBreak/>
+                                Syncs supported text, formatting, images and attachments every 15s. Local copies are kept before remote body changes.<LineBreak/><LineBreak/>
                                 1. notion.so/my-integrations → New → Access token → copy the secret<LineBreak/>
                                 2. Open a page in Notion → "..." → Connections → add that integration<LineBreak/>
                                 3. Copy the Page ID from that page URL (last 32 characters) into the field below
@@ -91,6 +91,8 @@
                             <PasswordBox x:Name="NotionTokenInput" Style="{StaticResource PasswordInputStyle}" Margin="0,0,0,8"/>
                             <TextBlock Text="Parent Page ID" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
                             <TextBox x:Name="NotionPageIdInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
+                            <TextBlock Text="Database ID (optional — reuse an existing notes table)" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,4"/>
+                            <TextBox x:Name="NotionDatabaseIdInput" Style="{StaticResource InputStyle}" Margin="0,0,0,8"/>
                             <StackPanel Orientation="Horizontal">
                                 <CheckBox x:Name="NotionEnabledCheck" Foreground="White" VerticalAlignment="Center"/>
                                 <TextBlock Text="Enable Notion sync" Foreground="White" FontSize="12" Margin="6,0,0,0" VerticalAlignment="Center"/>

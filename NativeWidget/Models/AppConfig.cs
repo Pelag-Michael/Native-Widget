@@ -1,10 +1,12 @@
 using System.IO;
 using System.Text.Json;
+using NativeWidget.Services;
 
 namespace NativeWidget.Models;
 
 public class AppConfig
 {
+    private static readonly object StorageGate = new();
     public string GoogleClientId { get; set; } = "";
     public string GoogleClientSecret { get; set; } = "";
 
@@ -30,21 +32,22 @@ public class AppConfig
 
     public static AppConfig Load()
     {
-        try
+        lock (StorageGate)
         {
+            if (!File.Exists(FilePath)) return new AppConfig();
             var json = File.ReadAllText(FilePath);
-            return JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
-        }
-        catch
-        {
-            return new AppConfig();
+            return JsonSerializer.Deserialize<AppConfig>(json)
+                ?? throw new InvalidDataException("The widget settings are invalid. Restore config.json.bak before saving new settings.");
         }
     }
 
     public void Save()
     {
-        Directory.CreateDirectory(FolderPath);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this));
+        lock (StorageGate)
+        {
+            Directory.CreateDirectory(FolderPath);
+            AtomicFile.WriteText(FilePath, JsonSerializer.Serialize(this));
+        }
     }
 
     public static string TokenPath(string name) => Path.Combine(FolderPath, name);

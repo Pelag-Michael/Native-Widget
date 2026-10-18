@@ -26,6 +26,7 @@ public partial class SettingsWindow : Window
             RestoreSessionCheck.IsChecked = _config.RestoreWindowSessionEnabled;
             NotionTokenInput.Password = _config.NotionToken;
             NotionPageIdInput.Text = _config.NotionParentPageId;
+            NotionDatabaseIdInput.Text = _config.NotionDatabaseId;
             NotionEnabledCheck.IsChecked = _config.NotionSyncEnabled;
             UpdateConnectionBadges();
         };
@@ -70,16 +71,22 @@ public partial class SettingsWindow : Window
             _config.GoogleClientSecret = GoogleClientSecretInput.Password.Trim();
             _config.RestoreWindowSessionEnabled = RestoreSessionCheck.IsChecked == true;
 
-            var newPageId = NotionPageIdInput.Text.Trim();
-            // A changed parent page orphans whatever database was cached under the old one -
-            // clear it so EnsureDatabaseAsync creates a fresh one under the new page.
-            if (newPageId != _config.NotionParentPageId) _config.NotionDatabaseId = "";
+            var newPageId = NormalizeNotionId(NotionPageIdInput.Text);
+            var newDatabaseId = NormalizeNotionId(NotionDatabaseIdInput.Text);
+            var changedParent = NormalizeNotionId(_config.NotionParentPageId) != newPageId;
+            // Formatting the same ID with/without hyphens must not reset table identity.
+            if (changedParent && newDatabaseId == NormalizeNotionId(_config.NotionDatabaseId))
+                newDatabaseId = "";
+            if (changedParent || newDatabaseId != NormalizeNotionId(_config.NotionDatabaseId))
+                _config.NotionDataSourceId = "";
+            _config.NotionDatabaseId = newDatabaseId;
             _config.NotionToken = NotionTokenInput.Password.Trim();
             _config.NotionParentPageId = newPageId;
             _config.NotionSyncEnabled = NotionEnabledCheck.IsChecked == true;
 
             Diag($"about to Save() - NotionToken.Length={_config.NotionToken.Length} NotionSyncEnabled={_config.NotionSyncEnabled}");
             _config.Save();
+            NotionDatabaseIdInput.Text = _config.NotionDatabaseId;
             Diag("Save() returned OK");
             UpdateConnectionBadges();
             SettingsStatus.Text = "Saved. Open the Calendar widget and connect if Google is not working yet.";
@@ -89,6 +96,14 @@ public partial class SettingsWindow : Window
             Diag("EXCEPTION: " + ex);
             SettingsStatus.Text = "Error saving: " + ex.Message;
         }
+    }
+
+    internal static string NormalizeNotionId(string text)
+    {
+        text = text.Trim();
+        if (text.Length == 0) return "";
+        if (Guid.TryParse(text, out var id)) return id.ToString("D");
+        throw new FormatException("Use the 32-character Notion page/database ID, with or without hyphens.");
     }
 
     private static void Diag(string msg)

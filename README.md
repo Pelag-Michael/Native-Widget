@@ -66,6 +66,12 @@ widgets affect memory. The numbers are a reproducible reference, not a universal
 Tasks and Notes can be assigned to projects and filtered by them. A workspace search finds
 matching notes, tasks, projects, labels, events and timers from one place.
 
+Press `Ctrl+Alt+K` to open search, then choose **Folders** to find directory names or paths.
+Select a result to **Copy path**, **Copy CMD** (`cd /d "..."`), or **Open** it in Explorer.
+The folder icon manages search roots; refresh rebuilds the local directory index in the
+background and doubles as a cancel button. Typing filters the cached index. AppData,
+dependency/build directories and directory junctions are skipped.
+
 Settings can optionally restore the previous desktop session: every widget that was still
 open returns at its last position and size after Native Widget or Windows starts again.
 
@@ -137,6 +143,7 @@ workspace-wide documentation map is [`docs/README.md`](docs/README.md).
 |---|---|
 | `Ctrl+Alt+F` | Find the launcher and briefly expand it |
 | `Ctrl+Alt+G` | Disable click-through mode on every widget |
+| `Ctrl+Alt+K` | Search the workspace and indexed folders |
 | `Ctrl+S` | Save the current note and push it to Notion immediately |
 
 ## Contributing

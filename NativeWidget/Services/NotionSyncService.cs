@@ -25,7 +25,18 @@ public static partial class NotionSyncService
 
     private const string ApiBase = "https://api.notion.com/v1";
     private const string NotionVersion = "2026-03-11";
-    private static readonly HttpClient Http = new();
+    private static readonly HttpClient DefaultHttp = new();
+    private static readonly AsyncLocal<HttpClient?> ScopedHttp = new();
+    private static HttpClient Http => ScopedHttp.Value ?? DefaultHttp;
+
+    // A scoped transport keeps regression tests entirely offline without changing live sync.
+    internal static async Task WithTransportAsync(HttpClient client, Func<Task> action)
+    {
+        var previous = ScopedHttp.Value;
+        ScopedHttp.Value = client;
+        try { await action(); }
+        finally { ScopedHttp.Value = previous; }
+    }
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = null };
     private static readonly ConcurrentDictionary<string, string> RemoteAssetHashCache = new();
 
@@ -51,7 +62,7 @@ public static partial class NotionSyncService
         using var response = await Http.SendAsync(request);
         var text = await response.Content.ReadAsStringAsync();
         if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Notion {(int)response.StatusCode}: {text}");
+            throw new HttpRequestException($"Notion {(int)response.StatusCode}: {text}", null, response.StatusCode);
         return JsonSerializer.Deserialize<JsonElement>(text);
     }
 
@@ -73,30 +84,30 @@ public static partial class NotionSyncService
         return JsonSerializer.Deserialize<JsonElement>(text);
     }
 
-    private static async Task EnsureDataSourceAsync(AppConfig config)
+    internal static async Task EnsureDataSourceAsync(AppConfig config)
     {
         if (!string.IsNullOrEmpty(config.NotionDatabaseId))
         {
-            try
-            {
-                var database = await CallAsync(config, HttpMethod.Get,
-                    $"/databases/{config.NotionDatabaseId}");
-                var dataSourceId = FindDataSourceId(database, config.NotionDataSourceId);
-                if (dataSourceId != null && await HasExpectedSchemaAsync(config, dataSourceId))
-                {
-                    if (config.NotionDataSourceId != dataSourceId)
-                    {
-                        config.NotionDataSourceId = dataSourceId;
-                        config.Save();
-                    }
-                    return;
-                }
-            }
-            catch { }
+            // A failed read says nothing about whether the database still exists. Never
+            // replace it on a timeout, 429, denied permission, or incompatible schema.
+            await UseDatabaseAsync(config);
+            return;
         }
 
         if (string.IsNullOrEmpty(config.NotionParentPageId))
             throw new InvalidOperationException("Parent Page ID is not set in Settings.");
+
+        var existing = await FindExistingDatabasesAsync(config);
+        if (existing.Count > 1)
+            throw new InvalidOperationException("Several NativeWidget Notes databases already exist. Set the Database ID in Settings to choose the existing table; no new table was created.");
+        if (existing.Count == 1)
+        {
+            config.NotionDatabaseId = existing[0];
+            config.NotionDataSourceId = "";
+            config.Save();
+            await UseDatabaseAsync(config);
+            return;
+        }
 
         var body = new
         {
@@ -113,6 +124,9 @@ public static partial class NotionSyncService
         };
         var created = await CallAsync(config, HttpMethod.Post, "/databases", body);
         config.NotionDatabaseId = created.GetProperty("id").GetString()!;
+        config.NotionDataSourceId = "";
+        // Persist identity before a follow-up request can fail.
+        config.Save();
         var createdDataSourceId = FindDataSourceId(created, null);
         if (createdDataSourceId == null)
         {
@@ -125,25 +139,60 @@ public static partial class NotionSyncService
         config.Save();
     }
 
+    private static async Task UseDatabaseAsync(AppConfig config)
+    {
+        var database = await CallAsync(config, HttpMethod.Get, $"/databases/{config.NotionDatabaseId}");
+        var dataSourceId = FindDataSourceId(database, config.NotionDataSourceId)
+            ?? throw new InvalidOperationException("The saved Notion data source is unavailable. Check the existing database and its integration access in Settings.");
+        if (!await HasExpectedSchemaAsync(config, dataSourceId))
+            throw new InvalidOperationException("The existing Notion table needs a Title property of type title and a LocalId property of type rich_text. No replacement table was created.");
+        if (config.NotionDataSourceId != dataSourceId)
+        {
+            config.NotionDataSourceId = dataSourceId;
+            config.Save();
+        }
+    }
+
+    private static async Task<List<string>> FindExistingDatabasesAsync(AppConfig config)
+    {
+        var ids = new List<string>();
+        string? cursor = null;
+        do
+        {
+            var suffix = cursor == null ? "" : "&start_cursor=" + Uri.EscapeDataString(cursor);
+            var response = await CallAsync(config, HttpMethod.Get,
+                $"/blocks/{config.NotionParentPageId}/children?page_size=100{suffix}");
+            foreach (var block in response.GetProperty("results").EnumerateArray())
+                if (block.TryGetProperty("child_database", out var child) &&
+                    child.GetProperty("title").GetString() == "NativeWidget Notes")
+                    ids.Add(block.GetProperty("id").GetString()!);
+            cursor = response.GetProperty("has_more").GetBoolean()
+                ? response.GetProperty("next_cursor").GetString()
+                    ?? throw new InvalidOperationException("Notion returned incomplete database discovery pagination.")
+                : null;
+        } while (cursor != null);
+        return ids;
+    }
+
     private static string? FindDataSourceId(JsonElement database, string? preferred)
     {
         if (!database.TryGetProperty("data_sources", out var sources)) return null;
         var ids = sources.EnumerateArray()
             .Select(s => s.TryGetProperty("id", out var id) ? id.GetString() : null)
             .Where(id => !string.IsNullOrEmpty(id)).ToList();
-        return preferred != null && ids.Contains(preferred) ? preferred : ids.FirstOrDefault();
+        if (!string.IsNullOrEmpty(preferred))
+            return ids.FirstOrDefault(id => id!.Replace("-", "").Equals(preferred.Replace("-", ""), StringComparison.OrdinalIgnoreCase));
+        return ids.Count == 1 ? ids[0] : null;
     }
 
     private static async Task<bool> HasExpectedSchemaAsync(AppConfig config, string dataSourceId)
     {
-        try
-        {
-            var source = await CallAsync(config, HttpMethod.Get, $"/data_sources/{dataSourceId}");
-            var properties = source.GetProperty("properties");
-            return properties.TryGetProperty("Title", out _) &&
-                   properties.TryGetProperty("LocalId", out _);
-        }
-        catch { return false; }
+        var source = await CallAsync(config, HttpMethod.Get, $"/data_sources/{dataSourceId}");
+        var properties = source.GetProperty("properties");
+        return properties.TryGetProperty("Title", out var title) &&
+               title.GetProperty("type").GetString() == "title" &&
+               properties.TryGetProperty("LocalId", out var localId) &&
+               localId.GetProperty("type").GetString() == "rich_text";
     }
 
     private sealed record RemotePage(string PageId, string LocalId, string Title, long UpdatedAtUnix);
@@ -167,7 +216,9 @@ public static partial class NotionSyncService
                 pages.Add(new RemotePage(page.GetProperty("id").GetString()!, localId, title, updated));
             }
             cursor = response.TryGetProperty("has_more", out var more) && more.GetBoolean()
-                ? response.GetProperty("next_cursor").GetString() : null;
+                ? response.GetProperty("next_cursor").GetString()
+                    ?? throw new InvalidOperationException("Notion returned incomplete pagination; sync was stopped.")
+                : null;
         } while (cursor != null);
         return pages;
     }
@@ -200,7 +251,9 @@ public static partial class NotionSyncService
                 $"/blocks/{pageId}/children{query}");
             blocks.AddRange(response.GetProperty("results").EnumerateArray());
             cursor = response.TryGetProperty("has_more", out var more) && more.GetBoolean()
-                ? response.GetProperty("next_cursor").GetString() : null;
+                ? response.GetProperty("next_cursor").GetString()
+                    ?? throw new InvalidOperationException("Notion returned incomplete note content; sync was stopped.")
+                : null;
         } while (cursor != null);
         return NotionMarkdownConverter.FromBlocks(blocks);
     }
@@ -308,6 +361,8 @@ public static partial class NotionSyncService
             }
 
             var remoteBody = await GetPageBodyAsync(config, match.PageId);
+            if (NotesService.GetMarkdown(meta.Id) != localMarkdown)
+                throw new InvalidOperationException("A local note changed during sync. Its edits were kept; retry sync.");
             var remoteHash = await CanonicalHashAsync(remoteBody.Markdown);
             var localChanged = meta.LastSyncedHash.Length == 0
                 ? meta.UpdatedAt > match.UpdatedAtUnix + 2
@@ -337,11 +392,14 @@ public static partial class NotionSyncService
             }
             else
             {
+                if (remoteBody.HasUnsupportedBlocks)
+                    throw new InvalidOperationException("A Notion note contains nested or unsupported content. Its local body was kept to avoid a partial import; open the original in Notion to review it.");
                 var localized = await LocalizeRemoteFilesAsync(remoteBody.Markdown);
                 var localizedHash = await CanonicalHashAsync(localized);
                 NotesService.ApplyRemoteUpdate(meta.Id, match.Title, localized,
                     match.UpdatedAtUnix, localizedHash,
-                    backupLocal: resolution == SyncResolution.PullRemoteWithLocalConflict);
+                    backupLocal: resolution == SyncResolution.PullRemoteWithLocalConflict,
+                    expectedMarkdown: localMarkdown);
             }
         }
 
@@ -351,9 +409,13 @@ public static partial class NotionSyncService
             var body = await GetPageBodyAsync(config, page.PageId);
             var localized = await LocalizeRemoteFilesAsync(body.Markdown);
             var hash = await CanonicalHashAsync(localized);
-            NotesService.CreateNoteFromRemote(page.PageId, page.Title, localized,
+            // Preserve the stable identity of a previously synced note if its index entry
+            // was lost. Re-keying it to a new page ID creates duplicate/orphaned copies.
+            var localId = Guid.TryParse(page.LocalId, out _) ? page.LocalId : page.PageId;
+            NotesService.CreateNoteFromRemote(localId, page.Title, localized,
                 page.UpdatedAtUnix, hash);
-            await SetLocalIdAsync(config, page.PageId, page.PageId);
+            localIds.Add(localId);
+            if (localId != page.LocalId) await SetLocalIdAsync(config, page.PageId, localId);
         }
     }
 
