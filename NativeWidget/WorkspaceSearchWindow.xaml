@@ -87,9 +87,9 @@
                                   Style="{StaticResource SearchModeToggleStyle}"/>
                 </StackPanel>
                 <TextBlock x:Name="FolderStatus" Grid.Column="1" Margin="8,0" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}"
-                           FontSize="10.5" TextTrimming="CharacterEllipsis" ToolTip="Indexed folders only. AppData, .git, node_modules and junctions are skipped."/>
-                <Button x:Name="RootsButton" Grid.Column="2" Content="&#xE8B7;" Style="{StaticResource IconBtnStyle}"
-                        IsEnabled="False" Click="Roots_Click" ToolTip="Choose folders to search"/>
+                           FontSize="10.5" TextTrimming="CharacterEllipsis" ToolTip="Folder search indexes only the configured roots shown here. Add roots to search other locations. AppData, dependency caches and junctions are skipped."/>
+                <Button x:Name="RootsButton" Grid.Column="2" Content="Roots" Style="{StaticResource SecondaryBtnStyle}"
+                        IsEnabled="False" Click="Roots_Click" ToolTip="Choose folders to search" Padding="8,5" FontSize="10.5" Margin="0,0,4,0"/>
                 <Button x:Name="RefreshButton" Grid.Column="3" Content="&#xE72C;" Style="{StaticResource IconBtnStyle}"
                         Click="Refresh_Click" ToolTip="Refresh folder index"/>
             </Grid>
@@ -118,8 +118,14 @@
                                 Style="{StaticResource PrimaryBtnStyle}" Padding="8,4" FontSize="10.5" ToolTip="Open this folder"/>
                     </Grid>
                 </Border>
-                <TextBlock x:Name="EmptyHint" Text="No matching results." Foreground="{StaticResource MutedBrush}"
-                           Grid.Row="1" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                <StackPanel x:Name="EmptyState" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                    <TextBlock x:Name="EmptyHint" Text="No matching results." Foreground="{StaticResource MutedBrush}"
+                               FontSize="12" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="12,0,12,10"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="Add root" Click="AddRootEmpty_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5" FontSize="10.5" Margin="0,0,6,0"/>
+                        <Button Content="Refresh" Click="RefreshEmpty_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,5" FontSize="10.5"/>
+                    </StackPanel>
+                </StackPanel>
                 <ListBox x:Name="ResultsList" Grid.Row="1" Background="Transparent" BorderThickness="0"
                          ScrollViewer.CanContentScroll="False" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                          ItemContainerStyle="{StaticResource ListItemStyle}" MouseUp="ResultsList_MouseUp"

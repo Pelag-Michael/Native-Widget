@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -10,6 +11,25 @@ using NativeWidget.Services;
 
 internal static class FolderSearchChecks
 {
+    public static async Task CheckRealRootsAsync(string folderName)
+    {
+        var previous = Environment.GetEnvironmentVariable("NATIVEWIDGET_DATA_DIR");
+        var data = Path.Combine(Path.GetTempPath(), "nativewidget-real-index-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(data);
+        Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", data);
+        try
+        {
+            var service = new FolderSearchService();
+            await service.LoadAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            await service.RefreshAsync(timeout.Token);
+            var matches = service.Folders.Where(folder => folder.Name.Equals(folderName, StringComparison.OrdinalIgnoreCase)).ToArray();
+            Assert(matches.Length > 0, $"real folder '{folderName}' is indexed with default roots");
+            Console.WriteLine(JsonSerializer.Serialize(new { Cache = Path.Combine(data, "folder-search.json"),
+                Count = service.Folders.Count, service.Truncated, Matches = matches }));
+        }
+        finally { Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", previous); }
+    }
     private sealed record Fixture(string Data, string Root, string Outside)
     {
         public static Fixture Create()
@@ -26,6 +46,7 @@ internal static class FolderSearchChecks
             Directory.CreateDirectory(Path.Combine(root, "Beta"));
             Directory.CreateDirectory(Path.Combine(root, ".git", "Secret"));
             Directory.CreateDirectory(Path.Combine(root, "node_modules", "Secret"));
+            Directory.CreateDirectory(Path.Combine(root, ".venv", "Lib", "site-packages"));
             Directory.CreateDirectory(Path.Combine(outside, "Should Not Be Indexed"));
             return new Fixture(data, root, outside);
         }
@@ -51,6 +72,7 @@ internal static class FolderSearchChecks
             Assert(service.Folders.Any(folder => folder.Name == "Alpha Folder"), "folder with spaces indexed");
             Assert(service.Folders.Any(folder => folder.Name == "Deep Match" && folder.Path.Contains("root with spaces", StringComparison.Ordinal)), "nested path retained");
             Assert(!service.Folders.Any(folder => folder.Name == "Secret"), "excluded directories skipped");
+            Assert(!service.Folders.Any(folder => folder.Name == ".venv" || folder.Name == "site-packages"), "virtual environments and nested dependencies skipped");
             Assert(FolderSearchService.RankMatch("Alpha Folder", "C:\\root\\Alpha Folder", "Alpha Folder") == 0, "exact ranking");
             Assert(FolderSearchService.RankMatch("Alpha Folder", "C:\\root\\Alpha Folder", "Alpha") == 1, "prefix ranking");
             Assert(FolderSearchService.RankMatch("Alpha Folder", "C:\\root\\Alpha Folder", "Folder") == 2, "name contains ranking");
@@ -79,6 +101,30 @@ internal static class FolderSearchChecks
             Assert(cached.Roots.Count == 1 && cached.Roots[0].Equals(fixture.Root, StringComparison.OrdinalIgnoreCase), "root persisted and loaded");
             Assert(File.Exists(Path.Combine(fixture.Data, "folder-search.json")), "search cache stored under isolated app data");
 
+            var limited = new FolderSearchService(maxFolders: 4);
+            await limited.LoadAsync();
+            await limited.SetRootsAsync(new[] { fixture.Root, fixture.Outside });
+            await limited.RefreshAsync(CancellationToken.None);
+            Assert(limited.Truncated, "index reports truncation when the configured limit is reached");
+            Assert(limited.Folders.Any(folder => folder.Name == "Should Not Be Indexed"), "shallow results from each configured root survive a capped refresh");
+
+            var nestedRoots = new FolderSearchService();
+            await nestedRoots.LoadAsync();
+            await nestedRoots.SetRootsAsync(new[] { fixture.Root, Path.Combine(fixture.Root, "Alpha Folder") });
+            Assert(nestedRoots.Roots.Count == 1, "nested roots are pruned to avoid duplicate traversal");
+
+            File.WriteAllText(Path.Combine(fixture.Data, "folder-search.json"), JsonSerializer.Serialize(new
+            {
+                Roots = new[] { fixture.Root },
+                Folders = new[] { new { Name = "Old Cached Entry", Path = fixture.Root } },
+                UpdatedUtc = DateTime.UtcNow,
+                Truncated = false
+            }));
+            var migrated = new FolderSearchService();
+            await migrated.LoadAsync();
+            Assert(!migrated.HasIndex && migrated.Folders.Count == 0, "old cache schema is discarded so it refreshes automatically");
+            Assert(migrated.Roots.Count == 1 && migrated.Roots[0].Equals(fixture.Root, StringComparison.OrdinalIgnoreCase), "schema refresh preserves configured roots");
+
             using (var cancelled = new CancellationTokenSource())
             {
                 cancelled.Cancel();
@@ -94,7 +140,7 @@ internal static class FolderSearchChecks
             var rootsRemoved = new FolderSearchService();
             await rootsRemoved.LoadAsync();
             Assert(rootsRemoved.Roots.Count == 0, "removing final root persists empty root list");
-            Console.WriteLine("PASS folder indexing, exclusions, paths with spaces, ranking, cancellation, cache, and root add/remove");
+            Console.WriteLine("PASS folder indexing, fair BFS, truncation, exclusions, paths with spaces, ranking, cancellation, cache migration, and root add/remove");
         }
         finally
         {

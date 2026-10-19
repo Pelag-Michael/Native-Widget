@@ -118,7 +118,8 @@ public partial class WorkspaceSearchWindow : Window
             .Select(folder => new SearchResult(ResultKind.Folder, folder.Path, folder.Name, folder.Path))
             .OrderBy(result => FolderSearchService.RankMatch(result.Title, result.Detail, query))
             .ThenBy(result => result.Title, StringComparer.OrdinalIgnoreCase)
-            .Take(_foldersOnly ? 60 : 20);
+            .Take(_foldersOnly ? 60 : 20)
+            .ToList();
         results.AddRange(folderMatches);
 
         ResultsList.Items.Clear();
@@ -145,8 +146,16 @@ public partial class WorkspaceSearchWindow : Window
             _results[row] = result;
             ResultsList.Items.Add(row);
         }
-        EmptyHint.Text = string.IsNullOrEmpty(query) ? "No indexed folders yet. Choose roots or refresh." : "No matching results.";
-        EmptyHint.Visibility = ResultsList.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (ResultsList.Items.Count == 0)
+        {
+            EmptyHint.Text = !_folderSearch.HasIndex
+                ? "No folders indexed yet. Add a search root or refresh the folder index."
+                : _foldersOnly
+                    ? "No match in indexed folders. Search covers configured roots only."
+                    : "No matching results. Folder search covers configured roots only.";
+            EmptyState.Visibility = Visibility.Visible;
+        }
+        else EmptyState.Visibility = Visibility.Collapsed;
     }
 
     private ContextMenu CreateFolderMenu(string path)
@@ -261,6 +270,10 @@ public partial class WorkspaceSearchWindow : Window
         await RefreshFolderIndexAsync();
     }
 
+    private async void AddRootEmpty_Click(object sender, RoutedEventArgs e) => await AddRootAsync();
+
+    private async void RefreshEmpty_Click(object sender, RoutedEventArgs e) => await RefreshFolderIndexAsync();
+
     private async Task RemoveRootAsync(string root)
     {
         await _folderSearch.SetRootsAsync(_folderSearch.Roots.Where(item => !item.Equals(root, StringComparison.OrdinalIgnoreCase)));
@@ -318,7 +331,7 @@ public partial class WorkspaceSearchWindow : Window
     private void UpdateFolderStatus()
     {
         var updated = _folderSearch.UpdatedUtc == default ? "not indexed" : $"updated {_folderSearch.UpdatedUtc.ToLocalTime():g}";
-        var status = $"{_folderSearch.Folders.Count:N0} folders · {_folderSearch.Roots.Count} roots · {updated}";
+        var status = $"{_folderSearch.Folders.Count:N0} folders · {_folderSearch.Roots.Count} configured roots · {updated}";
         if (_folderSearch.Truncated) status += " · limit reached";
         SetFolderStatus(status);
     }

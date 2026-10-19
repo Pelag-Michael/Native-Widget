@@ -274,7 +274,7 @@ public static partial class NotionSyncService
         object[]? preparedBlocks = null)
     {
         var blocks = preparedBlocks ?? await BuildBlocksAsync(config, markdown);
-        foreach (var chunk in blocks.Chunk(90))
+        foreach (var chunk in BatchBlocks(blocks))
             await CallAsync(config, HttpMethod.Patch, $"/blocks/{pageId}/children",
                 new { children = chunk });
     }
@@ -289,6 +289,7 @@ public static partial class NotionSyncService
         string title, string markdown)
     {
         var blocks = await BuildBlocksAsync(config, markdown);
+        var batches = BatchBlocks(blocks).ToArray();
         var body = new
         {
             parent = new { type = "data_source_id", data_source_id = config.NotionDataSourceId },
@@ -297,15 +298,36 @@ public static partial class NotionSyncService
                 Title = new { title = PlainRichText(title) },
                 LocalId = new { rich_text = PlainRichText(localId) },
             },
-            children = blocks.Take(90).ToArray(),
+            children = batches.FirstOrDefault() ?? Array.Empty<object>(),
         };
         var page = await CallAsync(config, HttpMethod.Post, "/pages", body);
         var pageId = page.GetProperty("id").GetString()!;
-        if (blocks.Length > 90)
-            foreach (var chunk in blocks.Skip(90).Chunk(90))
+        if (batches.Length > 1)
+            foreach (var chunk in batches.Skip(1))
                 await CallAsync(config, HttpMethod.Patch, $"/blocks/{pageId}/children",
                     new { children = chunk });
         return pageId;
+    }
+
+    internal static IEnumerable<object[]> BatchBlocks(IEnumerable<object> blocks)
+    {
+        var batch = new List<object>();
+        var bytes = 32;
+        foreach (var block in blocks)
+        {
+            var size = JsonSerializer.SerializeToUtf8Bytes(block, JsonOptions).Length + 1;
+            if (size > 400_000)
+                throw new InvalidOperationException("A Notion block is too large to upload safely. The local note was kept.");
+            if (batch.Count > 0 && (batch.Count >= 90 || bytes + size > 400_000))
+            {
+                yield return batch.ToArray();
+                batch.Clear();
+                bytes = 32;
+            }
+            batch.Add(block);
+            bytes += size;
+        }
+        if (batch.Count > 0) yield return batch.ToArray();
     }
 
     private static async Task SetLocalIdAsync(AppConfig config, string pageId, string localId)
@@ -355,6 +377,9 @@ public static partial class NotionSyncService
             var localHash = await CanonicalHashAsync(localMarkdown);
             if (!remoteByLocalId.TryGetValue(meta.Id, out var match))
             {
+                // A failed multi-request create can leave an incomplete remote page.
+                // Persist intent so the next pass finishes pushing instead of pulling it.
+                NotesService.MarkUploadPending(meta.Id, localHash);
                 await PushCreateAsync(config, meta.Id, meta.Title, localMarkdown);
                 NotesService.MarkSynced(meta.Id, localHash);
                 continue;
@@ -363,6 +388,12 @@ public static partial class NotionSyncService
             var remoteBody = await GetPageBodyAsync(config, match.PageId);
             if (NotesService.GetMarkdown(meta.Id) != localMarkdown)
                 throw new InvalidOperationException("A local note changed during sync. Its edits were kept; retry sync.");
+            if (meta.PendingNotionUploadHash.Length > 0)
+            {
+                await PushUpdateAsync(config, match, remoteBody, meta.Title, localMarkdown);
+                NotesService.MarkSynced(meta.Id, localHash);
+                continue;
+            }
             var remoteHash = await CanonicalHashAsync(remoteBody.Markdown);
             var localChanged = meta.LastSyncedHash.Length == 0
                 ? meta.UpdatedAt > match.UpdatedAtUnix + 2
@@ -387,6 +418,7 @@ public static partial class NotionSyncService
             var resolution = ResolveChanges(localChanged, remoteChanged);
             if (resolution == SyncResolution.PushLocal)
             {
+                NotesService.MarkUploadPending(meta.Id, localHash);
                 await PushUpdateAsync(config, match, remoteBody, meta.Title, localMarkdown);
                 NotesService.MarkSynced(meta.Id, localHash);
             }

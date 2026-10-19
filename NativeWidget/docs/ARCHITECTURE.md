@@ -88,12 +88,25 @@ Every differing remote body pull preserves the local Markdown in a uniquely name
 Nested/unsupported remote bodies are not allowed to overwrite existing local notes, and
 parent blocks containing children are never archived by the flat converter.
 
+Long code blocks are split into bounded rich-text arrays and carry continuation captions
+so importing them joins the exact code content without Markdown escaping or extra newlines.
+Children requests are batched by both block count and encoded JSON size. A pending-upload
+marker is saved before page creation; if a multi-request upload fails, the next pass finishes
+pushing the full local body rather than pulling an incomplete page over it.
+
+`NativeWidget.RoundTripTests --notion-payload-checks [markdown paths...]` checks payload
+limits offline. The explicit `--sync-configured-once` diagnostic uses the real configured
+Notion integration and writes sync changes; it refuses to run while NativeWidget is open.
+
 ## Folder search
 
 `WorkspaceSearchWindow` shares its search UI with a Folders mode. `FolderSearchService`
 stores roots and its bounded directory index in `folder-search.json` under the data folder.
-Traversal runs off the UI thread, skips inaccessible directories, junctions, dependency and
-build directories, and stops at 100,000 entries. Refresh can be cancelled; changing roots
+Traversal runs off the UI thread, breadth first with round-robin progress across configured
+roots. It skips inaccessible directories, junctions, virtual environments, cache, dependency
+and build directories, and stops at 100,000 entries with an explicit partial-index status.
+Overlapping roots are pruned. Versioned cache schemas invalidate older incomplete indexes.
+Refresh can be cancelled; changing roots
 immediately prunes excluded cached results and invalidates older refreshes. Search matches
 are ranked by exact name, name prefix, name substring, then path, with up to 60 rows shown.
 Selecting a folder exposes copy-path, copy-CMD and Explorer actions. `Down` moves from input

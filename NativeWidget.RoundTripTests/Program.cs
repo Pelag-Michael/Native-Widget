@@ -18,6 +18,28 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Contains("--sync-configured-once", StringComparer.Ordinal))
+        {
+            if (System.Diagnostics.Process.GetProcessesByName("NativeWidget").Length > 0)
+                throw new InvalidOperationException("Close NativeWidget before running a configured sync diagnostic.");
+            var config = AppConfig.Load();
+            if (!config.NotionSyncEnabled || string.IsNullOrWhiteSpace(config.NotionToken))
+                throw new InvalidOperationException("Notion sync is not configured.");
+            NotionSyncService.SyncOnceAsync(config).GetAwaiter().GetResult();
+            Console.WriteLine("PASS configured Notion sync completed.");
+            return;
+        }
+        if (args.Contains("--check-real-folders", StringComparer.Ordinal))
+        {
+            var query = args.SkipWhile(arg => arg != "--check-real-folders").Skip(1).First();
+            FolderSearchChecks.CheckRealRootsAsync(query).GetAwaiter().GetResult();
+            return;
+        }
+        if (args.Contains("--notion-payload-checks", StringComparer.Ordinal))
+        {
+            NotionPayloadChecks.Run(args.Where(File.Exists).ToArray());
+            return;
+        }
         if (args.Contains("--folder-search-checks", StringComparer.Ordinal))
         {
             FolderSearchChecks.RunAsync().GetAwaiter().GetResult();

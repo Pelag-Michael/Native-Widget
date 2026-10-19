@@ -151,6 +151,8 @@ internal static class SyncSafetyChecks
     {
         const string localId = "0123456789abcdef0123456789abcdef";
         var config = Config();
+        var simulatePartialUpload = false;
+        var recoveryWrites = 0;
         using var client = new HttpClient(new FakeHandler(request =>
         {
             var path = request.RequestUri!.AbsolutePath;
@@ -160,12 +162,21 @@ internal static class SyncSafetyChecks
                     "properties":{"Title":{"title":[{"plain_text":"Imported"}]},
                     "LocalId":{"rich_text":[{"plain_text":"0123456789abcdef0123456789abcdef"}]}}}],"has_more":false}
                     """);
+            if (simulatePartialUpload && (request.Method == HttpMethod.Patch || request.Method == HttpMethod.Delete))
+            {
+                recoveryWrites++;
+                return Json("{}");
+            }
             Require(request.Method == HttpMethod.Get, "Re-import rewrote stable remote identity or content.");
             if (path.Contains("children"))
+            {
+                if (simulatePartialUpload)
+                    return Json("""{"results":[{"id":"partial-block","type":"paragraph","paragraph":{"rich_text":[{"plain_text":"Partial body","annotations":{},"href":null}]}}],"has_more":false}""");
                 return Json("""
                     {"results":[{"id":"block-id","type":"paragraph","has_children":false,
                     "paragraph":{"rich_text":[{"plain_text":"Recovered remote body","annotations":{"bold":false,"italic":false,"strikethrough":false},"href":null}]}}],"has_more":false}
                     """);
+            }
             return path.Contains("data_sources") ? Schema() : Database();
         }));
         await NotionSyncService.WithTransportAsync(client, () => NotionSyncService.SyncOnceAsync(config));
@@ -173,6 +184,12 @@ internal static class SyncSafetyChecks
                 NotesService.GetMarkdown(localId) == "Recovered remote body", "Re-import lost the original LocalId.");
         await NotionSyncService.WithTransportAsync(client, () => NotionSyncService.SyncOnceAsync(config));
         Require(NotesService.LoadIndex().Count == 1, "Re-import created a duplicate local note.");
+        NotesService.MarkUploadPending(localId, "pending-hash");
+        simulatePartialUpload = true;
+        await NotionSyncService.WithTransportAsync(client, () => NotionSyncService.SyncOnceAsync(config));
+        Require(recoveryWrites >= 2 && NotesService.GetMarkdown(localId) == "Recovered remote body" &&
+                NotesService.LoadIndex().Single().PendingNotionUploadHash.Length == 0,
+            "An incomplete upload was pulled over the full local note instead of completed.");
     }
 
     private static void VerifyNestedBlocks()

@@ -17,6 +17,7 @@ public class NoteMeta
     /// SHA-256 of the canonical Markdown at the last successful Notion sync. This lets the
     /// sync distinguish a one-sided edit from a true conflict without trusting clocks alone.
     public string LastSyncedHash { get; set; } = "";
+    public string PendingNotionUploadHash { get; set; } = "";
 
     /// True once the user has renamed the note by hand, which stops the title from being
     /// overwritten with the note's first line on every save.
@@ -253,6 +254,19 @@ public static class NotesService
             var meta = index.FirstOrDefault(m => m.Id == id);
             if (meta == null) return;
             meta.LastSyncedHash = hash;
+            meta.PendingNotionUploadHash = "";
+            SaveIndex(index);
+        }
+    }
+
+    public static void MarkUploadPending(string id, string hash)
+    {
+        lock (StorageGate)
+        {
+            var index = LoadIndex();
+            var meta = index.FirstOrDefault(note => note.Id == id);
+            if (meta == null) return;
+            meta.PendingNotionUploadHash = hash;
             SaveIndex(index);
         }
     }

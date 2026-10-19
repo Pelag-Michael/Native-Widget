@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -42,6 +43,8 @@ public static class NotionMarkdownConverter
         var supportedIds = new List<string>();
         var unsupported = false;
         var numberedIndex = 0;
+        string? previousCodeGroup = null;
+        var previousCodeIndex = -1;
 
         foreach (var block in blocks)
         {
@@ -63,7 +66,7 @@ public static class NotionMarkdownConverter
                     "to_do" => $"- [{(block.GetProperty("to_do").GetProperty("checked").GetBoolean() ? "x" : " ")}] " +
                                RichTextMarkdown(block.GetProperty("to_do").GetProperty("rich_text")),
                     "quote" => "> " + RichTextMarkdown(block.GetProperty("quote").GetProperty("rich_text")),
-                    "code" => "```\n" + RichTextMarkdown(block.GetProperty("code").GetProperty("rich_text")) + "\n```",
+                    "code" => "```\n" + CodeText(block.GetProperty("code").GetProperty("rich_text")) + "\n```",
                     "image" => ImageMarkdown(block.GetProperty("image")),
                     "file" => FileMarkdown(block.GetProperty("file")),
                     _ => null,
@@ -82,9 +85,21 @@ public static class NotionMarkdownConverter
             if (markdown == null)
             {
                 unsupported = true;
+                previousCodeGroup = null;
+                previousCodeIndex = -1;
                 continue;
             }
-            lines.Add(markdown);
+            var codeGroup = type == "code" ? ReadCodeChunk(block.GetProperty("code")) : null;
+            if (codeGroup is { } chunk && previousCodeGroup == chunk.Group &&
+                chunk.Index == previousCodeIndex + 1 && lines.Count > 0)
+            {
+                // Continuation captions identify only our own split blocks. Concatenate
+                // exact content without inserting a newline at an arbitrary size boundary.
+                lines[^1] = lines[^1][..^4] + markdown[4..];
+            }
+            else lines.Add(markdown);
+            previousCodeGroup = codeGroup?.Group;
+            previousCodeIndex = codeGroup?.Index ?? -1;
             // Archiving a parent also archives all its descendants. A flat converter
             // must never classify a nested list/toggle parent as safe to replace.
             if (block.TryGetProperty("has_children", out var nested) && nested.GetBoolean())
@@ -112,11 +127,17 @@ public static class NotionMarkdownConverter
             if (type == "code")
             {
                 var content = new TextRange(paragraph.ContentStart, paragraph.ContentEnd).Text.TrimEnd('\r', '\n');
-                output.Add(new
+                var parts = SplitRichText(PlainRichText(content)).ToArray();
+                var group = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content)))[..16];
+                for (var part = 0; part < parts.Length; part++) output.Add(new
                 {
                     @object = "block",
                     type,
-                    code = new { rich_text = PlainRichText(content), language = "plain text" },
+                    code = new
+                    {
+                        rich_text = parts[part], language = "plain text",
+                        caption = parts.Length > 1 ? PlainRichText($"nativewidget-code-v1:{group}:{part}:{parts.Length}") : Array.Empty<object>(),
+                    },
                 });
                 return;
             }
@@ -220,6 +241,41 @@ public static class NotionMarkdownConverter
     private static object[] PlainRichText(string text) =>
         ToRichTextObjects(new RichSegment(text, false, false, false, null)).ToArray();
 
+    private static IEnumerable<object[]> SplitRichText(object[] segments)
+    {
+        var batch = new List<object>();
+        var bytes = 2;
+        foreach (var segment in segments)
+        {
+            var size = JsonSerializer.SerializeToUtf8Bytes(segment).Length + 1;
+            if (batch.Count > 0 && (batch.Count >= 90 || bytes + size > 230_000))
+            {
+                yield return batch.ToArray();
+                batch.Clear();
+                bytes = 2;
+            }
+            batch.Add(segment);
+            bytes += size;
+        }
+        if (batch.Count > 0 || segments.Length == 0) yield return batch.ToArray();
+    }
+
+    private static (string Group, int Index)? ReadCodeChunk(JsonElement code)
+    {
+        if (!code.TryGetProperty("caption", out var caption)) return null;
+        var marker = string.Concat(caption.EnumerateArray().Select(item =>
+            item.TryGetProperty("plain_text", out var plain) ? plain.GetString() :
+            item.TryGetProperty("text", out var text) ? text.GetProperty("content").GetString() : ""));
+        var parts = marker.Split(':');
+        return parts.Length == 4 && parts[0] == "nativewidget-code-v1" && parts[1].Length == 16 &&
+               int.TryParse(parts[2], out var index) && int.TryParse(parts[3], out var count) &&
+               count > 1 && index >= 0 && index < count ? (parts[1], index) : null;
+    }
+
+    private static string CodeText(JsonElement richText) => string.Concat(richText.EnumerateArray()
+        .Select(item => item.TryGetProperty("plain_text", out var plain) ? plain.GetString() :
+            item.GetProperty("text").GetProperty("content").GetString()));
+
     private static void AddInline(Inline inline, List<RichSegment> output,
         bool bold, bool italic, bool strike, string? link)
     {
@@ -253,9 +309,13 @@ public static class NotionMarkdownConverter
 
     private static IEnumerable<object> ToRichTextObjects(RichSegment segment)
     {
-        for (var i = 0; i < segment.Text.Length; i += 1900)
+        for (var i = 0; i < segment.Text.Length;)
         {
-            var content = segment.Text.Substring(i, Math.Min(1900, segment.Text.Length - i));
+            var length = Math.Min(1900, segment.Text.Length - i);
+            if (i + length < segment.Text.Length && char.IsHighSurrogate(segment.Text[i + length - 1]) &&
+                char.IsLowSurrogate(segment.Text[i + length])) length--;
+            var content = segment.Text.Substring(i, length);
+            i += length;
             yield return new
             {
                 type = "text",

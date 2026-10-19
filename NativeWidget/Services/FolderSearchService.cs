@@ -10,6 +10,7 @@ internal sealed class FolderSearchService
     internal sealed record FolderEntry(string Name, string Path);
     private sealed class IndexData
     {
+        public int SchemaVersion { get; set; }
         public List<string> Roots { get; set; } = new();
         public List<FolderEntry> Folders { get; set; } = new();
         public DateTime UpdatedUtc { get; set; }
@@ -17,15 +18,25 @@ internal sealed class FolderSearchService
     }
 
     private const int MaxFolders = 100_000;
+    private const int CurrentSchemaVersion = 2;
     private static readonly HashSet<string> Excluded = new(StringComparer.OrdinalIgnoreCase)
     {
         "AppData", ".git", ".svn", ".hg", "node_modules", "bower_components", "packages",
-        "bin", "obj", ".vs", ".idea", "$RECYCLE.BIN", "System Volume Information"
+        "bin", "obj", ".vs", ".idea", "$RECYCLE.BIN", "System Volume Information",
+        ".venv", "venv", "env", ".cache", "__pycache__", ".tox", ".mypy_cache", ".pytest_cache",
+        ".ruff_cache", ".next", ".nuxt", ".turbo", ".gradle", ".npm", ".yarn", "coverage", "target"
     };
     private readonly string _path = AppConfig.TokenPath("folder-search.json");
+    private readonly int _maxFolders;
     private readonly SemaphoreSlim _mutationGate = new(1, 1);
     private IndexData _data = new();
     private int _rootsVersion;
+
+    internal FolderSearchService(int maxFolders = MaxFolders)
+    {
+        if (maxFolders < 1) throw new ArgumentOutOfRangeException(nameof(maxFolders));
+        _maxFolders = maxFolders;
+    }
 
     public IReadOnlyList<string> Roots => _data.Roots;
     public IReadOnlyList<FolderEntry> Folders => _data.Folders;
@@ -53,11 +64,18 @@ internal sealed class FolderSearchService
 
         _data.Roots ??= new();
         _data.Folders ??= new();
-        _data.Roots = _data.Roots.Where(Path.IsPathFullyQualified)
-            .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var roots = _data.Roots.Where(Path.IsPathFullyQualified)
+            .Select(Path.GetFullPath).Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        _data.Roots = PruneNestedRoots(roots);
         _data.Folders = _data.Folders.Where(folder => folder is not null &&
                 !string.IsNullOrWhiteSpace(folder.Name) && Path.IsPathFullyQualified(folder.Path))
             .ToList();
+        if (_data.SchemaVersion != CurrentSchemaVersion)
+        {
+            _data.Folders.Clear();
+            _data.UpdatedUtc = default;
+            _data.Truncated = false;
+        }
     }
 
     private static IndexData DefaultData() => new() { Roots = DefaultRoots() };
@@ -70,8 +88,8 @@ internal sealed class FolderSearchService
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         };
-        return roots.Where(path => !string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
-            .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return PruneNestedRoots(roots.Where(path => !string.IsNullOrWhiteSpace(path) && Directory.Exists(path))
+            .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
     }
 
     public async Task SetRootsAsync(IEnumerable<string> roots)
@@ -79,6 +97,7 @@ internal sealed class FolderSearchService
         var normalized = roots.Where(path => !string.IsNullOrWhiteSpace(path) && Path.IsPathFullyQualified(path))
             .Select(Path.GetFullPath).Where(Directory.Exists)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        normalized = PruneNestedRoots(normalized);
         await _mutationGate.WaitAsync();
         try
         {
@@ -100,43 +119,62 @@ internal sealed class FolderSearchService
         {
             var folders = new List<FolderEntry>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var pending = new Stack<string>(roots.AsEnumerable().Reverse());
+            var frontiers = roots.Select(_ => new Queue<string>()).ToArray();
+            for (var index = 0; index < roots.Count; index++) frontiers[index].Enqueue(roots[index]);
             bool truncated = false;
-            while (pending.TryPop(out var path))
+            while (frontiers.Any(frontier => frontier.Count > 0))
             {
-                token.ThrowIfCancellationRequested();
-                try
+                var nextFrontiers = roots.Select(_ => new Queue<string>()).ToArray();
+                while (frontiers.Any(frontier => frontier.Count > 0))
                 {
-                    path = Path.GetFullPath(path);
-                    if (!seen.Add(path) || !Directory.Exists(path)) continue;
-                    var attributes = File.GetAttributes(path);
-                    if ((attributes & FileAttributes.ReparsePoint) != 0) continue;
-                    var trimmedPath = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                    var name = Path.GetFileName(trimmedPath);
-                    folders.Add(new FolderEntry(string.IsNullOrEmpty(name) ? path : name, path));
-                    if (folders.Count >= MaxFolders) { truncated = pending.Count > 0; break; }
-
-                    foreach (var child in Directory.EnumerateDirectories(path))
+                    for (var rootIndex = 0; rootIndex < frontiers.Length; rootIndex++)
                     {
+                        // Process one directory from each root at a time, then advance a level.
+                        // This keeps a wide/deep first root from starving other configured roots.
+                        if (!frontiers[rootIndex].TryDequeue(out var path)) continue;
                         token.ThrowIfCancellationRequested();
-                        var childName = Path.GetFileName(child);
-                        if (Excluded.Contains(childName)) continue;
-                        if (folders.Count + pending.Count >= MaxFolders)
-                        {
-                            truncated = true;
-                            break;
-                        }
-                        // Check attributes before queueing so junctions and symlinks are never traversed.
                         try
                         {
-                            if ((File.GetAttributes(child) & FileAttributes.ReparsePoint) == 0) pending.Push(child);
+                            path = Path.GetFullPath(path);
+                            if (!seen.Add(path) || !Directory.Exists(path)) continue;
+                            var attributes = File.GetAttributes(path);
+                            if ((attributes & FileAttributes.ReparsePoint) != 0) continue;
+                            var trimmedPath = Path.TrimEndingDirectorySeparator(path);
+                            var name = Path.GetFileName(trimmedPath);
+                            folders.Add(new FolderEntry(string.IsNullOrEmpty(name) ? path : name, path));
+                            if (folders.Count >= _maxFolders)
+                            {
+                                truncated = true;
+                                break;
+                            }
+
+                            foreach (var child in Directory.EnumerateDirectories(path))
+                            {
+                                token.ThrowIfCancellationRequested();
+                                if (Excluded.Contains(Path.GetFileName(child))) continue;
+                                // Bound queued work while preserving shallow-first order.
+                                if (nextFrontiers[rootIndex].Count + folders.Count >= _maxFolders)
+                                {
+                                    truncated = true;
+                                    continue;
+                                }
+                                // Check attributes before queueing so junctions and symlinks are never traversed.
+                                try
+                                {
+                                    if ((File.GetAttributes(child) & FileAttributes.ReparsePoint) == 0)
+                                        nextFrontiers[rootIndex].Enqueue(child);
+                                }
+                                catch (Exception ex) when (IsExpectedFilesystemError(ex)) { }
+                            }
                         }
                         catch (Exception ex) when (IsExpectedFilesystemError(ex)) { }
                     }
+                    if (folders.Count >= _maxFolders) break;
                 }
-                catch (Exception ex) when (IsExpectedFilesystemError(ex)) { }
+                if (truncated && folders.Count >= _maxFolders) break;
+                frontiers = nextFrontiers;
             }
-            return new IndexData { Roots = roots, Folders = folders, UpdatedUtc = DateTime.UtcNow, Truncated = truncated };
+            return new IndexData { SchemaVersion = CurrentSchemaVersion, Roots = roots, Folders = folders, UpdatedUtc = DateTime.UtcNow, Truncated = truncated };
         }, token);
 
         token.ThrowIfCancellationRequested();
@@ -153,13 +191,21 @@ internal sealed class FolderSearchService
         finally { _mutationGate.Release(); }
     }
 
+    private static List<string> PruneNestedRoots(List<string> roots)
+    {
+        var result = new List<string>();
+        foreach (var root in roots.OrderBy(path => path.Length))
+            if (!result.Any(parent => IsWithinRoot(root, parent))) result.Add(root);
+        return result;
+    }
+
     private static bool IsWithinRoot(string path, string root)
     {
-        var normalizedPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return normalizedPath.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase) ||
-               normalizedPath.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-               normalizedPath.StartsWith(normalizedRoot + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        var relative = Path.GetRelativePath(Path.GetFullPath(root), Path.GetFullPath(path));
+        return relative.Equals(".", StringComparison.Ordinal) ||
+               (!Path.IsPathRooted(relative) && relative != ".." &&
+                !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+                !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal));
     }
 
     private static bool IsExpectedFilesystemError(Exception ex) => ex is IOException or UnauthorizedAccessException
@@ -171,6 +217,7 @@ internal sealed class FolderSearchService
         var temp = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
+            data.SchemaVersion = CurrentSchemaVersion;
             File.WriteAllText(temp, JsonSerializer.Serialize(data));
             token.ThrowIfCancellationRequested();
             File.Move(temp, _path, true);
