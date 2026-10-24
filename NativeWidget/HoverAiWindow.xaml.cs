@@ -44,6 +44,10 @@ public partial class HoverAiWindow : Window
     {
         _config = config;
         HoverAiAppearanceStore.LoadInto(config);
+        config.HoverAiDotColor ??= config.HoverAiIconColor;
+        config.HoverAiStatusBackground ??= config.HoverAiBackground;
+        config.HoverAiResponseBackground ??= config.HoverAiBackground;
+        config.HoverAiResponseForeground ??= config.HoverAiForeground;
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
         CaptureRegionCheck.IsChecked = config.HoverAiCaptureRegionEnabled;
@@ -206,7 +210,16 @@ public partial class HoverAiWindow : Window
         _updatingWheel = true;
         try
         {
-            var hex = _colorTarget == "Panel" ? _config.HoverAiBackground : _colorTarget == "Text" ? _config.HoverAiForeground : _config.HoverAiIconColor;
+            var hex = _colorTarget switch
+            {
+                "Panel" => _config.HoverAiBackground,
+                "Text" => _config.HoverAiForeground,
+                "Dot" => _config.HoverAiDotColor!,
+                "Dot panel" => _config.HoverAiStatusBackground!,
+                "AI panel" => _config.HoverAiResponseBackground!,
+                "AI text" => _config.HoverAiResponseForeground!,
+                _ => _config.HoverAiIconColor
+            };
             Wheel.SetColor((Color)ColorConverter.ConvertFromString(hex));
             BrightnessSlider.Value = Wheel.Brightness;
             ColorTargetLabel.Text = _colorTarget + " color";
@@ -224,6 +237,10 @@ public partial class HoverAiWindow : Window
         var hex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
         if (_colorTarget == "Panel") BackgroundInput.Text = hex;
         else if (_colorTarget == "Text") ForegroundInput.Text = hex;
+        else if (_colorTarget == "Dot") _config.HoverAiDotColor = hex;
+        else if (_colorTarget == "Dot panel") _config.HoverAiStatusBackground = hex;
+        else if (_colorTarget == "AI panel") _config.HoverAiResponseBackground = hex;
+        else if (_colorTarget == "AI text") _config.HoverAiResponseForeground = hex;
         else _config.HoverAiIconColor = hex;
         ApplyColors(false);
         _saveTimer.Stop(); _saveTimer.Start();

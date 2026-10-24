@@ -73,9 +73,9 @@ internal sealed class HoverAiFloatingPanel : Window
     public void SetAnswer(string label, string text) { _label.Text = label; _answer.Text = text; }
     public void RefreshTheme()
     {
-        _chrome.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_config.HoverAiBackground));
-        _answer.Foreground = _label.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_config.HoverAiForeground));
-        _dot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_config.HoverAiIconColor));
+        _chrome.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString((_status ? _config.HoverAiStatusBackground : _config.HoverAiResponseBackground) ?? _config.HoverAiBackground));
+        _answer.Foreground = _label.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_config.HoverAiResponseForeground ?? _config.HoverAiForeground));
+        _dot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_config.HoverAiDotColor ?? _config.HoverAiIconColor));
         _answer.FontSize = _config.HoverAiFontSize; Opacity = _config.HoverAiOpacity;
     }
 }

@@ -30,6 +30,10 @@ public class AppConfig
     public string HoverAiBackground { get; set; } = "#131217";
     public string HoverAiForeground { get; set; } = "#EEEEF2";
     public string HoverAiIconColor { get; set; } = "#EEEEF2";
+    public string? HoverAiDotColor { get; set; }
+    public string? HoverAiStatusBackground { get; set; }
+    public string? HoverAiResponseBackground { get; set; }
+    public string? HoverAiResponseForeground { get; set; }
     public double? HoverAiLeft { get; set; }
     public double? HoverAiTop { get; set; }
     public bool HoverAiCaptureRegionEnabled { get; set; }

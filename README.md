@@ -102,7 +102,8 @@ silently; turning the option off returns to the monitor under the pointer.
 Enable **Edit layout** to show the receipt dot and demo response as separate draggable
 panels. Drag their headers/dot to place them, and drag any response edge or corner to
 resize it horizontally and vertically. Positions and response dimensions persist in the
-AI appearance file. Turn Edit layout off when finished; **...** closes these settings.
+AI appearance file. The color wheel has independent Dot, Dot panel, AI panel and AI text
+targets; changing these does not recolor the input bar. Turn Edit layout off when finished; **...** closes these settings.
 **Copy**, beside Paste, copies the current answer and stays dimmed without an answer.
 Demo answers can be copied too. All of these settings apply only to Quick AI.
 Only the newest screenshot is retained, and Clear discards it. A receipt dot appears
