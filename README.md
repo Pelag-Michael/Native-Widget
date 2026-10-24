@@ -78,7 +78,7 @@ open returns at its last position and size after Native Widget or Windows starts
 Settings includes **Invisible hover**: the launcher and other widgets are temporarily
 hidden. Hover at the saved input position to reveal Quick AI; leaving its bounds hides
 it without a delay. Drag the input padding to move it. Ctrl+Alt+Left briefly outlines
-its hover position. The UI has screenshot, Paste, copy-answer, send-arrow, follow-up,
+its hover position. The UI has Paste, copy-answer, send-arrow, follow-up,
 Reset and settings actions. Copy-answer stays dimmed without an answer.
 
 **Paste queues input without sending.** Each text paste appends to the draft; the optional
@@ -105,10 +105,10 @@ the flash. Turning this mode off hides the dot too. The dot has no border.
 
 In **Settings > Quick AI - Capture & layout** (or **...**), configure a fixed screenshot
 rectangle using X/Y/width/height in physical pixels, or draw it once with **Choose capture
-area**. Ctrl+, and the camera button capture it silently, without a selection overlay,
+area**. Ctrl+, captures it silently, without a selection overlay,
 dimming or flash. Disable the fixed area to capture the monitor under the pointer.
 
-**Edit layout** reveals demo panels. Response corners appear while editing or hovering:
+**Edit layout** reveals demo panels. Response corner handles remain invisible and interactive:
 drag any corner to resize, or **Shift + drag** a corner to move the panel. No response
 outline is drawn. Responses default to **text only**, with no background or title outside
 layout editing. Frames shrink to 12 pixels per axis; narrow widths wrap words downwards.

@@ -23,7 +23,6 @@ public partial class HoverAiWindow : Window
     internal bool HasInput => _pastedContext.Count > 0 || _screenshots.Files.Count > 0 || !string.IsNullOrWhiteSpace(QuestionInput.Text);
     internal IReadOnlyList<string> ScreenshotPaths => _screenshots.Files;
     public event Action<HoverAiSubmission>? SubmissionRequested;
-    public event Action? CaptureRequested;
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool _ready;
     private bool _dragging;
@@ -77,7 +76,7 @@ public partial class HoverAiWindow : Window
         ResponseOpacitySlider.Value = Safe(config.HoverAiResponseOpacity.Value, 0, 1, 1);
         TextOnlyCheck.IsChecked = config.HoverAiResponseTextOnly;
         AutoHeightCheck.IsChecked = config.HoverAiResponseAutoHeight;
-        WidthSlider.Value = Safe(config.HoverAiWidth, 180, 600, 260);
+        WidthSlider.Value = Safe(config.HoverAiWidth, 250, 600, 260);
         FontSlider.Value = Safe(config.HoverAiFontSize, 9, 20, 12);
         BackgroundInput.Text = config.HoverAiBackground;
         ForegroundInput.Text = config.HoverAiForeground;
@@ -142,7 +141,6 @@ public partial class HoverAiWindow : Window
     }
     internal void SetModeActive(bool active) { _modeActive = active; RefreshFloatingPanels(); }
     private void Question_Changed(object sender, TextChangedEventArgs e) { if (_ready) RefreshFloatingPanels(); }
-    private void Capture_Click(object sender, RoutedEventArgs e) => CaptureRequested?.Invoke();
     private void ScreenshotFolder_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Choose a screenshot folder inside Temp", InitialDirectory = Path.GetTempPath() };

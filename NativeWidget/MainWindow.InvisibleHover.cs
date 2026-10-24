@@ -270,7 +270,6 @@ public partial class MainWindow
         if (_hoverAi == null)
         {
             _hoverAi = new HoverAiWindow(_config);
-            _hoverAi.CaptureRequested += CaptureInvisibleScreenshot;
             _hoverAi.PositionChanged += () =>
             {
                 _hoverAnchor = new Point(_hoverAi.Left + 12, _hoverAi.Top + 12);
