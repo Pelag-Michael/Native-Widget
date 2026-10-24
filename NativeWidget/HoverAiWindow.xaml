@@ -88,7 +88,7 @@
     <Border x:Name="Chrome" MouseLeftButtonDown="Chrome_Drag" Background="#131217" CornerRadius="12" Padding="10" BorderBrush="#25FFFFFF" BorderThickness="1">
         <StackPanel>
             <Grid x:Name="ActionBar">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Button x:Name="BarSettingsButton" Grid.Column="0" Content="&#xE713;" FontFamily="Segoe MDL2 Assets" Click="BarSettings_Click" Visibility="Collapsed" Style="{StaticResource SecondaryBtnStyle}" Padding="6,3" Margin="0,0,4,0"/>
                 <Border Visibility="Collapsed" Background="Transparent" MouseLeftButtonDown="Title_Drag" Cursor="SizeAll">
                     <StackPanel Orientation="Horizontal" Margin="0">
@@ -97,11 +97,16 @@
                     </StackPanel>
                 </Border>
                 <Button x:Name="PasteButton" MinWidth="56" Grid.Column="1" Content="Paste" Click="Paste_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,4"/>
-                <Button x:Name="CopyResponseButton" Grid.Column="2" Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets" IsEnabled="False" Click="CopyResponse_Click" Style="{StaticResource CopyHoverButton}" Margin="4,0,0,0" Padding="5,3" FontSize="10"/>
-                <Button x:Name="SendButton" Grid.Column="3" Content="&#x2191;" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
-                <Button Grid.Column="4" Content="+" Click="FollowUp_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
-                <Button x:Name="ResetButton" Grid.Column="5" Content="&#xE777;" FontFamily="Segoe MDL2 Assets" Click="Clear_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
-                <Button Grid.Column="6" Content="&#x22EF;" Click="Options_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
+                <Thumb x:Name="MainDragHandle" Grid.Column="2" Width="20" Margin="4,0,0,0" Cursor="Arrow" DragStarted="MainDrag_Started" DragDelta="MainDrag_Delta" DragCompleted="MainDrag_Completed">
+                    <Thumb.Template><ControlTemplate TargetType="Thumb">
+                        <Border Background="#12FFFFFF" CornerRadius="8"><TextBlock Text="&#x283F;" FontFamily="Segoe UI Symbol" FontSize="{TemplateBinding FontSize}" Foreground="{DynamicResource HoverIcons}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+                    </ControlTemplate></Thumb.Template>
+                </Thumb>
+                <Button x:Name="CopyResponseButton" Grid.Column="3" Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets" IsEnabled="False" Click="CopyResponse_Click" Style="{StaticResource CopyHoverButton}" Margin="4,0,0,0" Padding="5,3" FontSize="10"/>
+                <Button x:Name="SendButton" Grid.Column="4" Content="&#x2191;" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
+                <Button Grid.Column="5" Content="+" Click="FollowUp_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
+                <Button x:Name="ResetButton" Grid.Column="6" Content="&#xE777;" FontFamily="Segoe MDL2 Assets" Click="Clear_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
+                <Button Grid.Column="7" Content="&#x22EF;" Click="Options_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
             </Grid>
             <Grid x:Name="FollowUpPanel" Visibility="Collapsed">
                 <TextBox x:Name="QuestionInput" Style="{StaticResource InputStyle}" Background="Transparent" BorderThickness="0" BorderBrush="Transparent" Padding="2,3" TextWrapping="Wrap" TextChanged="Question_Changed" AcceptsReturn="True" VerticalScrollBarVisibility="Hidden"/>

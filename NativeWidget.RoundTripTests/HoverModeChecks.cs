@@ -93,9 +93,10 @@ internal static class HoverModeChecks
             panel.SubmitQuestion();
             Require(sent?.ImagePaths.Count == 2 && sent.Text.Contains(secret) && !sent.Text.Contains(queuedImages[0]),
                 "Image attachments are carried separately from prompt text.");
-            panel.Left += 70;
-            panel.Top += 60;
-            panel.SavePosition();
+            var mainDrag = (System.Windows.Controls.Primitives.Thumb)panel.FindName("MainDragHandle");
+            mainDrag.RaiseEvent(new System.Windows.Controls.Primitives.DragStartedEventArgs(0,0) { RoutedEvent = System.Windows.Controls.Primitives.Thumb.DragStartedEvent });
+            mainDrag.RaiseEvent(new System.Windows.Controls.Primitives.DragDeltaEventArgs(70,60) { RoutedEvent = System.Windows.Controls.Primitives.Thumb.DragDeltaEvent });
+            mainDrag.RaiseEvent(new System.Windows.Controls.Primitives.DragCompletedEventArgs(70,60,false) { RoutedEvent = System.Windows.Controls.Primitives.Thumb.DragCompletedEvent });
             Require(Math.Abs(launcher.HoverAnchorForTests.X - panel.Left - 12) < 1 && Math.Abs(launcher.HoverAnchorForTests.Y - panel.Top - 12) < 1,
                 "Dragging must move the invisible hover anchor along with the panel.");
             Require(new Point(launcher.Left, launcher.Top) == originalLauncherPosition, "AI dragging must not move the original launcher.");

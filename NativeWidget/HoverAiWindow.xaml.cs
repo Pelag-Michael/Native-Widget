@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -410,6 +411,16 @@ public partial class HoverAiWindow : Window
         }
     }
 
+    private void MainDrag_Started(object sender, DragStartedEventArgs e) => _dragging = true;
+    private void MainDrag_Delta(object sender, DragDeltaEventArgs e)
+    {
+        Left += e.HorizontalChange; Top += e.VerticalChange;
+    }
+    private void MainDrag_Completed(object sender, DragCompletedEventArgs e)
+    {
+        _dragging = false; SavePosition();
+    }
+
     internal void SavePosition()
     {
         _config.HoverAiLeft = Left;
@@ -442,9 +453,11 @@ public partial class HoverAiWindow : Window
             Chrome.Padding = new Thickness(_config.HoverAiMinimal ? 7 : 12);
             foreach (var button in ActionBar.Children.OfType<Button>())
                 button.FontSize = button == PasteButton ? BarTextSlider.Value : BarIconSlider.Value;
+            MainDragHandle.FontSize = BarIconSlider.Value;
+            MainDragHandle.Width = Math.Max(18, BarIconSlider.Value + 8);
             var label = new TextBlock { Text = "Paste", FontFamily = PasteButton.FontFamily, FontSize = BarTextSlider.Value };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            MinWidth = Math.Max(250, Math.Ceiling(label.DesiredSize.Width + 16 + (EditingLayout ? 6 : 5) * (BarIconSlider.Value + 14) + 20 + Chrome.Padding.Left * 2));
+            MinWidth = Math.Max(250, Math.Ceiling(label.DesiredSize.Width + 16 + (EditingLayout ? 6 : 5) * (BarIconSlider.Value + 14) + 20 + MainDragHandle.Width + 4 + Chrome.Padding.Left * 2));
             WidthSlider.Minimum = MinWidth;
             _config.HoverAiWidth = WidthSlider.Value;
             Width = _config.HoverAiWidth;

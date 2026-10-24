@@ -77,7 +77,7 @@ open returns at its last position and size after Native Widget or Windows starts
 
 Settings includes **Invisible hover**: the launcher and other widgets are temporarily
 hidden. Hover at the saved input position to reveal Quick AI; leaving its bounds hides
-it without a delay. Drag the input padding to move it. Ctrl+Alt+Left briefly outlines
+it without a delay. Drag the grip beside Paste to move the main bar and its hover position. Ctrl+Alt+Left briefly outlines
 its hover position. The UI has Paste, copy-answer, send-arrow, follow-up,
 Reset and settings actions. Copy-answer stays dimmed without an answer.
 
