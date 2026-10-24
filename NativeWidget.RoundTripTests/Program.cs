@@ -18,6 +18,18 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.Contains("--silent-capture-check", StringComparer.Ordinal))
+        {
+            var image = SilentScreenCapture.CapturePointerMonitor();
+            if (image.PixelWidth < 1 || image.PixelHeight < 1) throw new InvalidOperationException("Empty capture.");
+            Console.WriteLine($"PASS silent in-memory monitor capture: {image.PixelWidth} x {image.PixelHeight}; no file, clipboard write or overlay.");
+            return;
+        }
+        if (args.Contains("--hover-mode-checks", StringComparer.Ordinal))
+        {
+            HoverModeChecks.Run();
+            return;
+        }
         if (args.Contains("--sync-configured-once", StringComparer.Ordinal))
         {
             if (System.Diagnostics.Process.GetProcessesByName("NativeWidget").Length > 0)

@@ -49,7 +49,7 @@ public static class ScreenOcrService
         return result.Text.Trim();
     }
 
-    private static BitmapSource Capture(int x, int y, int width, int height)
+    internal static BitmapSource Capture(int x, int y, int width, int height)
     {
         var screenDc = GetDC(IntPtr.Zero);
         var memoryDc = CreateCompatibleDC(screenDc);

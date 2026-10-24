@@ -11,6 +11,9 @@ public partial class SettingsWindow : Window
 {
     private readonly AppConfig _config;
     private readonly Func<Task> _onCalendarChanged;
+    public event Action<bool>? InvisibleHoverChanged;
+    public event Action? HoverAiSettingsRequested;
+    private void HoverAiSettings_Click(object sender, RoutedEventArgs e) => HoverAiSettingsRequested?.Invoke();
 
     public SettingsWindow(AppConfig config, Func<Task> onCalendarChanged)
     {
@@ -24,6 +27,7 @@ public partial class SettingsWindow : Window
             GoogleClientSecretInput.Password = _config.GoogleClientSecret;
             AutoStartCheck.IsChecked = AutoStartService.IsEnabled();
             RestoreSessionCheck.IsChecked = _config.RestoreWindowSessionEnabled;
+            InvisibleHoverToggle.IsChecked = _config.InvisibleHoverEnabled;
             NotionTokenInput.Password = _config.NotionToken;
             NotionPageIdInput.Text = _config.NotionParentPageId;
             NotionDatabaseIdInput.Text = _config.NotionDatabaseId;
@@ -96,6 +100,13 @@ public partial class SettingsWindow : Window
             Diag("EXCEPTION: " + ex);
             SettingsStatus.Text = "Error saving: " + ex.Message;
         }
+    }
+
+    private void InvisibleHover_Click(object sender, RoutedEventArgs e)
+    {
+        _config.InvisibleHoverEnabled = InvisibleHoverToggle.IsChecked == true;
+        _config.Save();
+        InvisibleHoverChanged?.Invoke(_config.InvisibleHoverEnabled);
     }
 
     internal static string NormalizeNotionId(string text)

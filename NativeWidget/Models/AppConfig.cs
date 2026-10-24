@@ -22,6 +22,28 @@ public class AppConfig
     public string TranslationTargetLanguage { get; set; } = "vi";
     public bool TranslationSelectionTrackingEnabled { get; set; } = true;
     public bool RestoreWindowSessionEnabled { get; set; }
+    public bool InvisibleHoverEnabled { get; set; }
+    public bool HoverAiMinimal { get; set; } = true;
+    public double HoverAiOpacity { get; set; } = 1;
+    public double HoverAiWidth { get; set; } = 260;
+    public double HoverAiFontSize { get; set; } = 12;
+    public string HoverAiBackground { get; set; } = "#131217";
+    public string HoverAiForeground { get; set; } = "#EEEEF2";
+    public string HoverAiIconColor { get; set; } = "#EEEEF2";
+    public double? HoverAiLeft { get; set; }
+    public double? HoverAiTop { get; set; }
+    public bool HoverAiCaptureRegionEnabled { get; set; }
+    public int HoverAiCaptureX { get; set; }
+    public int HoverAiCaptureY { get; set; }
+    public int HoverAiCaptureWidth { get; set; } = 800;
+    public int HoverAiCaptureHeight { get; set; } = 600;
+    public double? HoverAiStatusLeft { get; set; }
+    public double? HoverAiStatusTop { get; set; }
+    public double? HoverAiResponseLeft { get; set; }
+    public double? HoverAiResponseTop { get; set; }
+    public double HoverAiResponseWidth { get; set; } = 340;
+    public double HoverAiResponseHeight { get; set; } = 240;
+
 
     private static string FolderPath =>
         Environment.GetEnvironmentVariable("NATIVEWIDGET_DATA_DIR") is { Length: > 0 } overridePath

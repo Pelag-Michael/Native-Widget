@@ -28,6 +28,12 @@ public sealed class WindowSessionSnapshot
 /// disk write for every pixel while the user drags or resizes a widget.
 public static class WindowSessionService
 {
+    private static readonly HashSet<Window> TemporarilyHidden = new();
+    internal static void SetTemporarilyHidden(Window window, bool hidden)
+    {
+        if (hidden) TemporarilyHidden.Add(window);
+        else TemporarilyHidden.Remove(window);
+    }
     private sealed record Tracked(Window Window, AppConfig Config, WindowSessionEntry Entry,
         DispatcherTimer BoundsTimer, bool TrackVisibility, bool RestoreSize,
         double DesignWidth, double DesignHeight);
@@ -156,7 +162,7 @@ public static class WindowSessionService
             tracked.Entry.Height = tracked.DesignHeight;
             LockDesignSize(window, tracked.DesignWidth, tracked.DesignHeight);
         }
-        if (tracked.TrackVisibility) tracked.Entry.IsOpen = window.IsVisible;
+        if (tracked.TrackVisibility && !TemporarilyHidden.Contains(window)) tracked.Entry.IsOpen = window.IsVisible;
         else tracked.Entry.IsOpen = true;
         if (save) Save();
     }

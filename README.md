@@ -75,6 +75,40 @@ dependency/build directories and directory junctions are skipped.
 Settings can optionally restore the previous desktop session: every widget that was still
 open returns at its last position and size after Native Widget or Windows starts again.
 
+Settings also includes **Invisible hover**: the launcher disappears completely and other
+widgets are temporarily hidden. Hover at the launcher's original position to reveal a
+compact Quick AI panel; moving outside it hides the panel and preserves its draft. Drag
+the AI title to move both the panel and its invisible hover position. Tap **Paste** (or
+two-finger tap for **Paste privately**) to receive clipboard text without displaying it;
+a white dot confirms receipt. **+** reveals an optional follow-up message. Use its send
+arrow or Ctrl+Enter to submit that message together with the hidden pasted context.
+**⋯** contains Minimal, opacity, width, text size and a circular color picker. Select
+Panel, Text or Icons, drag on the color wheel and adjust brightness. Colors apply across
+the AI panel, including its buttons and sliders. Appearance and position are stored in
+`hover-ai-appearance.json`, independently of the original launcher. Pasted context stays
+only in memory until Clear or exit. Moving this panel does not move the original launcher.
+The AI connection is
+not implemented yet, so the panel shows a connection placeholder instead of a generated
+answer. Its Settings button lets you disable the mode and restore previously open widgets.
+Ctrl+Alt+Left briefly outlines the invisible hover region without opening the panel.
+While this mode is active, Ctrl+Left (Control plus left arrow) copies in the focused app;
+Ctrl+C remains available. The shortcut is removed when the mode is disabled.
+Ctrl+, captures the monitor under the pointer silently into the AI panel's memory:
+no region-selection UI, dimming overlay, flash, clipboard write or screenshot file.
+In **Settings > Quick AI - Capture & layout** (also available through **...**),
+turn on **Use fixed capture area** to set X/Y/width/height in physical pixels, or use
+**Choose capture area** to draw the region once. Ctrl+, then captures that saved region
+silently; turning the option off returns to the monitor under the pointer.
+Enable **Edit layout** to show the receipt dot and demo response as separate draggable
+panels. Drag their headers/dot to place them, and drag any response edge or corner to
+resize it horizontally and vertically. Positions and response dimensions persist in the
+AI appearance file. Turn Edit layout off when finished; **...** closes these settings.
+**Copy**, beside Paste, copies the current answer and stays dimmed without an answer.
+Demo answers can be copied too. All of these settings apply only to Quick AI.
+Only the newest screenshot is retained, and Clear discards it. A receipt dot appears
+the next time the panel is revealed. **⋯ → Demo AI** previews a clearly labelled sample
+answer; the AI backend is still disconnected. Buttons keep the normal arrow cursor.
+
 ## See it in action
 
 | Idle hover rail | Dictionary meanings and real usage context |
@@ -141,7 +175,8 @@ workspace-wide documentation map is [`docs/README.md`](docs/README.md).
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Alt+F` | Find the launcher and briefly expand it |
+| `Ctrl+Alt+Left` | Briefly outline the launcher hover region |
+| `Ctrl+Alt+F` | Find the original launcher when Invisible hover is off |
 | `Ctrl+Alt+G` | Disable click-through mode on every widget |
 | `Ctrl+Alt+K` | Search the workspace and indexed folders |
 | `Ctrl+S` | Save the current note and push it to Notion immediately |

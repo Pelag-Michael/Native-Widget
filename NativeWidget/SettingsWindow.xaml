@@ -31,6 +31,32 @@
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
+                    <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,0,0,12">
+                        <StackPanel>
+                            <DockPanel>
+                                <TextBlock Text="Invisible hover" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                                <ToggleButton x:Name="InvisibleHoverToggle" HorizontalAlignment="Right" Width="40" Height="22"
+                                              Margin="10,0,0,0" Click="InvisibleHover_Click" ToolTip="Invisible hover mode">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border x:Name="Track" Background="#45454F" CornerRadius="11" Padding="3">
+                                                <Ellipse x:Name="Thumb" Fill="White" Width="16" Height="16" HorizontalAlignment="Left"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="Track" Property="Background" Value="#4A7DFF"/>
+                                                    <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                </ToggleButton>
+                            </DockPanel>
+                            <TextBlock Text="Hide the launcher and other widgets. Hover at the launcher's position to reveal the AI input; move away to hide it. Ctrl+Alt+Left briefly outlines its hover position. Ctrl+Left copies in the active app while this mode is enabled."
+                                       Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Button Content="Quick AI - Capture &amp; layout" Click="HoverAiSettings_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,8" Margin="0,0,0,12"/>
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -104,7 +130,7 @@
                         <StackPanel>
                             <TextBlock Text="SHORTCUTS" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
                             <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" LineHeight="18">
-                                <Run Text="Ctrl+Alt+F" FontWeight="Bold" Foreground="White"/> — find launcher: flash glow + expand icons for a few seconds (use when you lose the launcher on screen)<LineBreak/><LineBreak/>
+                                <Run Text="Ctrl+Alt+F" FontWeight="Bold" Foreground="White"/> — find the original widget launcher<LineBreak/><LineBreak/>
                                 <Run Text="Ctrl+Alt+G" FontWeight="Bold" Foreground="White"/> — un-ghost all widgets (use when you enabled click-through and can't click anything)
                             </TextBlock>
                         </StackPanel>

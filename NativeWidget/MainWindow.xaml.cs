@@ -48,9 +48,11 @@ public partial class MainWindow : Window
     private const int HotkeyId = 0xB001;
     private const int LocateHotkeyId = 0xB002;
     private const int SearchHotkeyId = 0xB003;
+    private const int CopyHotkeyId = 0xB004;
+    private const int ScreenshotHotkeyId = 0xB005;
     private const uint ModAlt = 0x1, ModControl = 0x2;
     private const uint VkG = 0x47;
-    private const uint VkF = 0x46;
+    private const uint VkLeft = 0x25;
     private const uint VkK = 0x4B;
     private const int WmHotkey = 0x0312;
 
@@ -88,6 +90,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitializeInvisibleHover();
         WindowInterop.HideFromAltTab(this);
         _shelf = new AppShelf(
             this,
@@ -146,11 +149,11 @@ public partial class MainWindow : Window
         {
             var hwnd = new WindowInteropHelper(this).Handle;
             RegisterHotKey(hwnd, HotkeyId, ModControl | ModAlt, VkG);
-            // Ctrl+Alt+F ("Find") - the launcher is a single small floating icon and easy to
+            // Ctrl+Alt+Left ("Find") - the launcher is a single small floating icon and easy to
             // lose behind other windows, unlike real Alt+Tab entries (it's deliberately
             // hidden from Alt+Tab via WindowInterop.HideFromAltTab, so there's no way to
             // intercept the real Alt+Tab keystroke and still let Windows' own switcher work).
-            RegisterHotKey(hwnd, LocateHotkeyId, ModControl | ModAlt, VkF);
+            RegisterLocateShortcut();
             RegisterHotKey(hwnd, SearchHotkeyId, ModControl | ModAlt, VkK);
             HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
             EnsureLauncherTopmost();
@@ -174,6 +177,8 @@ public partial class MainWindow : Window
             UnregisterHotKey(hwnd, HotkeyId);
             UnregisterHotKey(hwnd, LocateHotkeyId);
             UnregisterHotKey(hwnd, SearchHotkeyId);
+            UnregisterHotKey(hwnd, CopyHotkeyId);
+            UnregisterHotKey(hwnd, ScreenshotHotkeyId);
         };
         Closing += (_, _) => WindowSessionService.CaptureForShutdown();
         // Isolated end-to-end tests can open Translate without trying to automate the
@@ -191,6 +196,7 @@ public partial class MainWindow : Window
             Loaded += (_, _) =>
             {
                 RestoreWindowSession();
+                SetInvisibleHoverMode(_config.InvisibleHoverEnabled);
                 EnsureLauncherTopmost();
                 _topmostGuardTimer.Start();
             };
@@ -214,6 +220,16 @@ public partial class MainWindow : Window
             OpenGlobalSearch();
             handled = true;
         }
+        else if (msg == WmHotkey && wParam.ToInt32() == CopyHotkeyId && _hoverModeActive)
+        {
+            _ = CopyWithAlternateShortcutAsync();
+            handled = true;
+        }
+        else if (msg == WmHotkey && wParam.ToInt32() == ScreenshotHotkeyId && _hoverModeActive)
+        {
+            CaptureInvisibleScreenshot();
+            handled = true;
+        }
         return IntPtr.Zero;
     }
 
@@ -221,6 +237,7 @@ public partial class MainWindow : Window
     /// unmistakable even buried under other windows.
     private async Task LocateAsync()
     {
+        if (_hoverModeActive) { ShowHoverAnchorFrame(); return; }
         Activate();
         EnsureLauncherTopmost();
 
@@ -259,6 +276,7 @@ public partial class MainWindow : Window
             header.SetGhostVisual(false);
         }
         WindowInterop.SetClickThrough(this, false);
+        if (_hoverModeActive) WindowInterop.SetClickThrough(this, true);
         UpdateGlobalWindowControls();
     }
 
@@ -419,6 +437,7 @@ public partial class MainWindow : Window
 
     private void ShowLauncher()
     {
+        if (_hoverModeActive) return;
         if (_draggingDock || _suppressMenuOpen) return;
         _launcherCloseTimer.Stop();
         _launcherClosing = false;
@@ -638,12 +657,26 @@ public partial class MainWindow : Window
             "Focus" => _focusWindow ??= TrackWidget(new FocusWindow(), tag),
             "Translate" => _translationWindow ??= TrackWidget(new TranslationWindow(_config), tag),
             "Labels" => _labelsWindow ??= TrackWidget(new LabelsWindow(), tag),
-            "Settings" => _settingsWindow ??= TrackWidget(new SettingsWindow(_config, async () =>
-            {
-                if (_calendarWindow != null) await _calendarWindow.RefreshEventsAsync();
-            }), tag),
+            "Settings" => _settingsWindow ??= CreateSettingsWindow(),
             _ => throw new InvalidOperationException($"Unknown widget: {tag}"),
         };
+    }
+
+    private SettingsWindow CreateSettingsWindow()
+    {
+        var settings = new SettingsWindow(_config, async () =>
+        {
+            if (_calendarWindow != null) await _calendarWindow.RefreshEventsAsync();
+        });
+        settings.InvisibleHoverChanged += SetInvisibleHoverMode;
+        settings.HoverAiSettingsRequested += () =>
+        {
+            if (!_hoverModeActive) { SetInvisibleHoverMode(true); _config.Save(); }
+            _hoverSettingsOpen = true;
+            ShowInvisibleHoverPanel();
+            _hoverAi!.OpenPreferences();
+        };
+        return TrackWidget(settings, "Settings");
     }
 
     private T TrackWidget<T>(T widget, string tag) where T : Window
@@ -724,6 +757,7 @@ public partial class MainWindow : Window
 
     private void OpenGlobalSearch()
     {
+        if (_hoverModeActive) { ShowInvisibleHoverPanel(); return; }
         if (_searchWindow == null)
         {
             _searchWindow = new WorkspaceSearchWindow();
