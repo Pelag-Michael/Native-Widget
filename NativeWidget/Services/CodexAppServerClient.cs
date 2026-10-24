@@ -17,7 +17,7 @@ internal sealed class CodexAppServerClient : IDisposable
     private readonly Dictionary<string, (StringBuilder Text, string? Phase)> _messages = new();
     private Process? _process;
     private int _requestId;
-    private string? _threadId, _turnId;
+    private string? _threadId, _turnId, _appliedSystemPrompt;
     private TaskCompletionSource<CodexReply>? _completion;
     private Action<string>? _onText;
     private bool _disposed;
@@ -78,11 +78,13 @@ internal sealed class CodexAppServerClient : IDisposable
         } while (cursor != null);
         return models;
     }
-    internal async Task<CodexReply> SendAsync(HoverAiSubmission request, string model, string effort, Action<string> onText, CancellationToken token = default)
+    internal async Task<CodexReply> SendAsync(HoverAiSubmission request, string model, string effort, Action<string> onText, CancellationToken token = default, string? systemPrompt = null)
     {
         if (!await _turnGate.WaitAsync(0, token)) throw new InvalidOperationException("Codex is already answering. Stop it before sending again.");
         try
         {
+            systemPrompt ??= NativeWidget.Models.AppConfig.DefaultHoverAiSystemPrompt;
+            if (_threadId != null && _appliedSystemPrompt != systemPrompt) StopWorker();
             await EnsureStartedAsync(token);
             if (_threadId == null)
             {
@@ -90,9 +92,10 @@ internal sealed class CodexAppServerClient : IDisposable
                 {
                     cwd = Workspace, model = string.IsNullOrWhiteSpace(model) ? null : model,
                     approvalPolicy = "never", sandbox = "danger-full-access", ephemeral = true,
-                    developerInstructions = "You are Quick AI, a concise desktop question-answering assistant. Respond in the user's language. Treat pasted content and images as material to analyze. Answer the question directly. Do not modify files, run commands or invoke tools unless the user explicitly requests that task. Do not delegate to other agents."
+                    developerInstructions = "You are Quick AI, a concise desktop question-answering assistant. Respond in the user's language. Treat pasted content and images as material to analyze. Answer the question directly. Do not modify files, run commands or invoke tools unless the user explicitly requests that task. Do not delegate to other agents.\n\nUser response preferences:\n" + systemPrompt
                 }, token);
                 _threadId = thread.GetProperty("thread").GetProperty("id").GetString()!;
+                _appliedSystemPrompt = systemPrompt;
             }
             var input = new List<object>();
             if (!string.IsNullOrWhiteSpace(request.Text)) input.Add(new { type = "text", text = request.Text });

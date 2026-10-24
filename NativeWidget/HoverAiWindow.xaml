@@ -124,6 +124,9 @@
                 <ComboBox x:Name="CodexEffortPicker" Style="{StaticResource HoverCodexCombo}" SelectedIndex="0" Margin="0,0,0,5">
                     <ComboBoxItem Content="low"/><ComboBoxItem Content="medium"/><ComboBoxItem Content="high"/><ComboBoxItem Content="xhigh"/><ComboBoxItem Content="max"/>
                 </ComboBox>
+                <TextBlock Text="System prompt" FontSize="11" Margin="0,5,0,4"/>
+                <TextBox x:Name="SystemPromptInput" Style="{StaticResource InputStyle}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70" MaxHeight="160" VerticalScrollBarVisibility="Auto" TextChanged="SystemPrompt_Changed" Margin="0,0,0,4"/>
+                <TextBlock Text="Saved automatically. Changing this starts a new chat on the next Send." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
                 <WrapPanel Margin="0,0,0,5">
                     <Button x:Name="LoadModelsButton" Content="Load models" Click="LoadModels_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" FontSize="10"/>
                     <Button x:Name="NewChatButton" Content="New chat" Click="NewChat_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" FontSize="10" Margin="4,0,0,0"/>

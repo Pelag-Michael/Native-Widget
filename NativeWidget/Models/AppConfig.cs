@@ -49,6 +49,8 @@ public class AppConfig
     public double HoverAiResponseHeight { get; set; } = 240;
     public double? HoverAiStatusOpacity { get; set; }
     public double? HoverAiResponseOpacity { get; set; }
+    public const string DefaultHoverAiSystemPrompt = "Tr\u1EA3 l\u1EDDi ng\u1EAFn g\u1ECDn, \u0111i th\u1EB3ng v\u00E0o \u00FD ch\u00EDnh. M\u1EB7c \u0111\u1ECBnh t\u1ED1i \u0111a 1-3 c\u00E2u. Kh\u00F4ng m\u1EDF \u0111\u1EA7u x\u00E3 giao, kh\u00F4ng l\u1EB7p l\u1EA1i c\u00E2u h\u1ECFi. Ch\u1EC9 gi\u1EA3i th\u00EDch d\u00E0i khi t\u00F4i y\u00EAu c\u1EA7u.";
+    public string HoverAiSystemPrompt { get; set; } = DefaultHoverAiSystemPrompt;
     public string HoverAiCodexModel { get; set; } = "";
     public string HoverAiCodexEffort { get; set; } = "low";
     public bool HoverAiQuicker { get; set; }

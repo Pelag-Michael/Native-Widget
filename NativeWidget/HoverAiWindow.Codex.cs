@@ -20,11 +20,18 @@ public partial class HoverAiWindow
 
     private void InitializeCodexControls()
     {
+        SystemPromptInput.Text = _config.HoverAiSystemPrompt;
         CodexModelPicker.Text = _config.HoverAiCodexModel;
         foreach (var item in CodexEffortPicker.Items.OfType<ComboBoxItem>())
             if ((string)item.Content == _config.HoverAiCodexEffort) CodexEffortPicker.SelectedItem = item;
         CodexModelPicker.LostKeyboardFocus += (_, _) => SaveCodexSelection();
         CodexEffortPicker.SelectionChanged += (_, _) => { if (_ready) SaveCodexSelection(); };
+    }
+    private void SystemPrompt_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (!_ready) return;
+        _config.HoverAiSystemPrompt = SystemPromptInput.Text;
+        _saveTimer.Stop(); _saveTimer.Start();
     }
     internal void EnableCodexBackend()
     {
@@ -39,6 +46,7 @@ public partial class HoverAiWindow
     }
     private void SaveCodexSelection()
     {
+        _config.HoverAiSystemPrompt = SystemPromptInput.Text;
         _config.HoverAiCodexModel = CodexModelPicker.Text.Trim();
         _config.HoverAiCodexEffort = (CodexEffortPicker.SelectedItem as ComboBoxItem)?.Content as string ?? "low";
         if (_ready) SavePreferences();
@@ -63,7 +71,7 @@ public partial class HoverAiWindow
     {
         if (_codexCancellation != null) { _queuedSubmission = request; CodexStatus.Text = "Next input queued"; return; }
         SaveCodexSelection();
-        var fingerprint = JsonSerializer.Serialize(new { request.Text, request.ImagePaths, _config.HoverAiCodexModel, _config.HoverAiCodexEffort });
+        var fingerprint = JsonSerializer.Serialize(new { request.Text, request.ImagePaths, _config.HoverAiCodexModel, _config.HoverAiCodexEffort, _config.HoverAiSystemPrompt });
         if (fingerprint == _lastCompletedInput) { CodexStatus.Text = "Already sent. Add input or reset to send again."; return; }
         var generation = ++_codexGeneration;
         using var cancellation = new CancellationTokenSource();
@@ -95,7 +103,7 @@ public partial class HoverAiWindow
             }));
             var reply = await (_codex ??= new CodexAppServerClient()).SendAsync(
                 new HoverAiSubmission(request.Text, pinned), _config.HoverAiCodexModel, _config.HoverAiCodexEffort,
-                ReportProgress, cancellation.Token);
+                ReportProgress, cancellation.Token, _config.HoverAiSystemPrompt);
             if (generation != _codexGeneration || _codexClosing) return;
             finished = true;
             _responseText = reply.Text; AnswerText.Text = reply.Text.Length > 0 ? reply.Text : "No answer returned.";

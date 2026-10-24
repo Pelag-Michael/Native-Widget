@@ -99,7 +99,9 @@ Quick AI uses the installed **Codex CLI app-server** with its existing sign-in. 
 starts on first Send (or Load models), uses a separate temporary conversation and isolated
 working folder, and streams the answer into the response panel. Choose a model and reasoning
 effort in Quick AI settings; a blank model uses Codex's default. **Load models** reads the
-catalog from the installed CLI. The send arrow becomes **Stop** while answering.
+catalog from the installed CLI. **System prompt** saves custom response instructions,
+with a brief 1-3 sentence answer style by default. Changing it starts a new conversation
+on the next Send. The send arrow becomes **Stop** while answering.
 **Reset** clears input and cancels the active request while retaining conversation context;
 **New chat** clears input and conversation context together. Restarting the app starts a new
 conversation. Repeated Send with an unchanged successful input is ignored. Quicker input

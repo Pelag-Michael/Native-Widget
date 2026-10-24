@@ -10,7 +10,7 @@ internal static class CodexBackendChecks
 {
     internal static void FakeServer()
     {
-        string thread = ""; string? pendingTurn = null; int count = 0;
+        string thread = ""; string instructions = ""; string? pendingTurn = null; int count = 0;
         void Emit(object message) { Console.WriteLine(JsonSerializer.Serialize(message)); Console.Out.Flush(); }
         void Event(string method, object parameters) => Emit(new { method, @params = parameters });
         string? line;
@@ -27,6 +27,7 @@ internal static class CodexBackendChecks
             else if (method == "thread/start")
             {
                 if (p.GetProperty("approvalPolicy").GetString() != "never" || p.GetProperty("sandbox").GetString() != "danger-full-access") throw new Exception("Full-access thread configuration missing");
+                instructions = p.GetProperty("developerInstructions").GetString()!;
                 thread = Guid.NewGuid().ToString(); Reply(new { thread = new { id = thread } });
             }
             else if (method == "turn/start")
@@ -43,7 +44,7 @@ internal static class CodexBackendChecks
                 if (images.Any(x => !File.Exists(x.GetProperty("path").GetString()))) throw new Exception("Missing image");
                 Event("item/started", new { threadId = thread, turnId = turn, item = new { type = "agentMessage", id = "answer", phase = "final_answer", text = "" } });
                 Event("item/agentMessage/delta", new { threadId = thread, turnId = turn, itemId = "answer", delta = "Hello " });
-                var answer = "Hello " + (images.Length > 0 ? "image" : "text");
+                var answer = text == "check prompt" ? instructions : "Hello " + (images.Length > 0 ? "image" : "text");
                 Event("item/agentMessage/delta", new { threadId = thread, turnId = turn, itemId = "answer", delta = images.Length > 0 ? "image" : "text" });
                 Event("item/completed", new { threadId = thread, turnId = turn, item = new { type = "agentMessage", id = "answer", phase = "final_answer", text = answer } });
                 Event("turn/completed", new { threadId = thread, turn = new { id = turn, status = "completed" } });
@@ -83,6 +84,9 @@ internal static class CodexBackendChecks
             catch (IOException) { }
             reply = await client.SendAsync(new HoverAiSubmission("recover", Array.Empty<string>()), "", "low", _ => { });
             Require(reply.Text == "Hello text" && client.ThreadId != thread, "Worker crash reconnects into a new thread");
+            var previousThread = client.ThreadId;
+            reply = await client.SendAsync(new HoverAiSubmission("check prompt", Array.Empty<string>()), "", "low", _ => { }, systemPrompt: "custom-fixture-rule: be brief");
+            Require(reply.Text.Contains("custom-fixture-rule: be brief") && client.ThreadId != previousThread, "Custom system prompt reaches a new thread");
             client.NewChat(); Require(client.ThreadId == null && client.WorkerPid == null, "New chat releases previous session");
             Console.WriteLine("PASS Codex protocol: catalog, image attachment, incremental text, conversation reuse, interruption, failure, crash recovery and new chat.");
         }
