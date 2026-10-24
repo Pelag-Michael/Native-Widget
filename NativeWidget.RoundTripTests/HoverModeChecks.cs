@@ -162,10 +162,26 @@ internal static class HoverModeChecks
             Require(((Button)panel.FindName("CopyResponseButton")).IsEnabled, "Demo answer enables copy.");
             var response = panel.ResponseWindowForTests!;
             response.Show(); response.UpdateLayout();
+            ((Slider)panel.FindName("StatusOpacitySlider")).Value = .22;
+            ((Slider)panel.FindName("ResponseOpacitySlider")).Value = .43;
+            Require(Math.Abs(response.Opacity - .43) < .01 && Math.Abs(panel.Opacity - .65) < .01,
+                "Response opacity must be independent from the input bar.");
+            var wideWidth = response.Width; var wideHeight = response.Height;
+            response.Resize("R", 24 - response.Width, 0); response.UpdateLayout();
+            Require(response.Width <= 25 && response.Height > wideHeight,
+                "A narrow text box must wrap and expand downwards to retain its entire answer.");
+            response.Resize("R", wideWidth - response.Width, 0); response.UpdateLayout();
+            var editForResize = (CheckBox)panel.FindName("EditLayoutCheck");
+            editForResize.IsChecked = true; editForResize.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            response.Resize("B", 0, 12 - response.Height); response.UpdateLayout();
+            Require(response.Height <= 13, $"Layout editing must allow shrinking the frame to 12 pixels high: {response.Height}, editing={panel.EditingLayout}.");
+            response.Resize("B", 0, 240 - response.Height); response.UpdateLayout();
             var beforeWidth = response.Width; var beforeHeight = response.Height;
             response.Resize("LT", -30, -25); response.SaveBounds();
             Require(Math.Abs(response.Width - beforeWidth - 30) < 1 && Math.Abs(response.Height - beforeHeight - 25) < 1, $"Left/top edges resize both dimensions: {beforeWidth}x{beforeHeight} -> {response.Width}x{response.Height}.");
             var bounds = AppConfig.Load(); HoverAiAppearanceStore.LoadInto(bounds);
+            Require(bounds.HoverAiStatusOpacity == .22 && bounds.HoverAiResponseOpacity == .43,
+                "Separate floating panel opacity must survive saving.");
             Require(bounds.HoverAiResponseWidth == response.Width && bounds.HoverAiResponseLeft == response.Left, "Response bounds persist independently.");
             ((TextBox)panel.FindName("CaptureX")).Text = "10";
             ((TextBox)panel.FindName("CaptureY")).Text = "20";

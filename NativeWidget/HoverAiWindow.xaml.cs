@@ -44,6 +44,8 @@ public partial class HoverAiWindow : Window
     {
         _config = config;
         HoverAiAppearanceStore.LoadInto(config);
+        config.HoverAiStatusOpacity ??= config.HoverAiOpacity;
+        config.HoverAiResponseOpacity ??= config.HoverAiOpacity;
         config.HoverAiDotColor ??= config.HoverAiIconColor;
         config.HoverAiStatusBackground ??= config.HoverAiBackground;
         config.HoverAiResponseBackground ??= config.HoverAiBackground;
@@ -55,6 +57,10 @@ public partial class HoverAiWindow : Window
         CaptureWidth.Text = config.HoverAiCaptureWidth.ToString(); CaptureHeight.Text = config.HoverAiCaptureHeight.ToString();
         MinimalCheck.IsChecked = config.HoverAiMinimal;
         OpacitySlider.Value = Safe(config.HoverAiOpacity, .15, 1, 1);
+        StatusOpacitySlider.Value = Safe(config.HoverAiStatusOpacity.Value, 0, 1, 1);
+        ResponseOpacitySlider.Value = Safe(config.HoverAiResponseOpacity.Value, 0, 1, 1);
+        TextOnlyCheck.IsChecked = config.HoverAiResponseTextOnly;
+        AutoHeightCheck.IsChecked = config.HoverAiResponseAutoHeight;
         WidthSlider.Value = Safe(config.HoverAiWidth, 180, 600, 260);
         FontSlider.Value = Safe(config.HoverAiFontSize, 9, 20, 12);
         BackgroundInput.Text = config.HoverAiBackground;
@@ -150,7 +156,7 @@ public partial class HoverAiWindow : Window
     {
         if (!_ready) return;
         EnsureFloatingPanels();
-        _statusWindow!.RefreshTheme(); _responseWindow!.RefreshTheme();
+        _statusWindow!.RefreshTheme(EditingLayout); _responseWindow!.RefreshTheme(EditingLayout);
         _responseWindow.SetAnswer(ResponseLabel.Text, AnswerText.Text);
         var show = IsVisible || EditingLayout;
         if (show && (EditingLayout || _pastedContext.Count > 0 || LastScreenshot != null)) _statusWindow.Show(); else _statusWindow.Hide();
@@ -288,6 +294,10 @@ public partial class HoverAiWindow : Window
         if (!_ready) return;
         _config.HoverAiMinimal = MinimalCheck.IsChecked == true;
         _config.HoverAiOpacity = OpacitySlider.Value;
+        _config.HoverAiStatusOpacity = StatusOpacitySlider.Value;
+        _config.HoverAiResponseOpacity = ResponseOpacitySlider.Value;
+        _config.HoverAiResponseTextOnly = TextOnlyCheck.IsChecked == true;
+        _config.HoverAiResponseAutoHeight = AutoHeightCheck.IsChecked == true;
         _config.HoverAiWidth = WidthSlider.Value;
         _config.HoverAiFontSize = FontSlider.Value;
         Opacity = _config.HoverAiOpacity;

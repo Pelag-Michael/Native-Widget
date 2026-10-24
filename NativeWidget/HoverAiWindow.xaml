@@ -64,7 +64,7 @@
                 </Border>
                 <Button x:Name="PasteButton" Grid.Column="1" Content="Paste" Click="Paste_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,4"/>
                 <Button x:Name="CopyResponseButton" Grid.Column="2" Content="Copy" IsEnabled="False" Click="CopyResponse_Click" Style="{StaticResource CopyHoverButton}" Margin="4,0,0,0" Padding="5,3" FontSize="10"/>
-                <Button x:Name="SendButton" Grid.Column="3" Content="G&#x1EED;i" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
+                <Button x:Name="SendButton" Grid.Column="3" Content="&#x2191;" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
                 <Button Grid.Column="4" Content="+" Click="FollowUp_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
                 <Button Grid.Column="5" Content="&#x22EF;" Click="Options_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
             </Grid>
@@ -96,8 +96,14 @@
                 <TextBlock Text="X / Y - Width / Height (pixels)" FontSize="10" Opacity="0.65"/>
                 <Button Content="Choose capture area..." Click="ChooseCapture_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="0,5,0,10" Padding="6,5"/>
                 <CheckBox x:Name="MinimalCheck" Content="Minimal" Foreground="White" IsChecked="True" Click="Appearance_Changed"/>
-                <TextBlock Text="Opacity" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
+                <TextBlock Text="Input opacity" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
                 <Slider x:Name="OpacitySlider" Minimum="0.15" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                <TextBlock Text="Dot opacity" FontSize="11" Margin="0,8,0,2"/>
+                <Slider x:Name="StatusOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                <TextBlock Text="AI response opacity" FontSize="11" Margin="0,8,0,2"/>
+                <Slider x:Name="ResponseOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                <CheckBox x:Name="TextOnlyCheck" Content="Response: text only" Click="Appearance_Changed" Margin="0,8,0,0"/>
+                <CheckBox x:Name="AutoHeightCheck" Content="Auto height: show all text" Click="Appearance_Changed" Margin="0,6,0,0"/>
                 <TextBlock Text="Width" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
                 <Slider x:Name="WidthSlider" Minimum="180" Maximum="600" Value="260" ValueChanged="Appearance_ValueChanged"/>
                 <TextBlock Text="Text size" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>

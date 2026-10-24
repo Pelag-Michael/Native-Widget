@@ -47,6 +47,10 @@ public class AppConfig
     public double? HoverAiResponseTop { get; set; }
     public double HoverAiResponseWidth { get; set; } = 340;
     public double HoverAiResponseHeight { get; set; } = 240;
+    public double? HoverAiStatusOpacity { get; set; }
+    public double? HoverAiResponseOpacity { get; set; }
+    public bool HoverAiResponseTextOnly { get; set; } = true;
+    public bool HoverAiResponseAutoHeight { get; set; } = true;
 
 
     private static string FolderPath =>

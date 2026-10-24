@@ -103,7 +103,13 @@ Enable **Edit layout** to show the receipt dot and demo response as separate dra
 panels. Drag their headers/dot to place them, and drag any response edge or corner to
 resize it horizontally and vertically. Positions and response dimensions persist in the
 AI appearance file. The color wheel has independent Dot, Dot panel, AI panel and AI text
-targets; changing these does not recolor the input bar. Turn Edit layout off when finished; **...** closes these settings.
+targets; changing these does not recolor the input bar. Dot and response opacity have
+independent sliders, including zero opacity. Edit layout temporarily raises an invisible
+panel to 25% opacity so it can still be repositioned. The dot has no outline.
+Responses default to **text only**: no background, border or title outside layout editing.
+Frames can shrink to 12 pixels on either axis, with words wrapping at narrow widths.
+**Auto height** extends the text downwards to show the whole answer; turn it off for a
+fixed-height box with mouse-wheel scrolling. The send action uses an up-arrow icon. Turn Edit layout off when finished; **...** closes these settings.
 **Copy**, beside Paste, copies the current answer and stays dimmed without an answer.
 Demo answers can be copied too. All of these settings apply only to Quick AI.
 Only the newest screenshot is retained, and Clear discards it. A receipt dot appears
