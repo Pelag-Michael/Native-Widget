@@ -1,0 +1,7 @@
+/* High specificity also covers sites that declare their own !important colors.
+   :is() matches every element without adding attributes to the page. */
+:is(*, #invisible-selection-override#invisible-selection-override#invisible-selection-override#invisible-selection-override)::selection {
+  background-color: transparent !important;
+  color: currentColor !important;
+  text-shadow: none !important;
+}
