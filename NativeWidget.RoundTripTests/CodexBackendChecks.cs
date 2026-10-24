@@ -26,11 +26,12 @@ internal static class CodexBackendChecks
             else if (method == "model/list") Reply(new { data = new[] { new { model = "fixture-model", isDefault = true } }, nextCursor = (string?)null });
             else if (method == "thread/start")
             {
-                if (p.GetProperty("approvalPolicy").GetString() != "never" || p.GetProperty("sandbox").GetString() != "read-only") throw new Exception("Unsafe thread configuration");
+                if (p.GetProperty("approvalPolicy").GetString() != "never" || p.GetProperty("sandbox").GetString() != "danger-full-access") throw new Exception("Full-access thread configuration missing");
                 thread = Guid.NewGuid().ToString(); Reply(new { thread = new { id = thread } });
             }
             else if (method == "turn/start")
             {
+                if (p.GetProperty("approvalPolicy").GetString() != "never" || p.GetProperty("sandboxPolicy").GetProperty("type").GetString() != "dangerFullAccess") throw new Exception("Full-access turn configuration missing");
                 var turn = "turn-" + ++count; var input = p.GetProperty("input");
                 var text = input.EnumerateArray().Where(x => x.GetProperty("type").GetString() == "text").Select(x => x.GetProperty("text").GetString()).FirstOrDefault() ?? "";
                 Reply(new { turn = new { id = turn } }); Event("turn/started", new { threadId = thread, turn = new { id = turn } });
@@ -168,6 +169,22 @@ internal static class CodexBackendChecks
             Console.WriteLine("PASS live Codex: " + model + ", PNG vision, streaming and conversation memory.");
         }
         finally { File.Delete(image); }
+    }
+    internal static async Task RunFullAccessLiveAsync()
+    {
+        var target = Path.Combine(Path.GetTempPath(), "nativewidget-access-" + Guid.NewGuid().ToString("N") + ".txt");
+        try
+        {
+            using var client = new CodexAppServerClient();
+            var models = await client.GetModelsAsync();
+            var reply = await client.SendAsync(new HoverAiSubmission(
+                "Use your terminal tool to create this one UTF-8 test file outside your working directory: " + JsonSerializer.Serialize(target) +
+                ". Its exact content must be nativewidget-full-access-ok. Do not modify any other files. After writing it, reply with DONE.", Array.Empty<string>()),
+                models.First(m => m.IsDefault).Id, "low", _ => { });
+            Require(File.Exists(target) && File.ReadAllText(target).Trim() == "nativewidget-full-access-ok", "Live full-access write outside the working directory failed: " + reply.Text);
+            Console.WriteLine("PASS live Codex full access: terminal created the requested test file in Temp, outside its working folder, without approval prompts.");
+        }
+        finally { if (File.Exists(target)) File.Delete(target); }
     }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
 }

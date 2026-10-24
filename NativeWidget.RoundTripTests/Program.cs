@@ -21,6 +21,7 @@ internal static class Program
         if (args.FirstOrDefault() == "app-server") { CodexBackendChecks.FakeServer(); return; }
         if (args.Contains("--codex-backend-checks")) { CodexBackendChecks.RunAsync().GetAwaiter().GetResult(); return; }
         if (args.Contains("--codex-ui-checks")) { CodexBackendChecks.RunUi(); return; }
+        if (args.Contains("--codex-full-access-check")) { CodexBackendChecks.RunFullAccessLiveAsync().GetAwaiter().GetResult(); return; }
         if (args.Contains("--codex-live-check")) { CodexBackendChecks.RunLiveAsync().GetAwaiter().GetResult(); return; }
         if (args.Contains("--silent-capture-check", StringComparer.Ordinal))
         {

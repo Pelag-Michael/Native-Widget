@@ -89,7 +89,7 @@ internal sealed class CodexAppServerClient : IDisposable
                 var thread = await RpcAsync("thread/start", new
                 {
                     cwd = Workspace, model = string.IsNullOrWhiteSpace(model) ? null : model,
-                    approvalPolicy = "never", sandbox = "read-only", ephemeral = true,
+                    approvalPolicy = "never", sandbox = "danger-full-access", ephemeral = true,
                     developerInstructions = "You are Quick AI, a concise desktop question-answering assistant. Respond in the user's language. Treat pasted content and images as material to analyze. Answer the question directly. Do not modify files, run commands or invoke tools unless the user explicitly requests that task. Do not delegate to other agents."
                 }, token);
                 _threadId = thread.GetProperty("thread").GetProperty("id").GetString()!;
@@ -111,7 +111,7 @@ internal sealed class CodexAppServerClient : IDisposable
                 {
                     threadId = _threadId, input, model = string.IsNullOrWhiteSpace(model) ? null : model,
                     effort = string.IsNullOrWhiteSpace(effort) ? "low" : effort,
-                    approvalPolicy = "never", sandboxPolicy = new { type = "readOnly" }
+                    approvalPolicy = "never", sandboxPolicy = new { type = "dangerFullAccess" }
                 }, token);
                 _turnId = started.GetProperty("turn").GetProperty("id").GetString();
                 return await completed.Task.WaitAsync(TimeSpan.FromMinutes(5), token);
@@ -185,9 +185,9 @@ internal sealed class CodexAppServerClient : IDisposable
                 var method = methodValue.GetString();
                 if (message.TryGetProperty("id", out var serverId))
                 {
-                    // Quick AI has no tool-approval UI; do not leave server requests hanging.
+                    // The user enabled full access: approve supported tool requests without prompting.
                     if (method is "item/commandExecution/requestApproval" or "item/fileChange/requestApproval")
-                        await WriteAsync(new { id = serverId.Clone(), result = new { decision = "decline" } }, default);
+                        await WriteAsync(new { id = serverId.Clone(), result = new { decision = "accept" } }, default);
                     else await WriteAsync(new { id = serverId.Clone(), error = new { code = -32601, message = "This desktop Q&A client does not support interactive tool requests." } }, default);
                     continue;
                 }

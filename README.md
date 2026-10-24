@@ -105,8 +105,8 @@ catalog from the installed CLI. The send arrow becomes **Stop** while answering.
 conversation. Repeated Send with an unchanged successful input is ignored. Quicker input
 received during an answer is queued as the next complete draft. Only one turn runs at once.
 Images are copied privately for the active request, so Reset cannot remove a file while
-Codex reads it; those copies are removed when the request finishes. Codex uses read-only
-sandboxing with no approval prompts. No API key is stored by the widget.
+Codex reads it; those copies are removed when the request finishes. Codex uses full access (`danger-full-access`)
+with no approval prompts, as configured for this local widget. No API key is stored by the widget.
 
 The receipt dot is green while any text or image is queued, including when the input
 is hidden. A newly received screenshot/clipboard image flashes the dot yellow for two
