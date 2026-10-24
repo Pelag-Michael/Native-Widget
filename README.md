@@ -141,7 +141,9 @@ main Settings window also groups its sections and includes the same shortcut ref
 No response outline is drawn. Add input and Response default to text-only, without a
 background or title outside layout editing. Frames shrink to 12 pixels per axis; narrow
 widths wrap words downwards. Auto height extends downwards to retain all text; disable it
-for a fixed-height box with mouse-wheel scrolling. Edit layout raises an invisible panel
+for a fixed-height box with mouse-wheel scrolling. Manually dragging a top/bottom edge or
+corner vertically disables auto height automatically, so new text cannot expand the
+chosen height. Edit layout raises an invisible panel
 to at least 25% opacity temporarily so it can be repositioned. The bar widens as needed
 to keep Paste visible when its icons become larger or its gear appears.
 

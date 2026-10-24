@@ -226,12 +226,12 @@ public partial class HoverAiWindow : Window
         FollowUpPanel.Children.Remove(QuestionInput);
         _inputWindow = new HoverAiFloatingPanel(_config, false, left + Width + 16, top + 45, QuestionInput);
         _inputWindow.PreviewKeyDown += Window_PreviewKeyDown;
-        _inputWindow.BoundsSaved += SavePreferences;
+        _inputWindow.BoundsSaved += () => { FollowUpAutoHeightCheck.IsChecked = _config.HoverAiFollowUpAutoHeight; SavePreferences(); };
         _inputWindow.SettingsRequested += () => OpenPanelAppearance("Add input");
         _responseWindow.SettingsRequested += () => OpenPanelAppearance("Response");
         _statusWindow.SettingsRequested += () => OpenPanelAppearance("Dot");
         _statusWindow.BoundsSaved += SavePreferences;
-        _responseWindow.BoundsSaved += SavePreferences;
+        _responseWindow.BoundsSaved += () => { AutoHeightCheck.IsChecked = _config.HoverAiResponseAutoHeight; SavePreferences(); };
     }
     internal void RefreshFloatingPanels()
     {

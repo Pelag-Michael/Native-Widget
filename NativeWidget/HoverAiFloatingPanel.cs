@@ -45,7 +45,7 @@ internal sealed class HoverAiFloatingPanel : Window
         _frameHeight = Height;
         Left = status ? config.HoverAiStatusLeft ?? left : (IsInput ? config.HoverAiFollowUpLeft : config.HoverAiResponseLeft) ?? left;
         Top = status ? config.HoverAiStatusTop ?? top : (IsInput ? config.HoverAiFollowUpTop : config.HoverAiResponseTop) ?? top;
-        _chrome = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(60,255,255,255)), Padding = new Thickness(status ? 0 : 12) };
+        _chrome = new Border { ClipToBounds = true, CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(60,255,255,255)), Padding = new Thickness(status ? 0 : 12) };
         var root = new Grid(); root.Children.Add(_chrome); Content = root;
         SettingsButton = new Button
         {
@@ -59,7 +59,7 @@ internal sealed class HoverAiFloatingPanel : Window
         if (status) { _chrome.Child = _dot; _chrome.MouseLeftButtonDown += Drag; }
         else
         {
-            var body = new DockPanel(); _chrome.Child = body;
+            var body = new DockPanel { ClipToBounds = true }; _chrome.Child = body;
             _header = new Border { Background = Brushes.Transparent, Padding = new Thickness(0,0,0,8), Child = _label };
             DockPanel.SetDock(_header, Dock.Top); body.Children.Add(_header); _header.MouseLeftButtonDown += Drag;
             _answer.MouseLeftButtonDown += (_, e) => { if (_editing) Drag(_answer, e); };
@@ -107,10 +107,18 @@ internal sealed class HoverAiFloatingPanel : Window
     }
     internal void Resize(string edge, double x, double y)
     {
+        // A manual height is a hard limit; auto height must not undo the user's resize.
+        var vertical = (edge.Contains('T') || edge.Contains('B')) && Math.Abs(y) > .001;
+        if (vertical)
+        {
+            if (IsInput) _config.HoverAiFollowUpAutoHeight = false;
+            else _config.HoverAiResponseAutoHeight = false;
+        }
         if (edge.Contains('L')) { var w = Math.Clamp(Width - x, 12, 32000); Left += Width - w; Width = w; }
         if (edge.Contains('R')) Width = Math.Clamp(Width + x, 12, 32000);
         if (edge.Contains('T')) { var h = Math.Clamp(Height - y, 12, 32000); Top += Height - h; _frameHeight = h; Height = h; }
         if (edge.Contains('B')) { _frameHeight = Math.Clamp(Height + y, 12, 32000); Height = _frameHeight; }
+        if (vertical) ReflowText();
     }
     internal void SaveBounds()
     {

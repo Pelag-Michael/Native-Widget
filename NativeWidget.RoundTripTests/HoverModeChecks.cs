@@ -220,6 +220,14 @@ internal static class HoverModeChecks
             Require(bounds.HoverAiStatusOpacity == .22 && bounds.HoverAiResponseOpacity == .43,
                 "Separate floating panel opacity must survive saving.");
             Require(bounds.HoverAiResponseWidth == response.Width && bounds.HoverAiResponseLeft == response.Left, "Response bounds persist independently.");
+            Require(!bounds.HoverAiResponseAutoHeight && ((CheckBox)panel.FindName("AutoHeightCheck")).IsChecked == false,
+                "Manual vertical resize disables and persists auto height.");
+            panel.EndLayoutEditing();
+            var fixedResponseHeight = response.Height;
+            response.SetAnswer("AI", string.Join(" ", Enumerable.Repeat("Long answer wraps but stays inside the chosen height.", 80)));
+            response.Resize("R", -40, 0); response.UpdateLayout();
+            Require(Math.Abs(response.Height - fixedResponseHeight) < 1, "Long answers and horizontal resize must respect the manually set height.");
+            editForResize.IsChecked = true; editForResize.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             ((TextBox)panel.FindName("CaptureX")).Text = "10";
             ((TextBox)panel.FindName("CaptureY")).Text = "20";
             ((TextBox)panel.FindName("CaptureWidth")).Text = "320";
