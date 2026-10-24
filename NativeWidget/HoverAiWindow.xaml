@@ -116,6 +116,11 @@
                 </ScrollViewer>
             </StackPanel>
             <ScrollViewer MaxHeight="520" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="AppearancePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                <Expander x:Name="LayoutSection" Header="Layout" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
+                <CheckBox x:Name="EditLayoutCheck" Content="Edit layout" Click="EditLayout_Click" Margin="0,0,0,8"/>
+                <TextBlock Text="Drag corners to resize; Shift + drag a corner to move." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
+                </StackPanel></Expander>
+                <Expander x:Name="CodexSection" Header="Codex &amp; system prompt" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
                 <TextBlock Text="Codex" FontWeight="SemiBold" Margin="0,0,0,5"/>
                 <ComboBox x:Name="CodexModelPicker" Style="{StaticResource HoverCodexCombo}" IsEditable="True" Text="" Margin="0,0,0,5"/>
                 <TextBlock Text="Blank = Codex default model" FontSize="10" Opacity="0.65" Margin="0,0,0,5"/>
@@ -130,16 +135,15 @@
                     <Button x:Name="NewChatButton" Content="New chat" Click="NewChat_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" FontSize="10" Margin="4,0,0,0"/>
                 </WrapPanel>
                 <TextBlock x:Name="CodexStatus" Text="Codex connects on first Send" TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,10"/>
+                </StackPanel></Expander>
+                <Expander x:Name="ModesSection" Header="Quick modes" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
                 <CheckBox x:Name="QuickerCheck" Content="Quicker: copy and send" Click="Appearance_Changed" Margin="0,0,0,8"/>
                 <TextBlock Text="Ctrl + Left copies the selection, adds it to input and sends." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
                 <CheckBox x:Name="ScreenshotAutoSendCheck" Content="Screenshot to AI" Click="ScreenshotMode_Changed" Margin="0,0,0,6"/>
                 <TextBlock Text="Capture the current area and send it immediately with this prompt." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,5"/>
                 <TextBox x:Name="ScreenshotPromptInput" Style="{StaticResource InputStyle}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="65" MaxHeight="160" VerticalScrollBarVisibility="Auto" TextChanged="ScreenshotMode_Changed" Margin="0,0,0,10"/>
-                <TextBlock Text="Screenshot temp folder" FontSize="11"/>
-                <TextBox x:Name="ScreenshotFolderInput" Style="{StaticResource InputStyle}" IsReadOnly="True" Padding="6,4" Margin="0,4,0,4"/>
-                <Button Content="Choose temp folder..." Click="ScreenshotFolder_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="6,4" Margin="0,0,0,8"/>
-                <CheckBox x:Name="EditLayoutCheck" Content="Edit layout" Click="EditLayout_Click" Margin="0,0,0,8"/>
-                <TextBlock Text="Drag corners to resize; Shift + drag a corner to move." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
+                </StackPanel></Expander>
+                <Expander x:Name="CaptureSection" Header="Capture area &amp; files" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
                 <CheckBox x:Name="CaptureRegionCheck" Content="Use fixed capture area" Click="Capture_Changed"/>
                 <UniformGrid Columns="2" Margin="0,6,0,0">
                     <TextBox x:Name="CaptureX" Style="{StaticResource InputStyle}" Padding="6,4" Tag="X" TextChanged="Capture_Changed" Margin="0,0,3,3"/>
@@ -149,6 +153,11 @@
                 </UniformGrid>
                 <TextBlock Text="X / Y - Width / Height (pixels)" FontSize="10" Opacity="0.65"/>
                 <Button Content="Choose capture area..." Click="ChooseCapture_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="0,5,0,10" Padding="6,5"/>
+                <TextBlock Text="Screenshot temp folder" FontSize="11"/>
+                <TextBox x:Name="ScreenshotFolderInput" Style="{StaticResource InputStyle}" IsReadOnly="True" Padding="6,4" Margin="0,4,0,4"/>
+                <Button Content="Choose temp folder..." Click="ScreenshotFolder_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="6,4" Margin="0,0,0,8"/>
+                </StackPanel></Expander>
+                <Expander x:Name="ShortcutsSection" Header="Shortcuts" Style="{StaticResource CompactSettingsExpander}"><local:WidgetShortcutsView/></Expander>
                 <StackPanel x:Name="PanelAppearanceControls" Visibility="Collapsed">
                     <StackPanel x:Name="BarAppearanceGroup">
                         <CheckBox x:Name="MinimalCheck" Content="Minimal" Click="Appearance_Changed"/>

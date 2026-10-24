@@ -31,6 +31,7 @@
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
+                    <Expander Header="Widget behavior" Style="{StaticResource CompactSettingsExpander}">
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,0,0,12">
                         <StackPanel>
                             <DockPanel>
@@ -56,7 +57,9 @@
                                        Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
                         </StackPanel>
                     </Border>
+                    </Expander>
                     <Button Content="Quick AI - Capture &amp; layout" Click="HoverAiSettings_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="10,8" Margin="0,0,0,12"/>
+                    <Expander Header="Google Calendar" Style="{StaticResource CompactSettingsExpander}">
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -79,7 +82,9 @@
                             <PasswordBox x:Name="GoogleClientSecretInput" Style="{StaticResource PasswordInputStyle}"/>
                         </StackPanel>
                     </Border>
+                    </Expander>
 
+                    <Expander Header="Startup &amp; session" Style="{StaticResource CompactSettingsExpander}">
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,12,0,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
@@ -98,7 +103,9 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
+                    </Expander>
 
+                    <Expander Header="Notion sync" Style="{StaticResource CompactSettingsExpander}">
                     <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,12,0,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -125,16 +132,9 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
+                    </Expander>
 
-                    <Border Background="{StaticResource ChipBg}" CornerRadius="12" Padding="12" Margin="0,12,0,0">
-                        <StackPanel>
-                            <TextBlock Text="SHORTCUTS" Foreground="#7fa8ff" FontSize="11" FontWeight="Bold" Margin="0,0,0,8"/>
-                            <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" TextWrapping="Wrap" LineHeight="18">
-                                <Run Text="Ctrl+Alt+F" FontWeight="Bold" Foreground="White"/> — find the original widget launcher<LineBreak/><LineBreak/>
-                                <Run Text="Ctrl+Alt+G" FontWeight="Bold" Foreground="White"/> — un-ghost all widgets (use when you enabled click-through and can't click anything)
-                            </TextBlock>
-                        </StackPanel>
-                    </Border>
+                    <Expander Header="Shortcuts" Style="{StaticResource CompactSettingsExpander}"><local:WidgetShortcutsView Foreground="{StaticResource MutedBrush}"/></Expander>
 
                     <Button x:Name="LoadBtn" Content="Save settings" Click="LoadBtn_Click" Style="{StaticResource PrimaryBtnStyle}" Margin="0,14,0,8" HorizontalAlignment="Stretch"/>
                     <Button x:Name="LogoutBtn" Content="Log out (Google Calendar)" Click="LogoutBtn_Click" Style="{StaticResource DangerBtnStyle}" HorizontalAlignment="Stretch"/>

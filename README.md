@@ -133,7 +133,10 @@ corner hit areas remain interactive. Drag a corner to resize, or Shift-drag to m
 Panel controls are grouped behind each panel's own gear: Bar has width, opacity, text/icon
 size and colors; Dot has opacity and colors; Add input and Response each have text size,
 opacity, text-only, auto-height and colors. General settings keep the Codex configuration,
-capture area, screenshot prompt, Quicker and Edit layout toggles.
+capture area, screenshot prompt, Quicker and Edit layout toggles. These are grouped into
+collapsed Layout, Codex, Quick modes and Capture sections. A Shortcuts section lists the
+current keys with their scope, including AI copy/capture/send and layout controls. The
+main Settings window also groups its sections and includes the same shortcut reference.
 
 No response outline is drawn. Add input and Response default to text-only, without a
 background or title outside layout editing. Frames shrink to 12 pixels per axis; narrow
