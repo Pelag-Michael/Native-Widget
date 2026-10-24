@@ -23,7 +23,7 @@ internal static class HoverModeChecks
             var app = new App();
             app.InitializeComponent();
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            var launcher = new MainWindow();
+            var launcher = new MainWindow { CodexBackendEnabled = false };
             launcher.Show();
             var peer = new Window { Width = 100, Height = 100, ShowInTaskbar = false };
             peer.Show();

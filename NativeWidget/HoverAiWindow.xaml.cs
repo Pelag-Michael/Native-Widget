@@ -47,7 +47,7 @@ public partial class HoverAiWindow : Window
     public event Action? DismissRequested;
     public event Action? PositionChanged;
     public string LastQuestion { get; private set; } = "";
-    public bool IsPointerInteractionActive => _preferencesPinned || EditingLayout || _selectingCapture || _dragging || _pasteMenu.IsOpen || Wheel.IsMouseCaptured;
+    public bool IsPointerInteractionActive => _preferencesPinned || EditingLayout || _selectingCapture || _dragging || _pasteMenu.IsOpen || Wheel.IsMouseCaptured || CodexModelPicker.IsDropDownOpen || CodexEffortPicker.IsDropDownOpen;
     internal int PastedItemCount => _pastedContext.Count;
 
     public HoverAiWindow() : this(AppConfig.Load()) { }
@@ -63,6 +63,7 @@ public partial class HoverAiWindow : Window
         config.HoverAiResponseForeground ??= config.HoverAiForeground;
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
+        InitializeCodexControls();
         QuickerCheck.IsChecked = config.HoverAiQuicker;
         try { ScreenshotFolderInput.Text = HoverAiScreenshotStore.ResolveFolder(config.HoverAiScreenshotFolder); }
         catch (ArgumentException) { config.HoverAiScreenshotFolder = ""; ScreenshotFolderInput.Text = HoverAiScreenshotStore.DefaultFolder; }
@@ -97,7 +98,7 @@ public partial class HoverAiWindow : Window
             ReceivePaste(text);
         });
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SavePreferences(); };
-        Closing += (_, _) => { _modeActive = false; _screenshotFlashTimer.Stop(); _statusWindow?.Hide(); _responseWindow?.Hide(); };
+        Closing += (_, _) => { CloseCodexBackend(); _modeActive = false; _screenshotFlashTimer.Stop(); _statusWindow?.Hide(); _responseWindow?.Hide(); };
         Closed += (_, _) => { _saveTimer.Stop(); _screenshotFlashTimer.Stop(); _screenshots.Clear(); _statusWindow?.Close(); _responseWindow?.Close(); if (_ready) SavePreferences(); };
         IsVisibleChanged += (_, _) => RefreshFloatingPanels();
         _ready = true;
@@ -308,7 +309,7 @@ public partial class HoverAiWindow : Window
         var text = string.Join("\n\n", parts);
         LastQuestion = text;
         if (_screenshots.Files.Count > 0) LastQuestion += $"\n\n[{_screenshots.Files.Count} image attachment(s)]";
-        if (_responseText.Length == 0) { ResponseLabel.Text = "AI"; AnswerText.Text = "AI is not connected yet."; }
+        if (!_codexEnabled && _responseText.Length == 0) { ResponseLabel.Text = "AI"; AnswerText.Text = "AI is not connected yet."; }
         ResponsePanel.Visibility = Visibility.Collapsed;
         RefreshFloatingPanels();
         SubmissionRequested?.Invoke(new HoverAiSubmission(text, _screenshots.Files.ToArray()));
@@ -378,6 +379,8 @@ public partial class HoverAiWindow : Window
             var background = Parse(BackgroundInput.Text.Trim());
             var foreground = Parse(ForegroundInput.Text.Trim());
             var icons = Parse(_config.HoverAiIconColor);
+            Resources["HoverText"] = new SolidColorBrush(foreground);
+            Resources["HoverPanel"] = new SolidColorBrush(background);
             Resources["HoverIcons"] = new SolidColorBrush(icons);
             PasteDot.Fill = new SolidColorBrush(icons);
             Chrome.Background = new SolidColorBrush(background);
@@ -441,6 +444,7 @@ public partial class HoverAiWindow : Window
     private void Paste_Click(object sender, RoutedEventArgs e) => PasteClipboard();
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
+        ResetCodexDraft();
         _screenshots.Clear(); _screenshotFlashTimer.Stop(); _screenshotFlash = false;
         _pastedContext.Clear(); LastQuestion = ""; QuestionInput.Clear(); LastScreenshot = null;
         PasteDot.Visibility = Visibility.Collapsed;
@@ -449,8 +453,10 @@ public partial class HoverAiWindow : Window
     }
     private void Ask_Click(object sender, RoutedEventArgs e)
     {
+        if (_codexCancellation != null) { StopCodex(); return; }
         SubmitQuestion();
-        ShowStatus(LastQuestion.Length == 0 ? "Paste or add a message first." : "AI is not connected yet.");
+        if (LastQuestion.Length == 0) ShowStatus("Paste or add a message first.");
+        else if (!_codexEnabled) ShowStatus("AI is not connected yet.");
     }
     private void Settings_Click(object sender, RoutedEventArgs e) => SettingsRequested?.Invoke();
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

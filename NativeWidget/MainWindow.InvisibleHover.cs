@@ -9,6 +9,7 @@ namespace NativeWidget;
 
 public partial class MainWindow
 {
+    internal bool CodexBackendEnabled { get; set; } = true;
     private readonly DispatcherTimer _hoverWatch = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly HashSet<Window> _hoverHiddenWindows = new();
     private HoverAiWindow? _hoverAi;
@@ -270,6 +271,7 @@ public partial class MainWindow
         if (_hoverAi == null)
         {
             _hoverAi = new HoverAiWindow(_config);
+            if (CodexBackendEnabled) _hoverAi.EnableCodexBackend();
             _hoverAi.PositionChanged += () =>
             {
                 _hoverAnchor = new Point(_hoverAi.Left + 12, _hoverAi.Top + 12);

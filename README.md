@@ -86,8 +86,8 @@ follow-up field stays separate. Clipboard images and screenshots append as PNG a
 in `%TEMP%/NativeWidget/QuickAI` by default. In Quick AI settings, choose another folder
 inside Temp. Existing queued images retain their paths if the folder changes.
 The send arrow or Ctrl+Enter submits all queued text, the follow-up and all image
-attachments together. Image paths are passed separately from prompt text so a future
-backend can read and attach image data; a path string alone is not an AI image upload.
+attachments together. Image paths are sent separately as Codex local-image attachments; a path string alone
+in the prompt is not an AI image upload.
 The draft remains until Reset. Reset clears text, follow-up, attachments and the displayed
 answer, and deletes only this draft's generated PNGs. Normal close removes those images;
 a forced process exit may leave files for system Temp cleanup.
@@ -95,8 +95,18 @@ a forced process exit may leave files for system Temp cleanup.
 Ctrl+Left copies in the focused app while this mode is active. With **Quicker** enabled
 in Quick AI settings, a successful fresh copy also appends the selected text and dispatches
 the complete draft immediately. Ordinary Paste and screenshots still queue without sending.
-No AI backend is connected yet; submission events are prepared for later integration and
-no real model response is produced.
+Quick AI uses the installed **Codex CLI app-server** with its existing sign-in. The worker
+starts on first Send (or Load models), uses a separate temporary conversation and isolated
+working folder, and streams the answer into the response panel. Choose a model and reasoning
+effort in Quick AI settings; a blank model uses Codex's default. **Load models** reads the
+catalog from the installed CLI. The send arrow becomes **Stop** while answering.
+**Reset** clears input and cancels the active request while retaining conversation context;
+**New chat** clears input and conversation context together. Restarting the app starts a new
+conversation. Repeated Send with an unchanged successful input is ignored. Quicker input
+received during an answer is queued as the next complete draft. Only one turn runs at once.
+Images are copied privately for the active request, so Reset cannot remove a file while
+Codex reads it; those copies are removed when the request finishes. Codex uses read-only
+sandboxing with no approval prompts. No API key is stored by the widget.
 
 The receipt dot is green while any text or image is queued, including when the input
 is hidden. A newly received screenshot/clipboard image flashes the dot yellow for two

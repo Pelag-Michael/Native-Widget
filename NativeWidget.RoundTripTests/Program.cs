@@ -18,6 +18,10 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == "app-server") { CodexBackendChecks.FakeServer(); return; }
+        if (args.Contains("--codex-backend-checks")) { CodexBackendChecks.RunAsync().GetAwaiter().GetResult(); return; }
+        if (args.Contains("--codex-ui-checks")) { CodexBackendChecks.RunUi(); return; }
+        if (args.Contains("--codex-live-check")) { CodexBackendChecks.RunLiveAsync().GetAwaiter().GetResult(); return; }
         if (args.Contains("--silent-capture-check", StringComparer.Ordinal))
         {
             var image = SilentScreenCapture.CapturePointerMonitor();
