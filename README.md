@@ -75,46 +75,52 @@ dependency/build directories and directory junctions are skipped.
 Settings can optionally restore the previous desktop session: every widget that was still
 open returns at its last position and size after Native Widget or Windows starts again.
 
-Settings also includes **Invisible hover**: the launcher disappears completely and other
-widgets are temporarily hidden. Hover at the launcher's original position to reveal a
-compact Quick AI panel; moving outside it hides the panel and preserves its draft. Drag
-the AI title to move both the panel and its invisible hover position. Tap **Paste** (or
-two-finger tap for **Paste privately**) to receive clipboard text without displaying it;
-a white dot confirms receipt. **+** reveals an optional follow-up message. Use its send
-arrow or Ctrl+Enter to submit that message together with the hidden pasted context.
-**⋯** contains Minimal, opacity, width, text size and a circular color picker. Select
-Panel, Text or Icons, drag on the color wheel and adjust brightness. Colors apply across
-the AI panel, including its buttons and sliders. Appearance and position are stored in
-`hover-ai-appearance.json`, independently of the original launcher. Pasted context stays
-only in memory until Clear or exit. Moving this panel does not move the original launcher.
-The AI connection is
-not implemented yet, so the panel shows a connection placeholder instead of a generated
-answer. Its Settings button lets you disable the mode and restore previously open widgets.
-Ctrl+Alt+Left briefly outlines the invisible hover region without opening the panel.
-While this mode is active, Ctrl+Left (Control plus left arrow) copies in the focused app;
-Ctrl+C remains available. The shortcut is removed when the mode is disabled.
-Ctrl+, captures the monitor under the pointer silently into the AI panel's memory:
-no region-selection UI, dimming overlay, flash, clipboard write or screenshot file.
-In **Settings > Quick AI - Capture & layout** (also available through **...**),
-turn on **Use fixed capture area** to set X/Y/width/height in physical pixels, or use
-**Choose capture area** to draw the region once. Ctrl+, then captures that saved region
-silently; turning the option off returns to the monitor under the pointer.
-Enable **Edit layout** to show the receipt dot and demo response as separate draggable
-panels. Drag their headers/dot to place them, and drag any response edge or corner to
-resize it horizontally and vertically. Positions and response dimensions persist in the
-AI appearance file. The color wheel has independent Dot, Dot panel, AI panel and AI text
-targets; changing these does not recolor the input bar. Dot and response opacity have
-independent sliders, including zero opacity. Edit layout temporarily raises an invisible
-panel to 25% opacity so it can still be repositioned. The dot has no outline.
-Responses default to **text only**: no background, border or title outside layout editing.
-Frames can shrink to 12 pixels on either axis, with words wrapping at narrow widths.
-**Auto height** extends the text downwards to show the whole answer; turn it off for a
-fixed-height box with mouse-wheel scrolling. The send action uses an up-arrow icon. Turn Edit layout off when finished; **...** closes these settings.
-**Copy**, beside Paste, copies the current answer and stays dimmed without an answer.
-Demo answers can be copied too. All of these settings apply only to Quick AI.
-Only the newest screenshot is retained, and Clear discards it. A receipt dot appears
-the next time the panel is revealed. **⋯ → Demo AI** previews a clearly labelled sample
-answer; the AI backend is still disconnected. Buttons keep the normal arrow cursor.
+Settings includes **Invisible hover**: the launcher and other widgets are temporarily
+hidden. Hover at the saved input position to reveal Quick AI; leaving its bounds hides
+it without a delay. Drag the input padding to move it. Ctrl+Alt+Left briefly outlines
+its hover position. The UI has screenshot, Paste, copy-answer, send-arrow, follow-up,
+Reset and settings actions. Copy-answer stays dimmed without an answer.
+
+**Paste queues input without sending.** Each text paste appends to the draft; the optional
+follow-up field stays separate. Clipboard images and screenshots append as PNG attachments
+in `%TEMP%/NativeWidget/QuickAI` by default. In Quick AI settings, choose another folder
+inside Temp. Existing queued images retain their paths if the folder changes.
+The send arrow or Ctrl+Enter submits all queued text, the follow-up and all image
+attachments together. Image paths are passed separately from prompt text so a future
+backend can read and attach image data; a path string alone is not an AI image upload.
+The draft remains until Reset. Reset clears text, follow-up, attachments and the displayed
+answer, and deletes only this draft's generated PNGs. Normal close removes those images;
+a forced process exit may leave files for system Temp cleanup.
+
+Ctrl+Left copies in the focused app while this mode is active. With **Quicker** enabled
+in Quick AI settings, a successful fresh copy also appends the selected text and dispatches
+the complete draft immediately. Ordinary Paste and screenshots still queue without sending.
+No AI backend is connected yet; submission events are prepared for later integration and
+no real model response is produced.
+
+The receipt dot is green while any text or image is queued, including when the input
+is hidden. A newly received screenshot/clipboard image flashes the dot yellow for two
+seconds, then it returns to green if input remains or disappears if empty. Reset cancels
+the flash. Turning this mode off hides the dot too. The dot has no border.
+
+In **Settings > Quick AI - Capture & layout** (or **...**), configure a fixed screenshot
+rectangle using X/Y/width/height in physical pixels, or draw it once with **Choose capture
+area**. Ctrl+, and the camera button capture it silently, without a selection overlay,
+dimming or flash. Disable the fixed area to capture the monitor under the pointer.
+
+**Edit layout** reveals demo panels. Response corners appear while editing or hovering:
+drag any corner to resize, or **Shift + drag** a corner to move the panel. No response
+outline is drawn. Responses default to **text only**, with no background or title outside
+layout editing. Frames shrink to 12 pixels per axis; narrow widths wrap words downwards.
+**Auto height** extends down to retain all text; disable it for a fixed-height box with
+mouse-wheel scrolling. The dot and response have independent opacity controls. Edit layout
+raises a fully invisible panel to 25% opacity temporarily so it can be repositioned.
+
+The circular color wheel has separate Input Panel, Text, Icons, Dot, Dot panel, AI panel
+and AI text targets. Colors, opacity, capture settings and panel bounds live in
+`hover-ai-appearance.json`, independently of the original launcher settings. **Demo AI**
+previews a sample answer; its text explicitly identifies it as a demo. Buttons retain the
+normal arrow cursor. Disabling Invisible hover restores the original widgets.
 
 ## See it in action
 

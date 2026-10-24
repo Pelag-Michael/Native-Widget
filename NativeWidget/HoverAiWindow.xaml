@@ -52,25 +52,27 @@
             </Setter>
         </Style>
     </Window.Resources>
-    <Border x:Name="Chrome" Background="#131217" CornerRadius="12" Padding="10" BorderBrush="#25FFFFFF" BorderThickness="1">
+    <Border x:Name="Chrome" MouseLeftButtonDown="Chrome_Drag" Background="#131217" CornerRadius="12" Padding="10" BorderBrush="#25FFFFFF" BorderThickness="1">
         <StackPanel>
             <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Border Background="Transparent" MouseLeftButtonDown="Title_Drag" Cursor="SizeAll">
-                    <StackPanel Orientation="Horizontal" Margin="3,0,10,0">
-                        <TextBlock x:Name="TitleText" Text="AI" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" Margin="0">
+                        <Button Content="&#xE722;" FontFamily="Segoe MDL2 Assets" Click="Capture_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="6,3" FontSize="11" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="TitleText" Visibility="Collapsed" Text="" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <Ellipse x:Name="PasteDot" Width="5" Height="5" Fill="White" Margin="8,0,0,0" Visibility="Collapsed"/>
                     </StackPanel>
                 </Border>
                 <Button x:Name="PasteButton" Grid.Column="1" Content="Paste" Click="Paste_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="8,4"/>
-                <Button x:Name="CopyResponseButton" Grid.Column="2" Content="Copy" IsEnabled="False" Click="CopyResponse_Click" Style="{StaticResource CopyHoverButton}" Margin="4,0,0,0" Padding="5,3" FontSize="10"/>
+                <Button x:Name="CopyResponseButton" Grid.Column="2" Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets" IsEnabled="False" Click="CopyResponse_Click" Style="{StaticResource CopyHoverButton}" Margin="4,0,0,0" Padding="5,3" FontSize="10"/>
                 <Button x:Name="SendButton" Grid.Column="3" Content="&#x2191;" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
                 <Button Grid.Column="4" Content="+" Click="FollowUp_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
-                <Button Grid.Column="5" Content="&#x22EF;" Click="Options_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
+                <Button x:Name="ResetButton" Grid.Column="5" Content="&#xE777;" FontFamily="Segoe MDL2 Assets" Click="Clear_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
+                <Button Grid.Column="6" Content="&#x22EF;" Click="Options_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
             </Grid>
             <Grid x:Name="FollowUpPanel" Visibility="Collapsed" Margin="0,6,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBox x:Name="QuestionInput" Style="{StaticResource InputStyle}" Padding="7,5" TextWrapping="Wrap"
+                <TextBox x:Name="QuestionInput" Style="{StaticResource InputStyle}" Padding="7,5" TextWrapping="Wrap" TextChanged="Question_Changed"
                          AcceptsReturn="True" MaxHeight="85" VerticalScrollBarVisibility="Auto"/>
                 <Button Grid.Column="1" Content="&#x2191;" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="5,0,0,0" Padding="9,4"/>
             </Grid>
@@ -84,8 +86,13 @@
                 </ScrollViewer>
             </StackPanel>
             <ScrollViewer MaxHeight="520" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="AppearancePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                <CheckBox x:Name="QuickerCheck" Content="Quicker: copy and send" Click="Appearance_Changed" Margin="0,0,0,8"/>
+                <TextBlock Text="Ctrl + Left copies the selection, adds it to input and sends." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
+                <TextBlock Text="Screenshot temp folder" FontSize="11"/>
+                <TextBox x:Name="ScreenshotFolderInput" Style="{StaticResource InputStyle}" IsReadOnly="True" Padding="6,4" Margin="0,4,0,4"/>
+                <Button Content="Choose temp folder..." Click="ScreenshotFolder_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="6,4" Margin="0,0,0,8"/>
                 <CheckBox x:Name="EditLayoutCheck" Content="Edit layout" Click="EditLayout_Click" Margin="0,0,0,8"/>
-                <TextBlock Text="Drag each panel. Resize the response from any edge." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
+                <TextBlock Text="Drag corners to resize; Shift + drag a corner to move." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
                 <CheckBox x:Name="CaptureRegionCheck" Content="Use fixed capture area" Click="Capture_Changed"/>
                 <UniformGrid Columns="2" Margin="0,6,0,0">
                     <TextBox x:Name="CaptureX" Style="{StaticResource InputStyle}" Padding="6,4" Tag="X" TextChanged="Capture_Changed" Margin="0,0,3,3"/>

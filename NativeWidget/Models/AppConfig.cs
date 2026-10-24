@@ -49,6 +49,9 @@ public class AppConfig
     public double HoverAiResponseHeight { get; set; } = 240;
     public double? HoverAiStatusOpacity { get; set; }
     public double? HoverAiResponseOpacity { get; set; }
+    public bool HoverAiQuicker { get; set; }
+    public string HoverAiScreenshotFolder { get; set; } = "";
+    public string HoverAiInputDotColor { get; set; } = "#4ADE80";
     public bool HoverAiResponseTextOnly { get; set; } = true;
     public bool HoverAiResponseAutoHeight { get; set; } = true;
 

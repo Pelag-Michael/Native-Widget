@@ -20,6 +20,9 @@ internal sealed class HoverAiFloatingPanel : Window
     private ScrollViewer? _scroll;
     private bool _editing;
     private double _frameHeight;
+    private bool _screenshotFlash;
+    private readonly List<Thumb> _corners = new();
+    public void SetScreenshotFlash(bool flash) => _screenshotFlash = flash;
     private readonly TextBlock _label = new() { FontSize = 10, Opacity = .65 };
     private readonly TextBlock _answer = new() { TextWrapping = TextWrapping.Wrap };
     private readonly Ellipse _dot = new() { Width = 6, Height = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
@@ -37,6 +40,7 @@ internal sealed class HoverAiFloatingPanel : Window
         Top = status ? config.HoverAiStatusTop ?? top : config.HoverAiResponseTop ?? top;
         _chrome = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(60,255,255,255)), Padding = new Thickness(status ? 0 : 12) };
         var root = new Grid(); root.Children.Add(_chrome); Content = root;
+        MouseEnter += (_, _) => UpdateCorners(); MouseLeave += (_, _) => UpdateCorners();
         if (status) { _chrome.Child = _dot; _chrome.MouseLeftButtonDown += Drag; }
         else
         {
@@ -50,13 +54,19 @@ internal sealed class HoverAiFloatingPanel : Window
             foreach (var edge in new[] { "L", "R", "T", "B", "LT", "RT", "LB", "RB" })
             {
                 var factory = new FrameworkElementFactory(typeof(Border));
-                factory.SetValue(Border.BackgroundProperty, Brushes.Transparent);
-                var thumb = new Thumb { Width = edge.Length == 2 || edge is "L" or "R" ? 7 : double.NaN,
-                    Height = edge.Length == 2 || edge is "T" or "B" ? 7 : double.NaN,
+                factory.SetValue(Border.BackgroundProperty, edge.Length == 2 ? Brushes.White : Brushes.Transparent);
+                if (edge.Length == 2) { factory.SetValue(Border.CornerRadiusProperty, new CornerRadius(2)); factory.SetValue(Border.MarginProperty, new Thickness(3)); }
+                var thumb = new Thumb { Width = edge.Length == 2 ? 14 : edge is "L" or "R" ? 5 : double.NaN,
+                    Height = edge.Length == 2 ? 14 : edge is "T" or "B" ? 5 : double.NaN,
                     HorizontalAlignment = edge.Contains('L') ? HorizontalAlignment.Left : edge.Contains('R') ? HorizontalAlignment.Right : HorizontalAlignment.Stretch,
                     VerticalAlignment = edge.Contains('T') ? VerticalAlignment.Top : edge.Contains('B') ? VerticalAlignment.Bottom : VerticalAlignment.Stretch,
                     Cursor = Cursors.Arrow, Template = new ControlTemplate(typeof(Thumb)) { VisualTree = factory } };
-                thumb.DragDelta += (_, e) => Resize(edge, e.HorizontalChange, e.VerticalChange);
+                if (edge.Length == 2) _corners.Add(thumb);
+                thumb.DragDelta += (_, e) =>
+                {
+                    if (edge.Length == 2 && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) { Left += e.HorizontalChange; Top += e.VerticalChange; }
+                    else Resize(edge, e.HorizontalChange, e.VerticalChange);
+                };
                 thumb.DragCompleted += (_, _) => SaveBounds(); root.Children.Add(thumb);
             }
         }
@@ -82,17 +92,22 @@ internal sealed class HoverAiFloatingPanel : Window
     public void RefreshTheme(bool editing = false)
     {
         _editing = editing;
-        _chrome.BorderThickness = new Thickness(!_status && editing ? 1 : 0);
+        _chrome.BorderThickness = new Thickness(0);
+        UpdateCorners();
         _chrome.Padding = new Thickness(_status || _config.HoverAiResponseTextOnly ? 0 : 12);
         _chrome.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString((_status ? _config.HoverAiStatusBackground : _config.HoverAiResponseBackground) ?? _config.HoverAiBackground));
         if (!_status && _config.HoverAiResponseTextOnly) _chrome.Background = Brushes.Transparent;
         if (_header != null) _header.Visibility = editing || !_config.HoverAiResponseTextOnly ? Visibility.Visible : Visibility.Collapsed;
         _answer.Foreground = _label.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_config.HoverAiResponseForeground ?? _config.HoverAiForeground));
-        _dot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_config.HoverAiDotColor ?? _config.HoverAiIconColor));
+        _dot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_screenshotFlash ? "#FACC15" : _config.HoverAiInputDotColor));
         _answer.FontSize = _config.HoverAiFontSize;
         var opacity = (_status ? _config.HoverAiStatusOpacity : _config.HoverAiResponseOpacity) ?? _config.HoverAiOpacity;
         Opacity = editing ? Math.Max(.25, opacity) : opacity;
         ReflowText();
+    }
+    private void UpdateCorners()
+    {
+        foreach (var corner in _corners) corner.Visibility = _editing || IsMouseOver ? Visibility.Visible : Visibility.Hidden;
     }
     private void ReflowText()
     {

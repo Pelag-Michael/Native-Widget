@@ -84,6 +84,8 @@ public partial class MainWindow
     [DllImport("user32.dll")]
     private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
 
+    [DllImport("user32.dll")] private static extern uint GetClipboardSequenceNumber();
+
     private async Task CopyWithAlternateShortcutAsync()
     {
         if (_copyShortcutBusy) return;
@@ -110,6 +112,7 @@ public partial class MainWindow
             catch (ArgumentException) { return; }
             var terminal = windowClass.ToString() is "ConsoleWindowClass" or "CASCADIA_HOSTING_WINDOW_CLASS" ||
                 processName is "WindowsTerminal" or "wezterm-gui" or "mintty" or "ConEmu64" or "ConEmu";
+            var beforeClipboard = GetClipboardSequenceNumber();
             keybd_event(0x11, 0, 0, UIntPtr.Zero);
             try
             {
@@ -121,6 +124,25 @@ public partial class MainWindow
             {
                 if (terminal) keybd_event(0x10, 0, 2, UIntPtr.Zero);
                 keybd_event(0x11, 0, 2, UIntPtr.Zero);
+            }
+            if (_config.HoverAiQuicker)
+            {
+                var copyDeadline = DateTime.UtcNow.AddMilliseconds(900);
+                while (DateTime.UtcNow < copyDeadline)
+                {
+                    await Task.Delay(25);
+                    if (!_hoverModeActive || generation != _hoverModeGeneration || !_config.HoverAiQuicker) return;
+                    if (GetClipboardSequenceNumber() == beforeClipboard) continue;
+                    try
+                    {
+                        if (!Clipboard.ContainsText()) return;
+                        var copied = Clipboard.GetText();
+                        if (string.IsNullOrWhiteSpace(copied)) return;
+                        EnsureHoverAiPanel(); _hoverAi!.ReceiveQuickCopy(copied);
+                        return;
+                    }
+                    catch (System.Runtime.InteropServices.ExternalException) { }
+                }
             }
         }
         finally { _copyShortcutBusy = false; }
@@ -167,6 +189,7 @@ public partial class MainWindow
                     SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - Width),
                 Math.Clamp(_config.HoverAiTop is double savedTop && double.IsFinite(savedTop) ? savedTop + 12 : Top,
                     SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - Height));
+            _hoverAi?.SetModeActive(true);
             _shelf?.Clear();
             SnapCloseLauncherForDrag();
             _launcherCloseTimer.Stop();
@@ -185,6 +208,7 @@ public partial class MainWindow
             UnregisterHotKey(hwnd, CopyHotkeyId);
             UnregisterHotKey(hwnd, ScreenshotHotkeyId);
             _hoverWatch.Stop();
+            _hoverAi?.SetModeActive(false);
             _hoverAi?.EndLayoutEditing();
             _hoverAi?.Hide();
             Opacity = 1;
@@ -246,6 +270,7 @@ public partial class MainWindow
         if (_hoverAi == null)
         {
             _hoverAi = new HoverAiWindow(_config);
+            _hoverAi.CaptureRequested += CaptureInvisibleScreenshot;
             _hoverAi.PositionChanged += () =>
             {
                 _hoverAnchor = new Point(_hoverAi.Left + 12, _hoverAi.Top + 12);
@@ -272,6 +297,7 @@ public partial class MainWindow
         var panelHeight = _hoverAi.ActualHeight > 0 ? _hoverAi.ActualHeight : 100;
         _hoverAi.Top = Math.Clamp(dip.Y - 12, SystemParameters.VirtualScreenTop,
             Math.Max(SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - panelHeight));
+        _hoverAi.SetModeActive(true);
         _hoverAi.Show();
         if (!_copyShortcutAvailable)
             _hoverAi.ShowStatus("Ctrl+Left is in use by another app. Ctrl+C still works.");

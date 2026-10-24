@@ -52,8 +52,12 @@ internal static class HoverModeChecks
             Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,
                 new Action(() => frame.Continue = false));
             Dispatcher.PushFrame(frame);
-            Require(submissions == 1 && panel.LastQuestion.Contains(secret) && panel.LastQuestion.Contains(input.Text), "Paste must automatically submit once with optional message.");
-            Require(input.Text == "Explain briefly" && panel.PastedItemCount == 1, "Pasted context must stay out of the visible editor.");
+            Require(submissions == 0 && panel.LastQuestion.Length == 0, "Paste queues the draft without sending.");
+            panel.ReceivePaste("second selection");
+            Require(panel.PastedItemCount == 2 && submissions == 0, "Additional paste appends without sending.");
+            panel.SubmitQuestion();
+            Require(submissions == 1 && panel.LastQuestion.Contains(secret) && panel.LastQuestion.Contains("second selection") && panel.LastQuestion.Contains(input.Text), "Send composes all queued text and the follow-up.");
+            Require(input.Text == "Explain briefly" && panel.PastedItemCount == 2, "Pasted context must stay out of the visible editor.");
             Require(((FrameworkElement)panel.FindName("PasteDot")).Visibility == Visibility.Collapsed, "Receipt dot must live in its independent panel.");
             Require(!((Button)panel.FindName("CopyResponseButton")).IsEnabled, "Backend status must not enable response copying.");
             Require(((Button)panel.FindName("SendButton")).Visibility == Visibility.Visible, "Send must be present in minimal mode.");
@@ -67,6 +71,24 @@ internal static class HoverModeChecks
             panel.ReceiveScreenshot(syntheticScreenshot);
             Require(panel.LastScreenshot == syntheticScreenshot && panel.IsVisible == wasVisible && input.Text == "Explain briefly",
                 "Receiving a screenshot must store it privately without showing a window or changing input text.");
+            panel.ReceiveScreenshot(syntheticScreenshot);
+            var status = panel.StatusWindowForTests!;
+            var statusChrome = (System.Windows.Controls.Border)((Grid)status.Content).Children[0];
+            var dot = (System.Windows.Shapes.Ellipse)statusChrome.Child;
+            Require(((SolidColorBrush)dot.Fill).Color == (Color)ColorConverter.ConvertFromString("#FACC15"), "A screenshot flashes yellow.");
+            var flashFrame = new DispatcherFrame();
+            var flashWait = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2100) };
+            flashWait.Tick += (_, _) => { flashWait.Stop(); flashFrame.Continue = false; };
+            flashWait.Start(); Dispatcher.PushFrame(flashFrame);
+            Require(((SolidColorBrush)dot.Fill).Color == (Color)ColorConverter.ConvertFromString("#4ADE80") && status.IsVisible,
+                "After two seconds, queued input returns the dot to green even when the input panel hides.");
+            var queuedImages = panel.ScreenshotPaths.ToArray();
+            Require(queuedImages.Length == 2 && queuedImages.All(File.Exists) && submissions == 1,
+                "Images append as PNG attachments in temp without auto sending.");
+            HoverAiSubmission? sent = null; panel.SubmissionRequested += request => sent = request;
+            panel.SubmitQuestion();
+            Require(sent?.ImagePaths.Count == 2 && sent.Text.Contains(secret) && !sent.Text.Contains(queuedImages[0]),
+                "Image attachments are carried separately from prompt text.");
             panel.Left += 70;
             panel.Top += 60;
             panel.SavePosition();
@@ -200,6 +222,23 @@ internal static class HoverModeChecks
             panel.EndLayoutEditing();
             launcher.UpdateInvisibleHoverPointer(false, false);
             Require(!panel.IsVisible && !response.IsVisible && input.Text.Length > 0, "Leaving hides the panel and keeps its draft.");
+            var beforeQuick = submissions; var beforeQuickCount = panel.PastedItemCount;
+            panel.ReceiveQuickCopy("ignored while quicker is off");
+            Require(submissions == beforeQuick && panel.PastedItemCount == beforeQuickCount, "Normal copy must not enqueue or send.");
+            var quicker = (CheckBox)panel.FindName("QuickerCheck");
+            quicker.IsChecked = true; quicker.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            panel.ReceiveQuickCopy("new quick selection");
+            Require(submissions == beforeQuick + 1 && panel.LastQuestion.Contains("new quick selection") && panel.PastedItemCount == beforeQuickCount + 1,
+                "Quicker enqueues a fresh copy and sends the complete draft once.");
+            quicker.IsChecked = false; quicker.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            var sibling = Path.Combine(Path.GetDirectoryName(queuedImages[0])!, "unowned-" + Guid.NewGuid().ToString("N") + ".txt");
+            File.WriteAllText(sibling, "keep");
+            ((Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(panel.PastedItemCount == 0 && panel.ScreenshotPaths.Count == 0 && panel.LastScreenshot == null && input.Text.Length == 0 && !panel.HasInput,
+                "Reset clears all draft text and image attachments.");
+            Require(queuedImages.All(path => !File.Exists(path)) && File.Exists(sibling), "Reset deletes only this draft's image files.");
+            Require(panel.StatusWindowForTests?.IsVisible == false, "An empty reset draft hides the dot.");
+            File.Delete(sibling);
             launcher.SetInvisibleHoverMode(false);
             Require(launcher.Opacity == 1 && peer.IsVisible, "Disabling must restore launcher and peer.");
             var config = new AppConfig { InvisibleHoverEnabled = true };
@@ -208,7 +247,7 @@ internal static class HoverModeChecks
             peer.Close();
             launcher.Close();
             app.Shutdown();
-            Console.WriteLine("PASS hover mode: private paste, white dot, follow-up composition, anchor movement, appearance persistence, invalid color safety, invisible idle and peer restore.");
+            Console.WriteLine("PASS hover mode: queued paste/images, temp-file reset, Quicker dispatch, timed yellow/green receipt, flexible text frame, separate opacity, isolated preferences and mode restoration.");
             Console.WriteLine("PREVIEW=" + preview);
             Console.WriteLine("DEMO=" + Path.Combine(data, "ai-answer-demo.png"));
         }

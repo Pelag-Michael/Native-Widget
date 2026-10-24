@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -9,10 +10,20 @@ using NativeWidget.Services;
 
 namespace NativeWidget;
 
+public sealed record HoverAiSubmission(string Text, IReadOnlyList<string> ImagePaths);
+
 public partial class HoverAiWindow : Window
 {
     private readonly AppConfig _config;
     private readonly List<string> _pastedContext = new();
+    private readonly HoverAiScreenshotStore _screenshots = new();
+    private readonly DispatcherTimer _screenshotFlashTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private bool _screenshotFlash;
+    private bool _modeActive = true;
+    internal bool HasInput => _pastedContext.Count > 0 || _screenshots.Files.Count > 0 || !string.IsNullOrWhiteSpace(QuestionInput.Text);
+    internal IReadOnlyList<string> ScreenshotPaths => _screenshots.Files;
+    public event Action<HoverAiSubmission>? SubmissionRequested;
+    public event Action? CaptureRequested;
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool _ready;
     private bool _dragging;
@@ -25,6 +36,7 @@ public partial class HoverAiWindow : Window
     private bool _preferencesPinned;
     internal bool EditingLayout => EditLayoutCheck.IsChecked == true;
     internal HoverAiFloatingPanel? ResponseWindowForTests => _responseWindow;
+    internal HoverAiFloatingPanel? StatusWindowForTests => _statusWindow;
     internal bool OwnsAuxiliaryWindow(Window window) => window == _statusWindow || window == _responseWindow || (_selectingCapture && window is ScreenRegionOverlay);
     internal bool IsOverAuxiliary(Point screen) => new[] { _statusWindow, _responseWindow }.Any(w => w?.IsVisible == true && new Rect(new Point(), w.RenderSize).Contains(w.PointFromScreen(screen)));
 
@@ -52,6 +64,10 @@ public partial class HoverAiWindow : Window
         config.HoverAiResponseForeground ??= config.HoverAiForeground;
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
+        QuickerCheck.IsChecked = config.HoverAiQuicker;
+        try { ScreenshotFolderInput.Text = HoverAiScreenshotStore.ResolveFolder(config.HoverAiScreenshotFolder); }
+        catch (ArgumentException) { config.HoverAiScreenshotFolder = ""; ScreenshotFolderInput.Text = HoverAiScreenshotStore.DefaultFolder; }
+        _screenshotFlashTimer.Tick += (_, _) => FinishScreenshotFlash();
         CaptureRegionCheck.IsChecked = config.HoverAiCaptureRegionEnabled;
         CaptureX.Text = config.HoverAiCaptureX.ToString(); CaptureY.Text = config.HoverAiCaptureY.ToString();
         CaptureWidth.Text = config.HoverAiCaptureWidth.ToString(); CaptureHeight.Text = config.HoverAiCaptureHeight.ToString();
@@ -73,12 +89,17 @@ public partial class HoverAiWindow : Window
         {
             var text = e.SourceDataObject.GetData(DataFormats.UnicodeText) as string
                 ?? e.SourceDataObject.GetData(DataFormats.Text) as string;
-            if (text == null) return;
+            if (text == null)
+            {
+                if (e.SourceDataObject.GetData(DataFormats.Bitmap) is BitmapSource image) { e.CancelCommand(); ReceiveScreenshot(image); }
+                return;
+            }
             e.CancelCommand(); // Never insert clipboard content into the visible editor.
             ReceivePaste(text);
         });
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SavePreferences(); };
-        Closed += (_, _) => { _saveTimer.Stop(); _statusWindow?.Close(); _responseWindow?.Close(); if (_ready) SavePreferences(); };
+        Closing += (_, _) => { _modeActive = false; _screenshotFlashTimer.Stop(); _statusWindow?.Hide(); _responseWindow?.Hide(); };
+        Closed += (_, _) => { _saveTimer.Stop(); _screenshotFlashTimer.Stop(); _screenshots.Clear(); _statusWindow?.Close(); _responseWindow?.Close(); if (_ready) SavePreferences(); };
         IsVisibleChanged += (_, _) => RefreshFloatingPanels();
         _ready = true;
         ApplyAppearance();
@@ -96,24 +117,47 @@ public partial class HoverAiWindow : Window
         _pastedContext.Add(text);
         PasteDot.Visibility = Visibility.Collapsed;
         RefreshFloatingPanels();
-        SubmitQuestion();
+    }
+
+    internal void ReceiveQuickCopy(string text)
+    {
+        if (!_config.HoverAiQuicker || string.IsNullOrWhiteSpace(text)) return;
+        ReceivePaste(text); SubmitQuestion();
     }
 
     internal void ReceiveScreenshot(BitmapSource screenshot)
     {
-        LastScreenshot = screenshot; // Keep only the newest image, in memory only.
-        PasteDot.Visibility = Visibility.Collapsed;
+        try { _screenshots.Add(screenshot, _config.HoverAiScreenshotFolder); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        { ShowStatus("Could not save screenshot. Check the temp folder."); return; }
+        LastScreenshot = screenshot;
+        _screenshotFlash = true;
+        _screenshotFlashTimer.Stop(); _screenshotFlashTimer.Start();
         RefreshFloatingPanels();
         ScreenshotReceived?.Invoke(screenshot);
-        SubmitQuestion();
+    }
+    internal void FinishScreenshotFlash()
+    {
+        _screenshotFlashTimer.Stop(); _screenshotFlash = false; RefreshFloatingPanels();
+    }
+    internal void SetModeActive(bool active) { _modeActive = active; RefreshFloatingPanels(); }
+    private void Question_Changed(object sender, TextChangedEventArgs e) { if (_ready) RefreshFloatingPanels(); }
+    private void Capture_Click(object sender, RoutedEventArgs e) => CaptureRequested?.Invoke();
+    private void ScreenshotFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "Choose a screenshot folder inside Temp", InitialDirectory = Path.GetTempPath() };
+        if (dialog.ShowDialog(this) != true) return;
+        try { _config.HoverAiScreenshotFolder = HoverAiScreenshotStore.ResolveFolder(dialog.FolderName); ScreenshotFolderInput.Text = _config.HoverAiScreenshotFolder; SavePreferences(); }
+        catch (ArgumentException ex) { AppearanceError.Text = ex.Message; }
     }
 
     private void PasteClipboard()
     {
         try
         {
-            if (Clipboard.ContainsText()) ReceivePaste(Clipboard.GetText());
-            else ShowStatus("Clipboard has no text.");
+            if (Clipboard.ContainsImage()) { var image = Clipboard.GetImage(); if (image != null) ReceiveScreenshot(image); }
+            else if (Clipboard.ContainsText()) ReceivePaste(Clipboard.GetText());
+            else ShowStatus("Clipboard has no text or image.");
         }
         catch (System.Runtime.InteropServices.ExternalException)
         { ShowStatus("Clipboard is busy. Tap again."); }
@@ -156,10 +200,11 @@ public partial class HoverAiWindow : Window
     {
         if (!_ready) return;
         EnsureFloatingPanels();
-        _statusWindow!.RefreshTheme(EditingLayout); _responseWindow!.RefreshTheme(EditingLayout);
+        _statusWindow!.SetScreenshotFlash(_screenshotFlash);
+        _statusWindow.RefreshTheme(EditingLayout); _responseWindow!.RefreshTheme(EditingLayout);
         _responseWindow.SetAnswer(ResponseLabel.Text, AnswerText.Text);
-        var show = IsVisible || EditingLayout;
-        if (show && (EditingLayout || _pastedContext.Count > 0 || LastScreenshot != null)) _statusWindow.Show(); else _statusWindow.Hide();
+        var show = _modeActive && (IsVisible || EditingLayout);
+        if (_modeActive && (EditingLayout || HasInput || _screenshotFlash)) _statusWindow.Show(); else _statusWindow.Hide();
         if (show && (EditingLayout || _showingResponse)) _responseWindow.Show(); else _responseWindow.Hide();
     }
     private void EditLayout_Click(object sender, RoutedEventArgs e)
@@ -220,7 +265,7 @@ public partial class HoverAiWindow : Window
             {
                 "Panel" => _config.HoverAiBackground,
                 "Text" => _config.HoverAiForeground,
-                "Dot" => _config.HoverAiDotColor!,
+                "Dot" => _config.HoverAiInputDotColor,
                 "Dot panel" => _config.HoverAiStatusBackground!,
                 "AI panel" => _config.HoverAiResponseBackground!,
                 "AI text" => _config.HoverAiResponseForeground!,
@@ -243,7 +288,7 @@ public partial class HoverAiWindow : Window
         var hex = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
         if (_colorTarget == "Panel") BackgroundInput.Text = hex;
         else if (_colorTarget == "Text") ForegroundInput.Text = hex;
-        else if (_colorTarget == "Dot") _config.HoverAiDotColor = hex;
+        else if (_colorTarget == "Dot") _config.HoverAiInputDotColor = hex;
         else if (_colorTarget == "Dot panel") _config.HoverAiStatusBackground = hex;
         else if (_colorTarget == "AI panel") _config.HoverAiResponseBackground = hex;
         else if (_colorTarget == "AI text") _config.HoverAiResponseForeground = hex;
@@ -259,16 +304,23 @@ public partial class HoverAiWindow : Window
     internal void SubmitQuestion()
     {
         var parts = _pastedContext.ToList();
-        if (LastScreenshot != null) parts.Add("[Screenshot attached]");
+
         if (!string.IsNullOrWhiteSpace(QuestionInput.Text)) parts.Add(QuestionInput.Text.Trim());
-        if (parts.Count == 0) return;
-        LastQuestion = string.Join("\n\n", parts);
+        if (parts.Count == 0 && _screenshots.Files.Count == 0) { LastQuestion = ""; return; }
+        var text = string.Join("\n\n", parts);
+        LastQuestion = text;
+        if (_screenshots.Files.Count > 0) LastQuestion += $"\n\n[{_screenshots.Files.Count} image attachment(s)]";
         if (_responseText.Length == 0) { ResponseLabel.Text = "AI"; AnswerText.Text = "AI is not connected yet."; }
         ResponsePanel.Visibility = Visibility.Collapsed;
         RefreshFloatingPanels();
+        SubmissionRequested?.Invoke(new HoverAiSubmission(text, _screenshots.Files.ToArray()));
         QuestionSubmitted?.Invoke(LastQuestion);
     }
 
+    private void Chrome_Drag(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource == Chrome) Title_Drag(sender, e);
+    }
     private void Title_Drag(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Left) return;
@@ -292,6 +344,7 @@ public partial class HoverAiWindow : Window
     private void ApplyAppearance()
     {
         if (!_ready) return;
+        _config.HoverAiQuicker = QuickerCheck.IsChecked == true;
         _config.HoverAiMinimal = MinimalCheck.IsChecked == true;
         _config.HoverAiOpacity = OpacitySlider.Value;
         _config.HoverAiStatusOpacity = StatusOpacitySlider.Value;
@@ -390,6 +443,7 @@ public partial class HoverAiWindow : Window
     private void Paste_Click(object sender, RoutedEventArgs e) => PasteClipboard();
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
+        _screenshots.Clear(); _screenshotFlashTimer.Stop(); _screenshotFlash = false;
         _pastedContext.Clear(); LastQuestion = ""; QuestionInput.Clear(); LastScreenshot = null;
         PasteDot.Visibility = Visibility.Collapsed;
         AnswerText.Text = ""; ResponsePanel.Visibility = Visibility.Collapsed; _showingResponse = false;
