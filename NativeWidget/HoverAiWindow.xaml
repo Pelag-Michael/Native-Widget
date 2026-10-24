@@ -87,7 +87,7 @@
     </Window.Resources>
     <Border x:Name="Chrome" MouseLeftButtonDown="Chrome_Drag" Background="#131217" CornerRadius="12" Padding="10" BorderBrush="#25FFFFFF" BorderThickness="1">
         <StackPanel>
-            <Grid>
+            <Grid x:Name="ActionBar">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Border Visibility="Collapsed" Background="Transparent" MouseLeftButtonDown="Title_Drag" Cursor="SizeAll">
                     <StackPanel Orientation="Horizontal" Margin="0">
@@ -102,11 +102,8 @@
                 <Button x:Name="ResetButton" Grid.Column="5" Content="&#xE777;" FontFamily="Segoe MDL2 Assets" Click="Clear_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,3" FontSize="11"/>
                 <Button Grid.Column="6" Content="&#x22EF;" Click="Options_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="4,0,0,0" Padding="7,1" FontSize="11"/>
             </Grid>
-            <Grid x:Name="FollowUpPanel" Visibility="Collapsed" Margin="0,6,0,0">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBox x:Name="QuestionInput" Style="{StaticResource InputStyle}" Background="Transparent" BorderThickness="0" BorderBrush="Transparent" Padding="2,5" TextWrapping="Wrap" TextChanged="Question_Changed"
-                         AcceptsReturn="True" MaxHeight="85" VerticalScrollBarVisibility="Auto"/>
-                <Button Grid.Column="1" Content="&#x2191;" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="5,0,0,0" Padding="9,4"/>
+            <Grid x:Name="FollowUpPanel" Visibility="Collapsed">
+                <TextBox x:Name="QuestionInput" Style="{StaticResource InputStyle}" Background="Transparent" BorderThickness="0" BorderBrush="Transparent" Padding="2,3" TextWrapping="Wrap" TextChanged="Question_Changed" AcceptsReturn="True" VerticalScrollBarVisibility="Hidden"/>
             </Grid>
             <StackPanel x:Name="ResponsePanel" Visibility="Collapsed" Margin="0,8,0,0">
                 <DockPanel Margin="0,0,0,5">
@@ -159,8 +156,18 @@
                 <CheckBox x:Name="AutoHeightCheck" Content="Auto height: show all text" Click="Appearance_Changed" Margin="0,6,0,0"/>
                 <TextBlock Text="Width" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
                 <Slider x:Name="WidthSlider" Minimum="250" Maximum="600" Value="260" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="Text size" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
+                <TextBlock Text="AI response text size" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
                 <Slider x:Name="FontSlider" Minimum="9" Maximum="20" Value="12" ValueChanged="Appearance_ValueChanged"/>
+                <TextBlock Text="Bar text size" FontSize="11" Margin="0,8,0,2"/>
+                <Slider x:Name="BarTextSlider" Minimum="6" Maximum="32" Value="12" ValueChanged="Appearance_ValueChanged"/>
+                <TextBlock Text="Bar icon size" FontSize="11" Margin="0,8,0,2"/>
+                <Slider x:Name="BarIconSlider" Minimum="6" Maximum="32" Value="11" ValueChanged="Appearance_ValueChanged"/>
+                <TextBlock Text="Add input text size" FontSize="11" Margin="0,8,0,2"/>
+                <Slider x:Name="FollowUpFontSlider" Minimum="6" Maximum="48" Value="12" ValueChanged="Appearance_ValueChanged"/>
+                <TextBlock Text="Add input opacity" FontSize="11" Margin="0,8,0,2"/>
+                <Slider x:Name="FollowUpOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                <CheckBox x:Name="FollowUpTextOnlyCheck" Content="Add input: text only" Click="Appearance_Changed" Margin="0,8,0,0"/>
+                <CheckBox x:Name="FollowUpAutoHeightCheck" Content="Add input: auto height" Click="Appearance_Changed" Margin="0,6,0,0"/>
                 <UniformGrid Columns="3" Margin="0,10,0,6">
                     <Button Content="Panel" Tag="Panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10"/>
                     <Button Content="Text" Tag="Text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="4,0"/>
@@ -171,6 +178,10 @@
                     <Button Content="Dot panel" Tag="Dot panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="2,0,0,4"/>
                     <Button Content="AI panel" Tag="AI panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="0,0,2,0"/>
                     <Button Content="AI text" Tag="AI text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="2,0,0,0"/>
+                </UniformGrid>
+                <UniformGrid Columns="2" Margin="0,0,0,6">
+                    <Button Content="Add panel" Tag="Add panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="0,0,2,0"/>
+                    <Button Content="Add text" Tag="Add text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="2,0,0,0"/>
                 </UniformGrid>
                 <TextBlock x:Name="ColorTargetLabel" Text="Panel color" FontSize="11" HorizontalAlignment="Center"/>
                 <local:ColorWheel x:Name="Wheel" HorizontalAlignment="Center"/>

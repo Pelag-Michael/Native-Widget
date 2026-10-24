@@ -81,8 +81,8 @@ it without a delay. Drag the input padding to move it. Ctrl+Alt+Left briefly out
 its hover position. The UI has Paste, copy-answer, send-arrow, follow-up,
 Reset and settings actions. Copy-answer stays dimmed without an answer.
 
-**Paste queues input without sending.** Each text paste appends to the draft; the optional
-follow-up field stays separate. Clipboard images and screenshots append as PNG attachments
+**Paste queues input without sending.** Each text paste appends to the draft. **+** opens the follow-up editor in its own floating
+panel, with no extra Send button; the main send arrow submits its text with the draft. Clipboard images and screenshots append as PNG attachments
 in `%TEMP%/NativeWidget/QuickAI` by default. In Quick AI settings, choose another folder
 inside Temp. Existing queued images retain their paths if the folder changes.
 The send arrow or Ctrl+Enter submits all queued text, the follow-up and all image
@@ -124,6 +124,11 @@ dimming or flash. Disable the fixed area to capture the monitor under the pointe
 drag any corner to resize, or **Shift + drag** a corner to move the panel. No response
 outline is drawn. Responses default to **text only**, with no background or title outside
 layout editing. Frames shrink to 12 pixels per axis; narrow widths wrap words downwards.
+The add-input panel has independent position, width/height, text size, opacity, text-only
+and auto-height settings. The color wheel has **Add panel** and **Add text** targets.
+**Edit layout** includes this editor; drag its invisible corners to resize or Shift-drag
+to move it. **Bar text size** and **Bar icon size** control the action bar independently
+from both the response and editor. The bar widens as needed to keep Paste visible.
 **Auto height** extends down to retain all text; disable it for a fixed-height box with
 mouse-wheel scrolling. The dot and response have independent opacity controls. Edit layout
 raises a fully invisible panel to 25% opacity temporarily so it can be repositioned.

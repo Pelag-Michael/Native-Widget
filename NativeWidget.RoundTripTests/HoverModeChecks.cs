@@ -42,6 +42,10 @@ internal static class HoverModeChecks
             launcher.UpdateInvisibleHoverPointer(false, true);
             Require(panel.IsVisible, "Moving into the panel must keep it open.");
             var input = (TextBox)panel.FindName("QuestionInput");
+            Require(Window.GetWindow(input) == panel.InputWindowForTests && Window.GetWindow(input) != panel,
+                "Follow-up editor must live in its own floating window.");
+            FindButton((FrameworkElement)panel.Content, "+").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(panel.InputWindowForTests?.IsVisible == true, "Plus opens the separate input panel.");
             input.Text = "Explain briefly";
             var submissions = 0;
             panel.QuestionSubmitted += _ => submissions++;
@@ -213,6 +217,26 @@ internal static class HoverModeChecks
             captureToggle.IsChecked = true; captureToggle.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             var captureConfig = AppConfig.Load(); HoverAiAppearanceStore.LoadInto(captureConfig);
             Require(captureConfig.HoverAiCaptureRegionEnabled && captureConfig.HoverAiCaptureX == 10 && captureConfig.HoverAiCaptureHeight == 180, "Capture rectangle persists.");
+            var addInput = panel.InputWindowForTests!;
+            var previousResponseWidth = response.Width; var previousBarWidth = panel.Width;
+            addInput.Resize("R", -60, 0); addInput.Left += 45; addInput.Top += 35; addInput.SaveBounds();
+            Require(response.Width == previousResponseWidth && panel.Width == previousBarWidth, "Input resize must not change response or bar bounds.");
+            ((Slider)panel.FindName("BarTextSlider")).Value = 15;
+            ((Slider)panel.FindName("BarIconSlider")).Value = 17;
+            ((Slider)panel.FindName("FollowUpFontSlider")).Value = 18;
+            ((Slider)panel.FindName("FollowUpOpacitySlider")).Value = .4;
+            Require(((Button)panel.FindName("PasteButton")).FontSize == 15 && ((Button)panel.FindName("SendButton")).FontSize == 17 && input.FontSize == 18 && Math.Abs(addInput.Opacity - .4) < .01,
+                "Bar text, icons and follow-up typography/opacity must be independent.");
+            var inputTextOnly = (CheckBox)panel.FindName("FollowUpTextOnlyCheck");
+            inputTextOnly.IsChecked = false; inputTextOnly.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            FindButton(appearance, "Add panel").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            wheel.Brightness = 1; wheel.Pick(new Point(wheel.ActualWidth - 5, wheel.ActualHeight / 2));
+            Require(((SolidColorBrush)((System.Windows.Controls.Border)((Grid)addInput.Content).Children[0]).Background).Color == Colors.Red && ((SolidColorBrush)((System.Windows.Controls.Border)panel.Content).Background).Color != Colors.Red,
+                "Follow-up panel color must not recolor the action bar.");
+            panel.SelectColor(true, "#16161C");
+            var inputPrefs = AppConfig.Load(); HoverAiAppearanceStore.LoadInto(inputPrefs);
+            Require(inputPrefs.HoverAiFollowUpLeft == addInput.Left && inputPrefs.HoverAiFollowUpWidth == addInput.Width && inputPrefs.HoverAiFollowUpFontSize == 18 && inputPrefs.HoverAiBarIconSize == 17,
+                "Follow-up bounds, typography and bar icon settings persist separately.");
             var capture = SilentScreenCapture.Capture(captureConfig);
             Require(capture.PixelWidth == 320 && capture.PixelHeight == 180, "Fixed capture uses exact physical pixel dimensions.");
             var edit = (CheckBox)panel.FindName("EditLayoutCheck");

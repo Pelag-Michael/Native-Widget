@@ -27,6 +27,18 @@ public class AppConfig
     public double HoverAiOpacity { get; set; } = 1;
     public double HoverAiWidth { get; set; } = 260;
     public double HoverAiFontSize { get; set; } = 12;
+    public double? HoverAiBarTextSize { get; set; }
+    public double HoverAiBarIconSize { get; set; } = 11;
+    public double? HoverAiFollowUpFontSize { get; set; }
+    public double? HoverAiFollowUpOpacity { get; set; }
+    public string? HoverAiFollowUpBackground { get; set; }
+    public string? HoverAiFollowUpForeground { get; set; }
+    public bool HoverAiFollowUpTextOnly { get; set; } = true;
+    public bool HoverAiFollowUpAutoHeight { get; set; } = true;
+    public double? HoverAiFollowUpLeft { get; set; }
+    public double? HoverAiFollowUpTop { get; set; }
+    public double HoverAiFollowUpWidth { get; set; } = 260;
+    public double HoverAiFollowUpHeight { get; set; } = 70;
     public string HoverAiBackground { get; set; } = "#131217";
     public string HoverAiForeground { get; set; } = "#EEEEF2";
     public string HoverAiIconColor { get; set; } = "#EEEEF2";
