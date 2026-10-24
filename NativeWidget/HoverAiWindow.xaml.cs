@@ -10,7 +10,7 @@ using NativeWidget.Services;
 
 namespace NativeWidget;
 
-public sealed record HoverAiSubmission(string Text, IReadOnlyList<string> ImagePaths);
+public sealed record HoverAiSubmission(string Text, IReadOnlyList<string> ImagePaths, bool QueueIndividually = false);
 
 public partial class HoverAiWindow : Window
 {
@@ -31,6 +31,7 @@ public partial class HoverAiWindow : Window
     private bool _showingResponse;
     private HoverAiFloatingPanel? _statusWindow, _responseWindow, _inputWindow;
     private bool _followUpOpen, _applyingAppearance;
+    private HoverPanelSettingsWindow? _panelSettings;
     private string _responseText = "";
     private bool _selectingCapture;
     private bool _preferencesPinned;
@@ -38,7 +39,7 @@ public partial class HoverAiWindow : Window
     internal HoverAiFloatingPanel? ResponseWindowForTests => _responseWindow;
     internal HoverAiFloatingPanel? StatusWindowForTests => _statusWindow;
     internal HoverAiFloatingPanel? InputWindowForTests => _inputWindow;
-    internal bool OwnsAuxiliaryWindow(Window window) => window == _statusWindow || window == _responseWindow || window == _inputWindow || (_selectingCapture && window is ScreenRegionOverlay);
+    internal bool OwnsAuxiliaryWindow(Window window) => window == _statusWindow || window == _responseWindow || window == _inputWindow || window == _panelSettings || (_selectingCapture && window is ScreenRegionOverlay);
     internal bool IsOverAuxiliary(Point screen) => new[] { _statusWindow, _responseWindow, _inputWindow }.Any(w => w?.IsVisible == true && new Rect(new Point(), w.RenderSize).Contains(w.PointFromScreen(screen)));
 
     internal BitmapSource? LastScreenshot { get; private set; }
@@ -72,6 +73,8 @@ public partial class HoverAiWindow : Window
         InitializeComponent();
         WindowInterop.HideFromAltTab(this);
         InitializeCodexControls();
+        ScreenshotAutoSendCheck.IsChecked = config.HoverAiScreenshotAutoSend;
+        ScreenshotPromptInput.Text = config.HoverAiScreenshotPrompt;
         QuickerCheck.IsChecked = config.HoverAiQuicker;
         try { ScreenshotFolderInput.Text = HoverAiScreenshotStore.ResolveFolder(config.HoverAiScreenshotFolder); }
         catch (ArgumentException) { config.HoverAiScreenshotFolder = ""; ScreenshotFolderInput.Text = HoverAiScreenshotStore.DefaultFolder; }
@@ -86,7 +89,7 @@ public partial class HoverAiWindow : Window
         TextOnlyCheck.IsChecked = config.HoverAiResponseTextOnly;
         AutoHeightCheck.IsChecked = config.HoverAiResponseAutoHeight;
         WidthSlider.Value = Safe(config.HoverAiWidth, 250, 600, 260);
-        FontSlider.Value = Safe(config.HoverAiFontSize, 9, 20, 12);
+        FontSlider.Value = Safe(config.HoverAiFontSize, 9, 48, 12);
         BarTextSlider.Value = Safe(config.HoverAiBarTextSize.Value, 6, 32, 12);
         BarIconSlider.Value = Safe(config.HoverAiBarIconSize, 6, 32, 11);
         FollowUpFontSlider.Value = Safe(config.HoverAiFollowUpFontSize.Value, 6, 48, 12);
@@ -112,7 +115,7 @@ public partial class HoverAiWindow : Window
             ReceivePaste(text);
         });
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SavePreferences(); };
-        Closing += (_, _) => { CloseCodexBackend(); _modeActive = false; _screenshotFlashTimer.Stop(); _statusWindow?.Hide(); _responseWindow?.Hide(); _inputWindow?.Hide(); };
+        Closing += (_, _) => { _panelSettings?.Dispose(); CloseCodexBackend(); _modeActive = false; _screenshotFlashTimer.Stop(); _statusWindow?.Hide(); _responseWindow?.Hide(); _inputWindow?.Hide(); };
         Closed += (_, _) => { _saveTimer.Stop(); _screenshotFlashTimer.Stop(); _screenshots.Clear(); _statusWindow?.Close(); _responseWindow?.Close(); _inputWindow?.Close(); if (_ready) SavePreferences(); };
         IsVisibleChanged += (_, _) => RefreshFloatingPanels();
         _ready = true;
@@ -139,9 +142,10 @@ public partial class HoverAiWindow : Window
         ReceivePaste(text); SubmitQuestion();
     }
 
-    internal void ReceiveScreenshot(BitmapSource screenshot)
+    internal void ReceiveScreenshot(BitmapSource screenshot, bool fromCapture = false)
     {
-        try { _screenshots.Add(screenshot, _config.HoverAiScreenshotFolder); }
+        string path;
+        try { path = _screenshots.Add(screenshot, _config.HoverAiScreenshotFolder); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         { ShowStatus("Could not save screenshot. Check the temp folder."); return; }
         LastScreenshot = screenshot;
@@ -149,6 +153,18 @@ public partial class HoverAiWindow : Window
         _screenshotFlashTimer.Stop(); _screenshotFlashTimer.Start();
         RefreshFloatingPanels();
         ScreenshotReceived?.Invoke(screenshot);
+        if (fromCapture && _config.HoverAiScreenshotAutoSend)
+        {
+            var prompt = _config.HoverAiScreenshotPrompt.Trim();
+            DispatchSubmission(new HoverAiSubmission(prompt, new[] { path }, QueueIndividually: true));
+        }
+    }
+    private void ScreenshotMode_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        _config.HoverAiScreenshotAutoSend = ScreenshotAutoSendCheck.IsChecked == true;
+        _config.HoverAiScreenshotPrompt = ScreenshotPromptInput.Text;
+        _saveTimer.Stop(); _saveTimer.Start();
     }
     internal void FinishScreenshotFlash()
     {
@@ -210,6 +226,9 @@ public partial class HoverAiWindow : Window
         _inputWindow = new HoverAiFloatingPanel(_config, false, left + Width + 16, top + 45, QuestionInput);
         _inputWindow.PreviewKeyDown += Window_PreviewKeyDown;
         _inputWindow.BoundsSaved += SavePreferences;
+        _inputWindow.SettingsRequested += () => OpenPanelAppearance("Add input");
+        _responseWindow.SettingsRequested += () => OpenPanelAppearance("Response");
+        _statusWindow.SettingsRequested += () => OpenPanelAppearance("Dot");
         _statusWindow.BoundsSaved += SavePreferences;
         _responseWindow.BoundsSaved += SavePreferences;
     }
@@ -217,6 +236,8 @@ public partial class HoverAiWindow : Window
     {
         if (!_ready) return;
         EnsureFloatingPanels();
+        BarSettingsButton.Visibility = EditingLayout ? Visibility.Visible : Visibility.Collapsed;
+        if (!EditingLayout) _panelSettings?.Hide();
         _statusWindow!.SetScreenshotFlash(_screenshotFlash);
         _statusWindow.RefreshTheme(EditingLayout); _responseWindow!.RefreshTheme(EditingLayout); _inputWindow!.RefreshTheme(EditingLayout);
         _responseWindow.SetAnswer(ResponseLabel.Text, AnswerText.Text);
@@ -228,9 +249,37 @@ public partial class HoverAiWindow : Window
     private void EditLayout_Click(object sender, RoutedEventArgs e)
     {
         if (EditingLayout && !_showingResponse) ShowDemoResponse();
-        RefreshFloatingPanels();
+        ApplyAppearance();
     }
     internal void EndLayoutEditing() { _preferencesPinned = false; EditLayoutCheck.IsChecked = false; RefreshFloatingPanels(); }
+    private void BarSettings_Click(object sender, RoutedEventArgs e) => OpenPanelAppearance("Bar");
+    internal void OpenPanelAppearance(string kind)
+    {
+        if (!EditingLayout) return;
+        if (_panelSettings == null)
+        {
+            AppearancePanel.Children.Remove(PanelAppearanceControls);
+            _panelSettings = new HoverPanelSettingsWindow(this, PanelAppearanceControls, Resources);
+        }
+        BarAppearanceGroup.Visibility = kind == "Bar" ? Visibility.Visible : Visibility.Collapsed;
+        DotAppearanceGroup.Visibility = kind == "Dot" ? Visibility.Visible : Visibility.Collapsed;
+        ResponseAppearanceGroup.Visibility = kind == "Response" ? Visibility.Visible : Visibility.Collapsed;
+        AddAppearanceGroup.Visibility = kind == "Add input" ? Visibility.Visible : Visibility.Collapsed;
+        var targets = kind switch
+        {
+            "Bar" => new[] { "Panel", "Text", "Icons" },
+            "Dot" => new[] { "Dot", "Dot panel" },
+            "Response" => new[] { "AI panel", "AI text" },
+            _ => new[] { "Add panel", "Add text" }
+        };
+        foreach (var button in PanelColorTargets.Children.OfType<Button>()) button.Visibility = targets.Contains((string)button.Tag) ? Visibility.Visible : Visibility.Collapsed;
+        _colorTarget = targets[0]; LoadWheel();
+        ApplyLocalTheme(PanelAppearanceControls, ((SolidColorBrush)Foreground).Color, ((SolidColorBrush)Chrome.Background).Color, ((SolidColorBrush)Resources["HoverIcons"]).Color);
+        _panelSettings.RefreshTheme(Chrome.Background, Foreground);
+        Window anchor = kind == "Response" ? _responseWindow! : kind == "Add input" ? _inputWindow! : kind == "Dot" ? _statusWindow! : this;
+        _panelSettings.Open(kind + " settings", anchor);
+    }
+    internal Window? PanelSettingsForTests => _panelSettings;
     private void CopyResponse_Click(object sender, RoutedEventArgs e)
     {
         if (_responseText.Length == 0) return;
@@ -335,8 +384,14 @@ public partial class HoverAiWindow : Window
         if (!_codexEnabled && _responseText.Length == 0) { ResponseLabel.Text = "AI"; AnswerText.Text = "AI is not connected yet."; }
         ResponsePanel.Visibility = Visibility.Collapsed;
         RefreshFloatingPanels();
-        SubmissionRequested?.Invoke(new HoverAiSubmission(text, _screenshots.Files.ToArray()));
-        QuestionSubmitted?.Invoke(LastQuestion);
+        DispatchSubmission(new HoverAiSubmission(text, _screenshots.Files.ToArray()));
+    }
+
+    private void DispatchSubmission(HoverAiSubmission request)
+    {
+        LastQuestion = request.Text;
+        if (request.ImagePaths.Count > 0) LastQuestion += $"\n\n[{request.ImagePaths.Count} image attachment(s)]";
+        SubmissionRequested?.Invoke(request); QuestionSubmitted?.Invoke(LastQuestion);
     }
 
     private void Chrome_Drag(object sender, MouseButtonEventArgs e)
@@ -389,7 +444,7 @@ public partial class HoverAiWindow : Window
                 button.FontSize = button == PasteButton ? BarTextSlider.Value : BarIconSlider.Value;
             var label = new TextBlock { Text = "Paste", FontFamily = PasteButton.FontFamily, FontSize = BarTextSlider.Value };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            MinWidth = Math.Max(250, Math.Ceiling(label.DesiredSize.Width + 16 + 5 * (BarIconSlider.Value + 14) + 20 + Chrome.Padding.Left * 2));
+            MinWidth = Math.Max(250, Math.Ceiling(label.DesiredSize.Width + 16 + (EditingLayout ? 6 : 5) * (BarIconSlider.Value + 14) + 20 + Chrome.Padding.Left * 2));
             WidthSlider.Minimum = MinWidth;
             _config.HoverAiWidth = WidthSlider.Value;
             Width = _config.HoverAiWidth;
@@ -420,6 +475,11 @@ public partial class HoverAiWindow : Window
             Chrome.Background = new SolidColorBrush(background);
             Foreground = new SolidColorBrush(foreground);
             ApplyLocalTheme(Chrome, foreground, background, icons);
+            if (_panelSettings != null)
+            {
+                ApplyLocalTheme(PanelAppearanceControls, foreground, background, icons);
+                _panelSettings.RefreshTheme(new SolidColorBrush(background), new SolidColorBrush(foreground));
+            }
             _pasteMenu.Background = new SolidColorBrush(background);
             _pasteMenu.Foreground = new SolidColorBrush(foreground);
             foreach (var item in _pasteMenu.Items.OfType<MenuItem>()) item.Foreground = new SolidColorBrush(icons);

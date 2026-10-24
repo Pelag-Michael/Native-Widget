@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -28,6 +29,10 @@ internal sealed class HoverAiFloatingPanel : Window
     private readonly TextBlock _label = new() { FontSize = 10, Opacity = .65 };
     private readonly TextBlock _answer = new() { TextWrapping = TextWrapping.Wrap };
     private readonly Ellipse _dot = new() { Width = 6, Height = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+    private readonly List<Thumb> _corners = new();
+    internal Button SettingsButton { get; }
+    internal int VisibleCornerCount => _corners.Count(c => c.Background != Brushes.Transparent);
+    public event Action? SettingsRequested;
     public event Action? BoundsSaved;
     public HoverAiFloatingPanel(AppConfig config, bool status, double left, double top, TextBox? editor = null)
     {
@@ -42,6 +47,15 @@ internal sealed class HoverAiFloatingPanel : Window
         Top = status ? config.HoverAiStatusTop ?? top : (IsInput ? config.HoverAiFollowUpTop : config.HoverAiResponseTop) ?? top;
         _chrome = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(60,255,255,255)), Padding = new Thickness(status ? 0 : 12) };
         var root = new Grid(); root.Children.Add(_chrome); Content = root;
+        SettingsButton = new Button
+        {
+            Content = "\uE713", FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            Width = 22, Height = 22, Padding = new Thickness(3), FontSize = 12,
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0,0,status ? 0 : 18,0), Visibility = Visibility.Collapsed,
+            Style = (Style)Application.Current.FindResource("SecondaryBtnStyle")
+        };
+        SettingsButton.Click += (_, _) => SettingsRequested?.Invoke();
         if (status) { _chrome.Child = _dot; _chrome.MouseLeftButtonDown += Drag; }
         else
         {
@@ -64,21 +78,23 @@ internal sealed class HoverAiFloatingPanel : Window
             foreach (var edge in new[] { "L", "R", "T", "B", "LT", "RT", "LB", "RB" })
             {
                 var factory = new FrameworkElementFactory(typeof(Border));
-                factory.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+                factory.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent) });
                 var thumb = new Thumb { Width = edge.Length == 2 ? 14 : edge is "L" or "R" ? 5 : double.NaN,
                     Height = edge.Length == 2 ? 14 : edge is "T" or "B" ? 5 : double.NaN,
                     HorizontalAlignment = edge.Contains('L') ? HorizontalAlignment.Left : edge.Contains('R') ? HorizontalAlignment.Right : HorizontalAlignment.Stretch,
                     VerticalAlignment = edge.Contains('T') ? VerticalAlignment.Top : edge.Contains('B') ? VerticalAlignment.Bottom : VerticalAlignment.Stretch,
-                    Cursor = Cursors.Arrow, Template = new ControlTemplate(typeof(Thumb)) { VisualTree = factory } };
+                    Background = Brushes.Transparent, Cursor = Cursors.Arrow, Template = new ControlTemplate(typeof(Thumb)) { VisualTree = factory } };
                 thumb.DragDelta += (_, e) =>
                 {
                     if (edge.Length == 2 && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) { Left += e.HorizontalChange; Top += e.VerticalChange; }
                     else Resize(edge, e.HorizontalChange, e.VerticalChange);
                 };
+                if (edge.Length == 2) _corners.Add(thumb);
                 thumb.DragStarted += (_, _) => IsInteracting = true;
                 thumb.DragCompleted += (_, _) => { IsInteracting = false; SaveBounds(); }; root.Children.Add(thumb);
             }
         }
+        root.Children.Add(SettingsButton);
         Loaded += (_, _) => _loaded = true;
         WindowInterop.HideFromAltTab(this); RefreshTheme();
     }
@@ -109,6 +125,8 @@ internal sealed class HoverAiFloatingPanel : Window
     {
         _editing = editing;
         _chrome.BorderThickness = new Thickness(0);
+        SettingsButton.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var corner in _corners) corner.Background = editing ? Brushes.White : Brushes.Transparent;
         var textOnly = IsInput ? _config.HoverAiFollowUpTextOnly : _config.HoverAiResponseTextOnly;
         _chrome.Padding = new Thickness(_status || textOnly ? 0 : 12);
         var background = _status ? _config.HoverAiStatusBackground : IsInput ? _config.HoverAiFollowUpBackground : _config.HoverAiResponseBackground;
@@ -118,6 +136,8 @@ internal sealed class HoverAiFloatingPanel : Window
         if (_header != null) _header.Visibility = editing || !textOnly ? Visibility.Visible : Visibility.Collapsed;
         var textBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground ?? _config.HoverAiForeground));
         _answer.Foreground = _label.Foreground = textBrush;
+        SettingsButton.Foreground = textBrush; SettingsButton.Background = Brushes.Transparent;
+        SettingsButton.FontSize = _config.HoverAiBarIconSize;
         _dot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_screenshotFlash ? "#FACC15" : _config.HoverAiInputDotColor));
         var fontSize = IsInput ? _config.HoverAiFollowUpFontSize ?? _config.HoverAiFontSize : _config.HoverAiFontSize;
         _answer.FontSize = fontSize;

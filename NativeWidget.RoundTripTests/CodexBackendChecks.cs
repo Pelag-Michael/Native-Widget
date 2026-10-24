@@ -35,6 +35,7 @@ internal static class CodexBackendChecks
                 if (p.GetProperty("approvalPolicy").GetString() != "never" || p.GetProperty("sandboxPolicy").GetProperty("type").GetString() != "dangerFullAccess") throw new Exception("Full-access turn configuration missing");
                 var turn = "turn-" + ++count; var input = p.GetProperty("input");
                 var text = input.EnumerateArray().Where(x => x.GetProperty("type").GetString() == "text").Select(x => x.GetProperty("text").GetString()).FirstOrDefault() ?? "";
+                if (Environment.GetEnvironmentVariable("NATIVEWIDGET_CODEX_TEST_TRACE") is { Length: > 0 } trace) File.AppendAllText(trace, text + "\n");
                 Reply(new { turn = new { id = turn } }); Event("turn/started", new { threadId = thread, turn = new { id = turn } });
                 if (text == "wait") { pendingTurn = turn; continue; }
                 if (text == "crash") return;
@@ -44,7 +45,7 @@ internal static class CodexBackendChecks
                 if (images.Any(x => !File.Exists(x.GetProperty("path").GetString()))) throw new Exception("Missing image");
                 Event("item/started", new { threadId = thread, turnId = turn, item = new { type = "agentMessage", id = "answer", phase = "final_answer", text = "" } });
                 Event("item/agentMessage/delta", new { threadId = thread, turnId = turn, itemId = "answer", delta = "Hello " });
-                var answer = text == "check prompt" ? instructions : "Hello " + (images.Length > 0 ? "image" : "text");
+                var answer = text == "check prompt" ? instructions : text.StartsWith("shot-") ? text : "Hello " + (images.Length > 0 ? "image" : "text");
                 Event("item/agentMessage/delta", new { threadId = thread, turnId = turn, itemId = "answer", delta = images.Length > 0 ? "image" : "text" });
                 Event("item/completed", new { threadId = thread, turnId = turn, item = new { type = "agentMessage", id = "answer", phase = "final_answer", text = answer } });
                 Event("turn/completed", new { threadId = thread, turn = new { id = turn, status = "completed" } });
@@ -97,10 +98,12 @@ internal static class CodexBackendChecks
         var beforeExe = Environment.GetEnvironmentVariable("NATIVEWIDGET_CODEX_EXE");
         var beforeData = Environment.GetEnvironmentVariable("NATIVEWIDGET_DATA_DIR");
         var beforeInstance = Environment.GetEnvironmentVariable("NATIVEWIDGET_INSTANCE_SUFFIX");
+        var beforeTrace = Environment.GetEnvironmentVariable("NATIVEWIDGET_CODEX_TEST_TRACE");
         var data = Path.Combine(Path.GetTempPath(), "nativewidget-codex-ui-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(data);
         Environment.SetEnvironmentVariable("NATIVEWIDGET_CODEX_EXE", Path.Combine(AppContext.BaseDirectory, "NativeWidget.RoundTripTests.exe"));
         Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", data);
         Environment.SetEnvironmentVariable("NATIVEWIDGET_INSTANCE_SUFFIX", Guid.NewGuid().ToString("N"));
+        var tracePath = Path.Combine(data, "trace.txt"); Environment.SetEnvironmentVariable("NATIVEWIDGET_CODEX_TEST_TRACE", tracePath);
         try
         {
             var app = new App(); app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
@@ -121,6 +124,18 @@ internal static class CodexBackendChecks
             PumpUntil(() => !panel.IsCodexBusy, "Stop response");
             ((System.Windows.Controls.Button)panel.FindName("NewChatButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => ((System.Windows.Controls.TextBlock)panel.FindName("CodexStatus")).Text == "New chat ready", "New chat");
+            var shotMode = (System.Windows.Controls.CheckBox)panel.FindName("ScreenshotAutoSendCheck");
+            shotMode.IsChecked = true; shotMode.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
+            foreach (var prompt in new[] { "shot-one", "shot-two", "shot-three" })
+            {
+                ((System.Windows.Controls.TextBox)panel.FindName("ScreenshotPromptInput")).Text = prompt;
+                panel.ReceiveScreenshot(bitmap, fromCapture: true);
+            }
+            PumpUntil(() => !panel.IsCodexBusy && ((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "shot-three", "Screenshot queue");
+            var shotRequests = File.ReadAllLines(tracePath).Where(text => text.StartsWith("shot-")).ToArray();
+            Require(shotRequests.SequenceEqual(new[] { "shot-one", "shot-two", "shot-three" }), "Rapid captures must send every screenshot in order");
+            shotMode.IsChecked = false; shotMode.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
+            ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             panel.ReceivePaste("wait"); panel.ReceiveScreenshot(bitmap); var images = panel.ScreenshotPaths.ToArray(); panel.SubmitQuestion();
             ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => !panel.IsCodexBusy, "Reset in-flight request");
@@ -135,6 +150,7 @@ internal static class CodexBackendChecks
             Environment.SetEnvironmentVariable("NATIVEWIDGET_CODEX_EXE", beforeExe);
             Environment.SetEnvironmentVariable("NATIVEWIDGET_DATA_DIR", beforeData);
             Environment.SetEnvironmentVariable("NATIVEWIDGET_INSTANCE_SUFFIX", beforeInstance);
+            Environment.SetEnvironmentVariable("NATIVEWIDGET_CODEX_TEST_TRACE", beforeTrace);
         }
     }
     private static void PumpUntil(Func<bool> condition, string label)

@@ -120,24 +120,32 @@ rectangle using X/Y/width/height in physical pixels, or draw it once with **Choo
 area**. Ctrl+, captures it silently, without a selection overlay,
 dimming or flash. Disable the fixed area to capture the monitor under the pointer.
 
-**Edit layout** reveals demo panels. Response corner handles remain invisible and interactive:
-drag any corner to resize, or **Shift + drag** a corner to move the panel. No response
-outline is drawn. Responses default to **text only**, with no background or title outside
-layout editing. Frames shrink to 12 pixels per axis; narrow widths wrap words downwards.
-The add-input panel has independent position, width/height, text size, opacity, text-only
-and auto-height settings. The color wheel has **Add panel** and **Add text** targets.
-**Edit layout** includes this editor; drag its invisible corners to resize or Shift-drag
-to move it. **Bar text size** and **Bar icon size** control the action bar independently
-from both the response and editor. The bar widens as needed to keep Paste visible.
-**Auto height** extends down to retain all text; disable it for a fixed-height box with
-mouse-wheel scrolling. The dot and response have independent opacity controls. Edit layout
-raises a fully invisible panel to 25% opacity temporarily so it can be repositioned.
+Enable **Screenshot to AI** in the general Quick AI settings to send each Ctrl+, capture
+immediately with its own editable prompt. It uses the current Capture area (or the monitor
+under the pointer when fixed capture is off). Each request includes only its new image and
+this prompt, excluding earlier draft text and attachments. The default prompt asks for a
+brief answer in Vietnamese. Rapid captures queue in order while Codex is busy; Stop and
+Reset cancel the pending queue. Clipboard image paste remains a manual draft attachment.
 
-The circular color wheel has separate Input Panel, Text, Icons, Dot, Dot panel, AI panel
-and AI text targets. Colors, opacity, capture settings and panel bounds live in
-`hover-ai-appearance.json`, independently of the original launcher settings. **Demo AI**
-previews a sample answer; its text explicitly identifies it as a demo. Buttons retain the
-normal arrow cursor. Disabling Invisible hover restores the original widgets.
+**Edit layout** reveals the demo panels, their gear buttons, and four visible resize corners
+on Add input and Response. Outside edit mode, gears and corner markings disappear while
+corner hit areas remain interactive. Drag a corner to resize, or Shift-drag to move.
+Panel controls are grouped behind each panel's own gear: Bar has width, opacity, text/icon
+size and colors; Dot has opacity and colors; Add input and Response each have text size,
+opacity, text-only, auto-height and colors. General settings keep the Codex configuration,
+capture area, screenshot prompt, Quicker and Edit layout toggles.
+
+No response outline is drawn. Add input and Response default to text-only, without a
+background or title outside layout editing. Frames shrink to 12 pixels per axis; narrow
+widths wrap words downwards. Auto height extends downwards to retain all text; disable it
+for a fixed-height box with mouse-wheel scrolling. Edit layout raises an invisible panel
+to at least 25% opacity temporarily so it can be repositioned. The bar widens as needed
+to keep Paste visible when its icons become larger or its gear appears.
+
+Each panel's color wheel changes only that panel. Colors, opacity, capture settings,
+prompts and panel bounds live in `hover-ai-appearance.json`, independently of the original
+launcher settings. **Demo AI** previews a sample answer labelled in its text. Buttons keep
+the normal arrow cursor. Disabling Invisible hover restores the original widgets.
 
 ## See it in action
 

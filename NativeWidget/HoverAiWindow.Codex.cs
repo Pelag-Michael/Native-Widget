@@ -14,6 +14,7 @@ public partial class HoverAiWindow
     private bool _codexEnabled, _codexClosing, _changingChat;
     private int _codexGeneration;
     private HoverAiSubmission? _queuedSubmission;
+    private readonly Queue<HoverAiSubmission> _queuedScreenshots = new();
     private string? _lastCompletedInput;
     internal bool IsCodexBusy => _codexCancellation != null;
     internal Task? CodexTaskForTests => _codexTask;
@@ -40,7 +41,7 @@ public partial class HoverAiWindow
         SubmissionRequested += request =>
         {
             if (_changingChat || _codexClosing) return;
-            if (_codexCancellation != null) { _queuedSubmission = request; CodexStatus.Text = "Next input queued"; return; }
+            if (_codexCancellation != null) { QueueSubmission(request); return; }
             _codexTask = RunCodexAsync(request);
         };
     }
@@ -67,9 +68,14 @@ public partial class HoverAiWindow
         catch (Exception ex) { if (!_codexClosing && generation == _codexGeneration) CodexStatus.Text = ex.Message; }
         finally { if (!_codexClosing) LoadModelsButton.IsEnabled = true; }
     }
+    private void QueueSubmission(HoverAiSubmission request)
+    {
+        if (request.QueueIndividually) _queuedScreenshots.Enqueue(request); else _queuedSubmission = request;
+        CodexStatus.Text = "Next input queued";
+    }
     private async Task RunCodexAsync(HoverAiSubmission request)
     {
-        if (_codexCancellation != null) { _queuedSubmission = request; CodexStatus.Text = "Next input queued"; return; }
+        if (_codexCancellation != null) { QueueSubmission(request); return; }
         SaveCodexSelection();
         var fingerprint = JsonSerializer.Serialize(new { request.Text, request.ImagePaths, _config.HoverAiCodexModel, _config.HoverAiCodexEffort, _config.HoverAiSystemPrompt });
         if (fingerprint == _lastCompletedInput) { CodexStatus.Text = "Already sent. Add input or reset to send again."; return; }
@@ -130,18 +136,19 @@ public partial class HoverAiWindow
             {
                 SendButton.Content = "\u2191";
                 RefreshFloatingPanels();
-                var queued = _queuedSubmission; _queuedSubmission = null;
+                var queued = _queuedScreenshots.Count > 0 ? _queuedScreenshots.Dequeue() : _queuedSubmission;
+                if (_queuedScreenshots.Count == 0 && ReferenceEquals(queued, _queuedSubmission)) _queuedSubmission = null;
                 if (queued != null && !_changingChat) _codexTask = RunCodexAsync(queued);
             }
         }
     }
     private void StopCodex()
     {
-        _queuedSubmission = null; _codexCancellation?.Cancel(); CodexStatus.Text = "Stopping...";
+        _queuedSubmission = null; _queuedScreenshots.Clear(); _codexCancellation?.Cancel(); CodexStatus.Text = "Stopping...";
     }
     private void ResetCodexDraft()
     {
-        ++_codexGeneration; _lastCompletedInput = null; _queuedSubmission = null;
+        ++_codexGeneration; _lastCompletedInput = null; _queuedSubmission = null; _queuedScreenshots.Clear();
         _codexCancellation?.Cancel();
         CodexStatus.Text = "Input cleared";
     }
@@ -159,7 +166,7 @@ public partial class HoverAiWindow
     }
     private void CloseCodexBackend()
     {
-        _codexClosing = true; ++_codexGeneration; _queuedSubmission = null;
+        _codexClosing = true; ++_codexGeneration; _queuedSubmission = null; _queuedScreenshots.Clear();
         _codexCancellation?.Cancel(); _codex?.Dispose();
     }
 }

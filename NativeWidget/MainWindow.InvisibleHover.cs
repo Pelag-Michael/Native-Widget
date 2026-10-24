@@ -257,7 +257,7 @@ public partial class MainWindow
         {
             var screenshot = SilentScreenCapture.Capture(_config);
             EnsureHoverAiPanel();
-            _hoverAi!.ReceiveScreenshot(screenshot);
+            _hoverAi!.ReceiveScreenshot(screenshot, fromCapture: true);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
         {

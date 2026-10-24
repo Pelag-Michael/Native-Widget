@@ -89,6 +89,7 @@
         <StackPanel>
             <Grid x:Name="ActionBar">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Button x:Name="BarSettingsButton" Grid.Column="0" Content="&#xE713;" FontFamily="Segoe MDL2 Assets" Click="BarSettings_Click" Visibility="Collapsed" Style="{StaticResource SecondaryBtnStyle}" Padding="6,3" Margin="0,0,4,0"/>
                 <Border Visibility="Collapsed" Background="Transparent" MouseLeftButtonDown="Title_Drag" Cursor="SizeAll">
                     <StackPanel Orientation="Horizontal" Margin="0">
                         <TextBlock x:Name="TitleText" Visibility="Collapsed" Text="" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -131,6 +132,9 @@
                 <TextBlock x:Name="CodexStatus" Text="Codex connects on first Send" TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,10"/>
                 <CheckBox x:Name="QuickerCheck" Content="Quicker: copy and send" Click="Appearance_Changed" Margin="0,0,0,8"/>
                 <TextBlock Text="Ctrl + Left copies the selection, adds it to input and sends." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
+                <CheckBox x:Name="ScreenshotAutoSendCheck" Content="Screenshot to AI" Click="ScreenshotMode_Changed" Margin="0,0,0,6"/>
+                <TextBlock Text="Capture the current area and send it immediately with this prompt." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,5"/>
+                <TextBox x:Name="ScreenshotPromptInput" Style="{StaticResource InputStyle}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="65" MaxHeight="160" VerticalScrollBarVisibility="Auto" TextChanged="ScreenshotMode_Changed" Margin="0,0,0,10"/>
                 <TextBlock Text="Screenshot temp folder" FontSize="11"/>
                 <TextBox x:Name="ScreenshotFolderInput" Style="{StaticResource InputStyle}" IsReadOnly="True" Padding="6,4" Margin="0,4,0,4"/>
                 <Button Content="Choose temp folder..." Click="ScreenshotFolder_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="6,4" Margin="0,0,0,8"/>
@@ -145,48 +149,54 @@
                 </UniformGrid>
                 <TextBlock Text="X / Y - Width / Height (pixels)" FontSize="10" Opacity="0.65"/>
                 <Button Content="Choose capture area..." Click="ChooseCapture_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="0,5,0,10" Padding="6,5"/>
-                <CheckBox x:Name="MinimalCheck" Content="Minimal" Foreground="White" IsChecked="True" Click="Appearance_Changed"/>
-                <TextBlock Text="Input opacity" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="OpacitySlider" Minimum="0.15" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="Dot opacity" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="StatusOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="AI response opacity" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="ResponseOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
-                <CheckBox x:Name="TextOnlyCheck" Content="Response: text only" Click="Appearance_Changed" Margin="0,8,0,0"/>
-                <CheckBox x:Name="AutoHeightCheck" Content="Auto height: show all text" Click="Appearance_Changed" Margin="0,6,0,0"/>
-                <TextBlock Text="Width" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="WidthSlider" Minimum="250" Maximum="600" Value="260" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="AI response text size" Foreground="#A8A8B2" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="FontSlider" Minimum="9" Maximum="20" Value="12" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="Bar text size" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="BarTextSlider" Minimum="6" Maximum="32" Value="12" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="Bar icon size" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="BarIconSlider" Minimum="6" Maximum="32" Value="11" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="Add input text size" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="FollowUpFontSlider" Minimum="6" Maximum="48" Value="12" ValueChanged="Appearance_ValueChanged"/>
-                <TextBlock Text="Add input opacity" FontSize="11" Margin="0,8,0,2"/>
-                <Slider x:Name="FollowUpOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
-                <CheckBox x:Name="FollowUpTextOnlyCheck" Content="Add input: text only" Click="Appearance_Changed" Margin="0,8,0,0"/>
-                <CheckBox x:Name="FollowUpAutoHeightCheck" Content="Add input: auto height" Click="Appearance_Changed" Margin="0,6,0,0"/>
-                <UniformGrid Columns="3" Margin="0,10,0,6">
-                    <Button Content="Panel" Tag="Panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10"/>
-                    <Button Content="Text" Tag="Text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="4,0"/>
-                    <Button Content="Icons" Tag="Icons" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10"/>
-                </UniformGrid>
-                <UniformGrid Columns="2" Margin="0,0,0,6">
-                    <Button Content="Dot" Tag="Dot" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="0,0,2,4"/>
-                    <Button Content="Dot panel" Tag="Dot panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="2,0,0,4"/>
-                    <Button Content="AI panel" Tag="AI panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="0,0,2,0"/>
-                    <Button Content="AI text" Tag="AI text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="2,0,0,0"/>
-                </UniformGrid>
-                <UniformGrid Columns="2" Margin="0,0,0,6">
-                    <Button Content="Add panel" Tag="Add panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="0,0,2,0"/>
-                    <Button Content="Add text" Tag="Add text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="4,5" FontSize="10" Margin="2,0,0,0"/>
-                </UniformGrid>
-                <TextBlock x:Name="ColorTargetLabel" Text="Panel color" FontSize="11" HorizontalAlignment="Center"/>
-                <local:ColorWheel x:Name="Wheel" HorizontalAlignment="Center"/>
-                <TextBlock Text="Brightness" FontSize="11" Margin="0,4"/>
-                <Slider x:Name="BrightnessSlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Brightness_Changed"/>
+                <StackPanel x:Name="PanelAppearanceControls" Visibility="Collapsed">
+                    <StackPanel x:Name="BarAppearanceGroup">
+                        <CheckBox x:Name="MinimalCheck" Content="Minimal" Click="Appearance_Changed"/>
+                        <TextBlock Text="Opacity" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="OpacitySlider" Minimum="0.15" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                        <TextBlock Text="Width" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="WidthSlider" Minimum="250" Maximum="600" Value="260" ValueChanged="Appearance_ValueChanged"/>
+                        <TextBlock Text="Text size" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="BarTextSlider" Minimum="6" Maximum="32" Value="12" ValueChanged="Appearance_ValueChanged"/>
+                        <TextBlock Text="Icon size" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="BarIconSlider" Minimum="6" Maximum="32" Value="11" ValueChanged="Appearance_ValueChanged"/>
+                    </StackPanel>
+                    <StackPanel x:Name="DotAppearanceGroup">
+                        <TextBlock Text="Opacity" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="StatusOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                    </StackPanel>
+                    <StackPanel x:Name="ResponseAppearanceGroup">
+                        <TextBlock Text="Opacity" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="ResponseOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                        <TextBlock Text="Text size" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="FontSlider" Minimum="9" Maximum="48" Value="12" ValueChanged="Appearance_ValueChanged"/>
+                        <CheckBox x:Name="TextOnlyCheck" Content="Text only" Click="Appearance_Changed" Margin="0,8,0,0"/>
+                        <CheckBox x:Name="AutoHeightCheck" Content="Auto height" Click="Appearance_Changed" Margin="0,6,0,0"/>
+                    </StackPanel>
+                    <StackPanel x:Name="AddAppearanceGroup">
+                        <TextBlock Text="Text size" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="FollowUpFontSlider" Minimum="6" Maximum="48" Value="12" ValueChanged="Appearance_ValueChanged"/>
+                        <TextBlock Text="Opacity" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="FollowUpOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                        <CheckBox x:Name="FollowUpTextOnlyCheck" Content="Text only" Click="Appearance_Changed" Margin="0,8,0,0"/>
+                        <CheckBox x:Name="FollowUpAutoHeightCheck" Content="Auto height" Click="Appearance_Changed" Margin="0,6,0,0"/>
+                    </StackPanel>
+                    <WrapPanel x:Name="PanelColorTargets" Margin="0,10,0,6">
+                        <Button Content="Panel" Tag="Panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Text" Tag="Text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Icons" Tag="Icons" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Dot" Tag="Dot" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Dot panel" Tag="Dot panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="AI panel" Tag="AI panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="AI text" Tag="AI text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Add panel" Tag="Add panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Add text" Tag="Add text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="ColorTargetLabel" FontSize="11" HorizontalAlignment="Center"/>
+                    <local:ColorWheel x:Name="Wheel" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Brightness" FontSize="11" Margin="0,4"/>
+                    <Slider x:Name="BrightnessSlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Brightness_Changed"/>
+                </StackPanel>
                 <TextBox x:Name="BackgroundInput" Visibility="Collapsed"/>
                 <TextBox x:Name="ForegroundInput" Visibility="Collapsed"/>
                 <TextBlock x:Name="AppearanceError" Foreground="#FFAA99" TextWrapping="Wrap" FontSize="10"/>

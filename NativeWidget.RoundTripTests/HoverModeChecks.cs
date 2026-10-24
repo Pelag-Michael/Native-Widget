@@ -122,7 +122,7 @@ internal static class HoverModeChecks
             ((TextBox)panel.FindName("BackgroundInput")).Text = "#202030";
             ((TextBox)panel.FindName("ForegroundInput")).Text = "#AABBCC";
             // Exercise color validation/save through the actual button event.
-            var appearance = (FrameworkElement)panel.FindName("AppearancePanel");
+            var appearance = (FrameworkElement)panel.FindName("PanelAppearanceControls");
             panel.SelectColor(true, "#202030");
             panel.SelectColor(false, "#AABBCC");
             var saved = AppConfig.Load();
@@ -141,10 +141,14 @@ internal static class HoverModeChecks
             Require(ColorWheel.FromHsv(0, 1, 1) == Colors.Red && ColorWheel.FromHsv(120, 1, 1) == Colors.Lime &&
                     ColorWheel.FromHsv(240, 1, 1) == Colors.Blue, "Color wheel hue mapping must be correct.");
             panel.SelectColor(true, "#202030");
-            appearance.Visibility = Visibility.Visible;
+            var layoutForSettings = (CheckBox)panel.FindName("EditLayoutCheck");
+            layoutForSettings.IsChecked = true; layoutForSettings.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            ((Button)panel.FindName("BarSettingsButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(panel.PanelSettingsForTests?.IsVisible == true && panel.InputWindowForTests!.VisibleCornerCount == 4 && panel.ResponseWindowForTests!.SettingsButton.IsVisible,
+                "Edit layout exposes per-panel settings and all four corners.");
             panel.Opacity = 1;
             panel.Show();
-            panel.UpdateLayout();
+            panel.PanelSettingsForTests!.UpdateLayout();
             FindButton(appearance, "Icons").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var wheel = (ColorWheel)panel.FindName("Wheel");
             wheel.Brightness = 1;
@@ -160,14 +164,17 @@ internal static class HoverModeChecks
             Dispatcher.PushFrame(colorRenderFrame);
             panel.Show();
             panel.UpdateLayout();
-            var expandedImage = new RenderTargetBitmap((int)(panel.ActualWidth * 1.5), (int)(panel.ActualHeight * 1.5), 144, 144, PixelFormats.Pbgra32);
-            expandedImage.Render((Visual)panel.Content);
+            var settingsPreview = panel.PanelSettingsForTests!; settingsPreview.UpdateLayout();
+            var expandedImage = new RenderTargetBitmap((int)(settingsPreview.ActualWidth * 1.5), (int)(settingsPreview.ActualHeight * 1.5), 144, 144, PixelFormats.Pbgra32);
+            expandedImage.Render((Visual)settingsPreview.Content);
             using (var file = File.Create(Path.Combine(data, "appearance-preview.png")))
             {
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(expandedImage));
                 encoder.Save(file);
             }
+            panel.EndLayoutEditing();
+            Require(panel.InputWindowForTests!.VisibleCornerCount == 0 && !panel.ResponseWindowForTests!.SettingsButton.IsVisible && panel.PanelSettingsForTests?.IsVisible == false, "Leaving edit layout hides gears, visible corners and panel settings.");
             panel.Width = 340;
             panel.SelectColor(true, "#16161C");
             panel.SelectColor(false, "#EEEEF2");
@@ -199,6 +206,9 @@ internal static class HoverModeChecks
             response.Resize("R", wideWidth - response.Width, 0); response.UpdateLayout();
             var editForResize = (CheckBox)panel.FindName("EditLayoutCheck");
             editForResize.IsChecked = true; editForResize.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            response.SettingsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(((FrameworkElement)panel.FindName("ResponseAppearanceGroup")).Visibility == Visibility.Visible && ((FrameworkElement)panel.FindName("AddAppearanceGroup")).Visibility == Visibility.Collapsed && response.VisibleCornerCount == 4,
+                "The response gear opens only response controls while edit corners stay visible.");
             response.Resize("B", 0, 12 - response.Height); response.UpdateLayout();
             Require(response.Height <= 13, $"Layout editing must allow shrinking the frame to 12 pixels high: {response.Height}, editing={panel.EditingLayout}.");
             response.Resize("B", 0, 240 - response.Height); response.UpdateLayout();
@@ -229,6 +239,9 @@ internal static class HoverModeChecks
                 "Bar text, icons and follow-up typography/opacity must be independent.");
             var inputTextOnly = (CheckBox)panel.FindName("FollowUpTextOnlyCheck");
             inputTextOnly.IsChecked = false; inputTextOnly.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            panel.OpenPanelAppearance("Add input");
+            panel.PanelSettingsForTests!.UpdateLayout();
+            Require(((FrameworkElement)panel.FindName("BarAppearanceGroup")).Visibility == Visibility.Collapsed && ((FrameworkElement)panel.FindName("AddAppearanceGroup")).Visibility == Visibility.Visible, "Each gear exposes only its own panel settings.");
             FindButton(appearance, "Add panel").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             wheel.Brightness = 1; wheel.Pick(new Point(wheel.ActualWidth - 5, wheel.ActualHeight / 2));
             Require(((SolidColorBrush)((System.Windows.Controls.Border)((Grid)addInput.Content).Children[0]).Background).Color == Colors.Red && ((SolidColorBrush)((System.Windows.Controls.Border)panel.Content).Background).Color != Colors.Red,
@@ -255,6 +268,17 @@ internal static class HoverModeChecks
             Require(submissions == beforeQuick + 1 && panel.LastQuestion.Contains("new quick selection") && panel.PastedItemCount == beforeQuickCount + 1,
                 "Quicker enqueues a fresh copy and sends the complete draft once.");
             quicker.IsChecked = false; quicker.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            HoverAiSubmission? captureRequest = null; panel.SubmissionRequested += request => captureRequest = request;
+            var shotMode = (CheckBox)panel.FindName("ScreenshotAutoSendCheck");
+            shotMode.IsChecked = true; shotMode.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            ((TextBox)panel.FindName("ScreenshotPromptInput")).Text = "Read this screenshot only";
+            var beforeCapture = submissions;
+            panel.ReceiveScreenshot(syntheticScreenshot);
+            Require(submissions == beforeCapture, "Clipboard image paste still queues in screenshot mode.");
+            panel.ReceiveScreenshot(syntheticScreenshot, fromCapture: true);
+            Require(submissions == beforeCapture + 1 && captureRequest?.Text == "Read this screenshot only" && captureRequest.ImagePaths.Count == 1 && captureRequest.ImagePaths[0] == panel.ScreenshotPaths.Last() && captureRequest.QueueIndividually,
+                "Capture mode sends only the new image with its configured prompt, independently of queued draft text.");
+            shotMode.IsChecked = false; shotMode.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             var sibling = Path.Combine(Path.GetDirectoryName(queuedImages[0])!, "unowned-" + Guid.NewGuid().ToString("N") + ".txt");
             File.WriteAllText(sibling, "keep");
             ((Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
