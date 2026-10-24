@@ -389,7 +389,7 @@ public partial class HoverAiWindow : Window
             _pasteMenu.Background = new SolidColorBrush(background);
             _pasteMenu.Foreground = new SolidColorBrush(foreground);
             foreach (var item in _pasteMenu.Items.OfType<MenuItem>()) item.Foreground = new SolidColorBrush(icons);
-            QuestionInput.Background = new SolidColorBrush(background);
+            QuestionInput.Background = Brushes.Transparent;
             QuestionInput.CaretBrush = new SolidColorBrush(foreground);
             _config.HoverAiBackground = BackgroundInput.Text.Trim();
             _config.HoverAiForeground = ForegroundInput.Text.Trim();

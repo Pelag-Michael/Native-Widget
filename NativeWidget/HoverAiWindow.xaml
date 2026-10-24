@@ -104,7 +104,7 @@
             </Grid>
             <Grid x:Name="FollowUpPanel" Visibility="Collapsed" Margin="0,6,0,0">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBox x:Name="QuestionInput" Style="{StaticResource InputStyle}" Padding="7,5" TextWrapping="Wrap" TextChanged="Question_Changed"
+                <TextBox x:Name="QuestionInput" Style="{StaticResource InputStyle}" Background="Transparent" BorderThickness="0" BorderBrush="Transparent" Padding="2,5" TextWrapping="Wrap" TextChanged="Question_Changed"
                          AcceptsReturn="True" MaxHeight="85" VerticalScrollBarVisibility="Auto"/>
                 <Button Grid.Column="1" Content="&#x2191;" Click="Ask_Click" Style="{StaticResource SecondaryBtnStyle}" Margin="5,0,0,0" Padding="9,4"/>
             </Grid>
