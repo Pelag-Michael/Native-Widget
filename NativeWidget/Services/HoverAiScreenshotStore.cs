@@ -6,6 +6,7 @@ namespace NativeWidget.Services;
 internal sealed class HoverAiScreenshotStore
 {
     private readonly List<string> _files = new();
+    private readonly HashSet<string> _retainedFiles = new();
     internal IReadOnlyList<string> Files => _files.AsReadOnly();
     internal static string DefaultFolder => Path.Combine(Path.GetTempPath(), "NativeWidget", "QuickAI");
     internal static string ResolveFolder(string configured)
@@ -32,8 +33,20 @@ internal sealed class HoverAiScreenshotStore
     internal void Clear()
     {
         // Delete only screenshots created by this session, never the selected folder.
-        foreach (var path in _files)
+        foreach (var path in _files.Concat(_retainedFiles))
             try { File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         _files.Clear();
+        _retainedFiles.Clear();
+    }
+
+    internal void Remove(IEnumerable<string> paths, ISet<string> retained)
+    {
+        foreach (var path in paths)
+            if (_files.Remove(path)) _retainedFiles.Add(path);
+        foreach (var path in _retainedFiles.Where(path => !retained.Contains(path)).ToArray())
+        {
+            try { File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            _retainedFiles.Remove(path);
+        }
     }
 }

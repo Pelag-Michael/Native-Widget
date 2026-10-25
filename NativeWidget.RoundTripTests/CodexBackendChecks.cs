@@ -38,6 +38,7 @@ internal static class CodexBackendChecks
                 if (Environment.GetEnvironmentVariable("NATIVEWIDGET_CODEX_TEST_TRACE") is { Length: > 0 } trace) File.AppendAllText(trace, text + "\n");
                 Reply(new { turn = new { id = turn } }); Event("turn/started", new { threadId = thread, turn = new { id = turn } });
                 if (text == "wait") { pendingTurn = turn; continue; }
+                if (text == "slow") Thread.Sleep(250);
                 if (text == "crash") return;
                 if (text == "fail")
                 { Event("turn/completed", new { threadId = thread, turn = new { id = turn, status = "failed", error = new { message = "fixture failure" } } }); continue; }
@@ -112,9 +113,27 @@ internal static class CodexBackendChecks
             panel.ReceivePaste("question");
             var bitmap = BitmapSource.Create(2, 2, 96, 96, PixelFormats.Bgr32, null, new byte[16], 8);
             panel.ReceiveScreenshot(bitmap);
+            var firstImages = panel.ScreenshotPaths.ToArray();
             ((System.Windows.Controls.Button)panel.FindName("SendButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => !panel.IsCodexBusy, "UI first response");
             Require(((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "Hello image" && ((System.Windows.Controls.Button)panel.FindName("CopyResponseButton")).IsEnabled, "Send wires response and enables copy");
+            Require(!panel.HasInput && firstImages.All(path => !File.Exists(path)), "Success clears old text and screenshot files while keeping response");
+            panel.ReceivePaste("slow"); panel.SubmitQuestion();
+            panel.ReceivePaste("next question"); panel.ReceiveScreenshot(bitmap);
+            ((System.Windows.Controls.TextBox)panel.FindName("QuestionInput")).Text = "new follow-up";
+            var nextImages = panel.ScreenshotPaths.ToArray();
+            PumpUntil(() => !panel.IsCodexBusy, "New draft during answer");
+            Require(panel.PastedItemCount == 1 && nextImages.All(File.Exists)
+                && ((System.Windows.Controls.TextBox)panel.FindName("QuestionInput")).Text == "new follow-up", "Input added while answering survives completion");
+            panel.SubmitQuestion(); PumpUntil(() => !panel.IsCodexBusy, "Next draft response");
+            Require(!panel.HasInput && nextImages.All(path => !File.Exists(path)), "Next draft clears after its own successful answer");
+            panel.ReceivePaste("slow"); panel.ReceiveScreenshot(bitmap); panel.SubmitQuestion();
+            panel.ReceivePaste("queued follow-up"); panel.SubmitQuestion();
+            PumpUntil(() => !panel.IsCodexBusy, "Queued manual request sharing images");
+            Require(!panel.HasInput && ((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "Hello image", "Clearing completed draft must preserve images needed by queued requests");
+            panel.ReceivePaste("fail"); panel.SubmitQuestion(); PumpUntil(() => !panel.IsCodexBusy, "Failed request");
+            Require(panel.HasInput, "Failed answer preserves input for retry");
+            ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             panel.SubmitQuestion(); Require(!panel.IsCodexBusy, "Duplicate Send must not start another turn");
             ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             Require(!panel.HasInput && !((System.Windows.Controls.Button)panel.FindName("CopyResponseButton")).IsEnabled, "Reset clears response and draft");
@@ -122,6 +141,7 @@ internal static class CodexBackendChecks
             Require(panel.IsCodexBusy && (string)((System.Windows.Controls.Button)panel.FindName("SendButton")).Content == "\u25A0", "Send becomes Stop while running");
             ((System.Windows.Controls.Button)panel.FindName("SendButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => !panel.IsCodexBusy, "Stop response");
+            Require(panel.HasInput, "Stopped answer preserves input");
             ((System.Windows.Controls.Button)panel.FindName("NewChatButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => ((System.Windows.Controls.TextBlock)panel.FindName("CodexStatus")).Text == "New chat ready", "New chat");
             var shotMode = (System.Windows.Controls.CheckBox)panel.FindName("ScreenshotAutoSendCheck");
@@ -134,6 +154,8 @@ internal static class CodexBackendChecks
             PumpUntil(() => !panel.IsCodexBusy && ((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "shot-three", "Screenshot queue");
             var shotRequests = File.ReadAllLines(tracePath).Where(text => text.StartsWith("shot-")).ToArray();
             Require(shotRequests.SequenceEqual(new[] { "shot-one", "shot-two", "shot-three" }), "Rapid captures must send every screenshot in order");
+            Require(!panel.HasInput && ((System.Windows.Controls.TextBox)panel.FindName("ScreenshotPromptInput")).Text == "shot-three"
+                && !string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text), "Quick screenshots clear draft and retain configured prompts");
             shotMode.IsChecked = false; shotMode.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
             ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             panel.ReceivePaste("wait"); panel.ReceiveScreenshot(bitmap); var images = panel.ScreenshotPaths.ToArray(); panel.SubmitQuestion();
@@ -143,7 +165,7 @@ internal static class CodexBackendChecks
             var sending = Path.Combine(Path.GetTempPath(), "NativeWidget", "QuickAI", "Sending");
             Require(!Directory.Exists(sending) || !Directory.EnumerateFiles(sending).Any(), "Pinned image copies must be released after cancellation");
             panel.Close(); app.Shutdown();
-            Console.WriteLine("PASS Codex UI: Send, image response, Copy state, duplicate prevention, Stop, New chat and Reset during an image request.");
+            Console.WriteLine("PASS Codex UI: success clears draft and temp images, preserves response/prompts/new input/queued images; failures and Stop retain drafts; rapid screenshots, New chat and Reset.");
         }
         finally
         {

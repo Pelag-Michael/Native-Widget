@@ -11,12 +11,18 @@ using NativeWidget.Services;
 
 namespace NativeWidget;
 
-public sealed record HoverAiSubmission(string Text, IReadOnlyList<string> ImagePaths, bool QueueIndividually = false);
+public sealed record HoverAiSubmission(string Text, IReadOnlyList<string> ImagePaths, bool QueueIndividually = false)
+{
+    internal long DraftPasteThrough { get; init; }
+    internal long DraftQuestionRevision { get; init; }
+    internal string[] DraftImages { get; init; } = Array.Empty<string>();
+}
 
 public partial class HoverAiWindow : Window
 {
     private readonly AppConfig _config;
-    private readonly List<string> _pastedContext = new();
+    private readonly List<(long Id, string Text)> _pastedContext = new();
+    private long _pasteSequence, _questionRevision;
     private readonly HoverAiScreenshotStore _screenshots = new();
     private readonly DispatcherTimer _screenshotFlashTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private bool _screenshotFlash;
@@ -72,6 +78,7 @@ public partial class HoverAiWindow : Window
         config.HoverAiResponseBackground ??= config.HoverAiBackground;
         config.HoverAiResponseForeground ??= config.HoverAiForeground;
         InitializeComponent();
+        QuestionInput.TextChanged += (_, _) => ++_questionRevision;
         WindowInterop.HideFromAltTab(this);
         InitializeCodexControls();
         ScreenshotAutoSendCheck.IsChecked = config.HoverAiScreenshotAutoSend;
@@ -132,7 +139,7 @@ public partial class HoverAiWindow : Window
     internal void ReceivePaste(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
-        _pastedContext.Add(text);
+        _pastedContext.Add((++_pasteSequence, text));
         PasteDot.Visibility = Visibility.Collapsed;
         RefreshFloatingPanels();
     }
@@ -375,7 +382,7 @@ public partial class HoverAiWindow : Window
 
     internal void SubmitQuestion()
     {
-        var parts = _pastedContext.ToList();
+        var parts = _pastedContext.Select(item => item.Text).ToList();
 
         if (!string.IsNullOrWhiteSpace(QuestionInput.Text)) parts.Add(QuestionInput.Text.Trim());
         if (parts.Count == 0 && _screenshots.Files.Count == 0) { LastQuestion = ""; return; }
@@ -390,9 +397,27 @@ public partial class HoverAiWindow : Window
 
     private void DispatchSubmission(HoverAiSubmission request)
     {
+        request = request with { DraftPasteThrough = _pasteSequence, DraftQuestionRevision = _questionRevision,
+            DraftImages = _screenshots.Files.ToArray() };
         LastQuestion = request.Text;
         if (request.ImagePaths.Count > 0) LastQuestion += $"\n\n[{request.ImagePaths.Count} image attachment(s)]";
         SubmissionRequested?.Invoke(request); QuestionSubmitted?.Invoke(LastQuestion);
+    }
+
+    private void ClearCompletedDraft(HoverAiSubmission request)
+    {
+        _pastedContext.RemoveAll(item => item.Id <= request.DraftPasteThrough);
+        if (_questionRevision == request.DraftQuestionRevision) QuestionInput.Clear();
+        // Queued turns still need their original files, even after they leave the draft.
+        var retained = _queuedScreenshots.SelectMany(item => item.ImagePaths)
+            .Concat(_queuedSubmission?.ImagePaths ?? Array.Empty<string>()).ToHashSet();
+        _screenshots.Remove(request.DraftImages, retained);
+        if (_screenshots.Files.Count == 0)
+        {
+            LastScreenshot = null; _screenshotFlashTimer.Stop(); _screenshotFlash = false;
+        }
+        LastQuestion = "";
+        RefreshFloatingPanels();
     }
 
     private void Chrome_Drag(object sender, MouseButtonEventArgs e)

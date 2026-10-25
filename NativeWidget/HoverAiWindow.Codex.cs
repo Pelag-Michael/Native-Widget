@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using NativeWidget.Services;
@@ -15,7 +14,6 @@ public partial class HoverAiWindow
     private int _codexGeneration;
     private HoverAiSubmission? _queuedSubmission;
     private readonly Queue<HoverAiSubmission> _queuedScreenshots = new();
-    private string? _lastCompletedInput;
     internal bool IsCodexBusy => _codexCancellation != null;
     internal Task? CodexTaskForTests => _codexTask;
 
@@ -77,8 +75,6 @@ public partial class HoverAiWindow
     {
         if (_codexCancellation != null) { QueueSubmission(request); return; }
         SaveCodexSelection();
-        var fingerprint = JsonSerializer.Serialize(new { request.Text, request.ImagePaths, _config.HoverAiCodexModel, _config.HoverAiCodexEffort, _config.HoverAiSystemPrompt });
-        if (fingerprint == _lastCompletedInput) { CodexStatus.Text = "Already sent. Add input or reset to send again."; return; }
         var generation = ++_codexGeneration;
         using var cancellation = new CancellationTokenSource();
         _codexCancellation = cancellation;
@@ -115,7 +111,10 @@ public partial class HoverAiWindow
             _responseText = reply.Text; AnswerText.Text = reply.Text.Length > 0 ? reply.Text : "No answer returned.";
             CopyResponseButton.IsEnabled = reply.Text.Length > 0;
             CodexStatus.Text = reply.Interrupted ? "Stopped" : "Ready";
-            if (!reply.Interrupted) _lastCompletedInput = fingerprint;
+            if (!reply.Interrupted)
+            {
+                ClearCompletedDraft(request);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -148,7 +147,7 @@ public partial class HoverAiWindow
     }
     private void ResetCodexDraft()
     {
-        ++_codexGeneration; _lastCompletedInput = null; _queuedSubmission = null; _queuedScreenshots.Clear();
+        ++_codexGeneration; _queuedSubmission = null; _queuedScreenshots.Clear();
         _codexCancellation?.Cancel();
         CodexStatus.Text = "Input cleared";
     }
