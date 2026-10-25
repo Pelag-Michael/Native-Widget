@@ -69,6 +69,8 @@ public class AppConfig
     public string HoverAiScreenshotPrompt { get; set; } = "\u0110\u1ECDc \u1EA3nh v\u00E0 tr\u1EA3 l\u1EDDi ng\u1EAFn g\u1ECDn b\u1EB1ng ti\u1EBFng Vi\u1EC7t.";
     public bool HoverAiQuicker { get; set; }
     public bool HoverAiCompactBar { get; set; }
+    public string HoverAiLocateFirstColor { get; set; } = "#FFFFFF";
+    public string HoverAiLocateSecondColor { get; set; } = "#F97316";
     public bool HoverAiDwellButtons { get; set; }
     public string HoverAiScreenshotFolder { get; set; } = "";
     public string HoverAiInputDotColor { get; set; } = "#4ADE80";

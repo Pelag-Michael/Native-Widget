@@ -18,6 +18,7 @@ public partial class MainWindow
     private bool _hoverSettingsOpen;
     private Window? _anchorFrame;
     private readonly DispatcherTimer _anchorFrameTimer = new() { Interval = TimeSpan.FromMilliseconds(1800) };
+    private DateTime _lastAnchorPress = DateTime.MinValue;
     private bool _copyShortcutBusy;
     private bool _copyShortcutAvailable;
     private bool _screenshotShortcutAvailable;
@@ -43,6 +44,9 @@ public partial class MainWindow
 
     internal void ShowHoverAnchorFrame()
     {
+        var now = DateTime.UtcNow;
+        var secondPress = _hoverModeActive && now - _lastAnchorPress <= TimeSpan.FromSeconds(2);
+        _lastAnchorPress = secondPress ? DateTime.MinValue : now;
         if (_anchorFrame == null)
         {
             _anchorFrame = new Window
@@ -60,6 +64,10 @@ public partial class MainWindow
             };
             WindowInterop.HideFromAltTab(_anchorFrame);
         }
+        var outline = (System.Windows.Shapes.Rectangle)_anchorFrame.Content;
+        var color = _hoverModeActive ? secondPress ? _config.HoverAiLocateSecondColor : _config.HoverAiLocateFirstColor : "#FFFFFF";
+        try { outline.Stroke = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color)); }
+        catch (FormatException) { outline.Stroke = System.Windows.Media.Brushes.White; }
         _anchorFrame.Left = Math.Clamp(_hoverModeActive ? _hoverAnchor.X : Left, SystemParameters.VirtualScreenLeft,
             SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - Width);
         _anchorFrame.Top = Math.Clamp(_hoverModeActive ? _hoverAnchor.Y : Top, SystemParameters.VirtualScreenTop,
@@ -71,9 +79,11 @@ public partial class MainWindow
         WindowInterop.EnsureTopmost(_anchorFrame);
         WindowInterop.SetClickThrough(_anchorFrame, true);
         _anchorFrameTimer.Stop();
+        _anchorFrameTimer.Interval = TimeSpan.FromMilliseconds(secondPress ? 150 : 1800);
         _anchorFrameTimer.Start();
     }
     internal bool AnchorFrameVisibleForTests => _anchorFrame?.IsVisible == true;
+    internal System.Windows.Media.Color? AnchorFrameColorForTests => ((_anchorFrame?.Content as System.Windows.Shapes.Rectangle)?.Stroke as System.Windows.Media.SolidColorBrush)?.Color;
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int key);
@@ -172,6 +182,7 @@ public partial class MainWindow
         if (_hoverModeActive == enabled) return;
         _hoverModeActive = enabled;
         _hoverModeGeneration++;
+        _lastAnchorPress = DateTime.MinValue;
         _config.InvisibleHoverEnabled = enabled;
         RegisterLocateShortcut();
         _hoverSettingsOpen = false;

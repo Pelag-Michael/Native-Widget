@@ -15,6 +15,7 @@ public sealed class WidgetShortcutsView : UserControl
         var entries = new (string Key, string Action)[]
         {
             ("Ctrl + Alt + \u2190", "Find the AI hover position (Invisible hover on)"),
+            ("Ctrl + move", "Enter the compact icon while holding Ctrl, move it, release Ctrl to save"),
             ("Ctrl + \u2190", "Copy selection; Quicker also sends to AI (Invisible hover on)"),
             ("Ctrl + ,", "Capture current area; Screenshot to AI sends automatically (Invisible hover on)"),
             ("Ctrl + \u2191", "Start a new AI session"),

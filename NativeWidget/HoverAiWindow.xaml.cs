@@ -83,7 +83,9 @@ public partial class HoverAiWindow : Window
         config.HoverAiResponseForeground ??= config.HoverAiForeground;
         InitializeComponent();
         _buttonDwell = new HoverDwellController(this, button => _modeActive &&
-            (button == CompactRevealButton || _config.HoverAiDwellButtons));
+            !_compactMoving && (button == CompactRevealButton || _config.HoverAiDwellButtons));
+        InitializeCompactMove();
+        InitializeLocateColors();
         SourceInitialized += (_, _) => RefreshCompactBar();
         QuestionInput.TextChanged += (_, _) => ++_questionRevision;
         WindowInterop.HideFromAltTab(this);

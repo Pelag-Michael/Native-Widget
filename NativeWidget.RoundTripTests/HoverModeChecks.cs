@@ -35,6 +35,10 @@ internal static class HoverModeChecks
             launcher.ShowHoverAnchorFrame();
             Require(launcher.AnchorFrameVisibleForTests && launcher.HoverPanelForTests?.IsVisible != true,
                 "Locate must outline the hotspot without opening the AI panel.");
+            Require(launcher.AnchorFrameColorForTests == Colors.White, "First locate uses its default white color");
+            launcher.ShowHoverAnchorFrame();
+            Require(launcher.AnchorFrameColorForTests == (Color)ColorConverter.ConvertFromString("#F97316"), "Second locate within 2s uses the second color");
+            Pump(220); Require(!launcher.AnchorFrameVisibleForTests, "Second locate flash hides promptly");
             launcher.UpdateInvisibleHoverPointer(false, false);
             launcher.UpdateInvisibleHoverPointer(true, false);
             var panel = launcher.HoverPanelForTests!;
@@ -42,11 +46,27 @@ internal static class HoverModeChecks
             compactToggle.IsChecked = true; compactToggle.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Require(panel.CompactBarCollapsed && panel.Width == 36 && ((Grid)panel.FindName("ActionBar")).Visibility == Visibility.Collapsed,
                 "Compact mode shows only the reveal icon and shrinks the actual window");
+            var beforeMove = new Point(panel.Left, panel.Top);
+            panel.BeginCompactMove(new Point(500, 500));
+            panel.UpdateCompactMove(new Point(560, 530), true);
+            panel.UpdateCompactMove(new Point(560, 530), false);
+            Require(panel.Left > beforeMove.X && panel.Top > beforeMove.Y && panel.CompactBarCollapsed
+                && Math.Abs(launcher.HoverAnchorForTests.X - panel.Left - 12) < 1, "Ctrl move saves the compact icon and updates its hover anchor without opening it");
             ((Button)panel.FindName("CompactRevealButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Require(!panel.CompactBarCollapsed && panel.Width >= 250, "Reveal restores the action bar");
             panel.Hide(); panel.Show();
             Require(panel.CompactBarCollapsed, "A new hover visit starts compact again");
             compactToggle.IsChecked = false; compactToggle.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            ((Button)panel.FindName("LocateFirstColorButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var locateWheel = (ColorWheel)panel.FindName("LocateWheel");
+            locateWheel.SetColor(Colors.Red); locateWheel.Brightness = 1;
+            ((Button)panel.FindName("LocateSecondColorButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            locateWheel.SetColor(Colors.Cyan); locateWheel.Brightness = 1;
+            launcher.ShowHoverAnchorFrame(); Require(launcher.AnchorFrameColorForTests == Colors.Red, "Locate uses the first color chosen in its color wheel");
+            launcher.ShowHoverAnchorFrame(); Require(launcher.AnchorFrameColorForTests == Colors.Cyan, "Locate uses the independently chosen second color");
+            Pump(220);
+            launcher.UpdateInvisibleHoverPointer(false, false);
+            launcher.UpdateInvisibleHoverPointer(true, false);
             var shortcuts = (WidgetShortcutsView)((Expander)panel.FindName("ShortcutsSection")).Content;
             var shortcutText = string.Join(" ", ((StackPanel)shortcuts.Content).Children.Cast<Border>()
                 .SelectMany(row => ((Grid)row.Child).Children.OfType<TextBlock>()).Select(text => text.Text));

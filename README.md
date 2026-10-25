@@ -149,6 +149,10 @@ Leaving the widget collapses it again; settings and Edit layout keep the full ba
 Leaving cancels the progress; disabled buttons do not trigger. This calls the action directly,
 without generating mouse input or activating the main bar. Opening Add input by hover does
 not focus its editor; clicking the editor to type still uses normal keyboard focus.
+To move the compact icon, hold Ctrl and move onto it, continue moving the pointer, then
+release Ctrl to save the position and hover anchor. This does not open the bar or click it.
+Ctrl+Alt+Left shows the first locate color for 1.8s. Press it again within 2s to flash the
+second color for 150ms and hide. Choose both colors with the wheel under **Layout > Locate colors**.
 AI responses render Markdown as native formatted text, including emphasis, headings, lists,
 inline/fenced code, quotes and wrapping table rows. The same opacity, colors, narrow wrapping
 and manual height limits apply. Links and image alt text render without external navigation
@@ -235,6 +239,7 @@ workspace-wide documentation map is [`docs/README.md`](docs/README.md).
 | Shortcut | Action |
 |---|---|
 | `Ctrl+Alt+Left` | Briefly outline the launcher hover region |
+| `Ctrl + pointer move` | Move the compact icon; release Ctrl to save |
 | `Ctrl+Up` | New Quick AI session (Invisible hover on) |
 | `Ctrl+Down` | Paste clipboard into Quick AI input (Invisible hover on) |
 | `Ctrl+Right` | Send Quick AI input (Invisible hover on) |

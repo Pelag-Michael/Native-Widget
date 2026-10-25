@@ -142,6 +142,19 @@
                 <Expander x:Name="LayoutSection" Header="Layout" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
                 <CheckBox x:Name="EditLayoutCheck" Content="Edit layout" Click="EditLayout_Click" Margin="0,0,0,8"/>
                 <TextBlock Text="Drag corners to resize; Shift + drag a corner to move." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
+                <TextBlock Text="Compact icon: hold Ctrl, enter the icon and move; release Ctrl to save." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
+                <Expander Header="Locate colors" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
+                    <TextBlock Text="Press twice within 2s: flash the second color, then hide." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,6"/>
+                    <WrapPanel>
+                        <Button x:Name="LocateFirstColorButton" Tag="1" Click="LocateColor_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4"><StackPanel Orientation="Horizontal"><Border x:Name="LocateFirstSwatch" Width="13" Height="13" CornerRadius="6" Margin="0,0,6,0"/><TextBlock Text="First"/></StackPanel></Button>
+                        <Button x:Name="LocateSecondColorButton" Tag="2" Click="LocateColor_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" Margin="5,0,0,0"><StackPanel Orientation="Horizontal"><Border x:Name="LocateSecondSwatch" Width="13" Height="13" CornerRadius="6" Margin="0,0,6,0"/><TextBlock Text="Second"/></StackPanel></Button>
+                    </WrapPanel>
+                    <StackPanel x:Name="LocatePicker" Visibility="Collapsed" Margin="0,8,0,0">
+                        <local:ColorWheel x:Name="LocateWheel" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Brightness" FontSize="10" Margin="0,4,0,0"/>
+                        <Slider x:Name="LocateBrightness" Minimum="0" Maximum="1" Value="1" ValueChanged="LocateBrightness_Changed"/>
+                    </StackPanel>
+                </StackPanel></Expander>
                 </StackPanel></Expander>
                 <Expander x:Name="CodexSection" Header="Codex &amp; system prompt" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
                 <TextBlock Text="Codex" FontWeight="SemiBold" Margin="0,0,0,5"/>
