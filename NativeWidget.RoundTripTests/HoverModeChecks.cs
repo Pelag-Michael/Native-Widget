@@ -38,21 +38,20 @@ internal static class HoverModeChecks
             launcher.UpdateInvisibleHoverPointer(false, false);
             launcher.UpdateInvisibleHoverPointer(true, false);
             var panel = launcher.HoverPanelForTests!;
+            var compactToggle = (CheckBox)panel.FindName("CompactBarCheck");
+            compactToggle.IsChecked = true; compactToggle.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            Require(panel.CompactBarCollapsed && panel.Width == 36 && ((Grid)panel.FindName("ActionBar")).Visibility == Visibility.Collapsed,
+                "Compact mode shows only the reveal icon and shrinks the actual window");
+            ((Button)panel.FindName("CompactRevealButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(!panel.CompactBarCollapsed && panel.Width >= 250, "Reveal restores the action bar");
+            panel.Hide(); panel.Show();
+            Require(panel.CompactBarCollapsed, "A new hover visit starts compact again");
+            compactToggle.IsChecked = false; compactToggle.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             var shortcuts = (WidgetShortcutsView)((Expander)panel.FindName("ShortcutsSection")).Content;
             var shortcutText = string.Join(" ", ((StackPanel)shortcuts.Content).Children.Cast<Border>()
                 .SelectMany(row => ((Grid)row.Child).Children.OfType<TextBlock>()).Select(text => text.Text));
-            Require(shortcuts.QuickAiOnly && shortcutText.Contains("Right Ctrl") && shortcutText.Contains("Ctrl + \u2191")
+            Require(shortcuts.QuickAiOnly && shortcutText.Contains("Ctrl + \u2192") && shortcutText.Contains("Ctrl + \u2191")
                 && !shortcutText.Contains("Ctrl + Alt + K") && !shortcutText.Contains("Notion"), "Quick AI shortcut reference must exclude original widget shortcuts");
-            using (var rightCtrl = new RightControlShortcut(() => { }))
-            {
-                Require(!rightCtrl.ProcessKey(0xA3, true, false) && !rightCtrl.ProcessKey(0xA3, true, false)
-                    && rightCtrl.ProcessKey(0xA3, false, false) && !rightCtrl.ProcessKey(0xA3, false, false), "Bare Right Ctrl sends once on release, ignoring repeat");
-                rightCtrl.ProcessKey(0xA3, true, false); rightCtrl.ProcessKey(0x43, true, false);
-                Require(!rightCtrl.ProcessKey(0xA3, false, false), "Right Ctrl+C must not send");
-                rightCtrl.ProcessKey(0xA3, true, false, otherModifier: true);
-                Require(!rightCtrl.ProcessKey(0xA3, false, false), "Right Ctrl with another modifier must not send");
-                Require(!rightCtrl.ProcessKey(0xA3, true, true) && !rightCtrl.ProcessKey(0xA3, false, true), "Injected Ctrl keys must not trigger Send");
-            }
             Require(panel.IsVisible, "Hovering the anchor must reveal AI panel.");
             launcher.UpdateInvisibleHoverPointer(false, true);
             Require(panel.IsVisible, "Moving into the panel must keep it open.");
@@ -62,6 +61,7 @@ internal static class HoverModeChecks
             {
                 Clipboard.SetText("shortcut paste");
                 Require(launcher.HandleAiInputShortcut(0xB007) && panel.PastedItemCount == 1, "Ctrl+Down pastes into Quick AI");
+                Require(launcher.HandleAiInputShortcut(0xB009) && panel.LastQuestion == "shortcut paste", "Ctrl+Right sends the current draft");
                 panel.ShowDemoResponse();
                 Require(launcher.HandleAiInputShortcut(0xB008) && !panel.HasInput
                     && ((Button)panel.FindName("CopyResponseButton")).IsEnabled, "Ctrl+Alt+Down empties input but keeps response");
@@ -271,7 +271,7 @@ internal static class HoverModeChecks
             ((Slider)panel.FindName("BarIconSlider")).Value = 17;
             ((Slider)panel.FindName("FollowUpFontSlider")).Value = 18;
             ((Slider)panel.FindName("FollowUpOpacitySlider")).Value = .4;
-            Require(((Button)panel.FindName("PasteButton")).FontSize == 15 && ((Button)panel.FindName("SendButton")).FontSize == 17 && input.FontSize == 18 && Math.Abs(addInput.Opacity - .4) < .01,
+            Require(((Button)panel.FindName("PasteButton")).FontSize == 17 && ((Button)panel.FindName("SendButton")).FontSize == 17 && input.FontSize == 18 && Math.Abs(addInput.Opacity - .4) < .01,
                 "Bar text, icons and follow-up typography/opacity must be independent.");
             var inputTextOnly = (CheckBox)panel.FindName("FollowUpTextOnlyCheck");
             inputTextOnly.IsChecked = false; inputTextOnly.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
@@ -330,6 +330,7 @@ internal static class HoverModeChecks
             Require(AppConfig.Load().InvisibleHoverEnabled, "Mode preference must survive restart.");
             peer.Close();
             launcher.Close();
+            RunDwellChecks(data, (Style)panel.FindResource("IconHoverButton"));
             app.Shutdown();
             Console.WriteLine("PASS hover mode: queued paste/images, temp-file reset, Quicker dispatch, timed yellow/green receipt, flexible text frame, separate opacity, isolated preferences and mode restoration.");
             Console.WriteLine("PREVIEW=" + preview);
@@ -350,6 +351,58 @@ internal static class HoverModeChecks
         }
         throw new InvalidOperationException("Button not found: " + content);
     }
+    private static void RunDwellChecks(string data, Style iconStyle)
+    {
+        var clicks = 0;
+        var nativeClickState = false;
+        var enabled = true;
+        var button = new Button { Content = "\u2191", Width = 80, Height = 40, Foreground = Brushes.White, Style = iconStyle };
+        var decorator = new System.Windows.Documents.AdornerDecorator { Child = button };
+        var window = new Window { Title = "Dwell test", Content = decorator, Width = 180, Height = 100,
+            Left = SystemParameters.WorkArea.Right - 260, Top = SystemParameters.WorkArea.Bottom - 160, Topmost = true, ShowInTaskbar = false };
+        var dwell = new HoverDwellController(window, _ => enabled);
+        window.ShowActivated = false;
+        window.SourceInitialized += (_, _) => WindowInterop.SetNoActivate(window, true);
+        var foreground = new Window { Title = "Dwell foreground", Width = 200, Height = 100, Left = 20, Top = 500, ShowInTaskbar = false };
+        button.Click += (_, _) => { clicks++; nativeClickState |= button.IsPressed || button.IsKeyboardFocused || !HoverDwellController.IsInvoking; };
+        GetCursorPos(out var originalCursor);
+        try
+        {
+            foreground.Show(); foreground.Activate();
+            var activeWindow = GetForegroundWindow();
+            window.Show(); window.UpdateLayout();
+            var center = button.PointToScreen(new Point(button.ActualWidth / 2, button.ActualHeight / 2));
+            void Enter() { SetCursorPos((int)center.X, (int)center.Y); Pump(100); }
+            void Leave() { SetCursorPos((int)window.Left - 20, (int)window.Top - 20); Pump(100); }
+            Leave(); Enter(); Pump(1300);
+            GetCursorPos(out var currentCursor);
+            Require(dwell.IsActive && dwell.Progress > .3 && clicks == 0, $"Dwell must show progress before its 3s trigger: active={dwell.IsActive}, progress={dwell.Progress}, clicks={clicks}, over={button.IsMouseOver}, target={System.Windows.Input.Mouse.DirectlyOver}, center={center}, cursor={currentCursor.X},{currentCursor.Y}");
+            Require(System.Windows.Documents.AdornerLayer.GetAdornerLayer(button)?.GetAdorners(button)?.Length == 1, "Hovered button must have a visible progress adorner");
+            var render = new RenderTargetBitmap((int)decorator.ActualWidth, (int)decorator.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+            render.Render(decorator);
+            using (var file = File.Create(Path.Combine(data, "dwell-progress.png"))) { var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(render)); encoder.Save(file); }
+            Leave(); Require(!dwell.IsActive && dwell.Progress == 0, "Leaving a button cancels and resets its fill");
+            Enter(); Pump(3100); Require(clicks == 1 && !dwell.IsActive, "Holding for 3s invokes exactly one action");
+            Require(!nativeClickState && !window.IsActive && GetForegroundWindow() == activeWindow,
+                "Dwell must invoke directly without pressing/focusing the button or changing the foreground window");
+            Pump(3100); Require(clicks == 1, "Holding after activation must not repeat or trigger Stop");
+            Leave(); enabled = false; Enter(); Require(!dwell.IsActive, "Disabled hover setting must preserve click-only behavior");
+            Leave(); enabled = true; button.IsEnabled = false; Enter(); Require(!dwell.IsActive, "Disabled buttons must never dwell-trigger");
+        }
+        finally { window.Close(); foreground.Close(); SetCursorPos(originalCursor.X, originalCursor.Y); }
+    }
+    private static void Pump(int milliseconds)
+    {
+        var frame = new DispatcherFrame();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(milliseconds) };
+        timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+        timer.Start(); Dispatcher.PushFrame(frame);
+    }
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct CursorPoint { public int X, Y; }
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetCursorPos(out CursorPoint point);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);

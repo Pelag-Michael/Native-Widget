@@ -23,6 +23,10 @@ public partial class HoverAiWindow : Window
     private readonly AppConfig _config;
     private readonly List<(long Id, string Text)> _pastedContext = new();
     private long _pasteSequence, _questionRevision;
+    private HoverDwellController? _buttonDwell;
+    private bool _compactExpanded;
+    private double _expandedMinimumWidth = 250;
+    internal bool CompactBarCollapsed => CompactRevealButton.Visibility == Visibility.Visible;
     private readonly HoverAiScreenshotStore _screenshots = new();
     private readonly DispatcherTimer _screenshotFlashTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private bool _screenshotFlash;
@@ -57,7 +61,7 @@ public partial class HoverAiWindow : Window
     public event Action? DismissRequested;
     public event Action? PositionChanged;
     public string LastQuestion { get; private set; } = "";
-    public bool IsPointerInteractionActive => _preferencesPinned || EditingLayout || _selectingCapture || _dragging || _pasteMenu.IsOpen || Wheel.IsMouseCaptured || _inputWindow?.IsInteracting == true || _responseWindow?.IsInteracting == true || _statusWindow?.IsInteracting == true || CodexModelPicker.IsDropDownOpen || CodexEffortPicker.IsDropDownOpen;
+    public bool IsPointerInteractionActive => _preferencesPinned || EditingLayout || _selectingCapture || _dragging || _pasteMenu.IsOpen || _buttonDwell?.IsActive == true || Wheel.IsMouseCaptured || _inputWindow?.IsInteracting == true || _responseWindow?.IsInteracting == true || _statusWindow?.IsInteracting == true || CodexModelPicker.IsDropDownOpen || CodexEffortPicker.IsDropDownOpen;
     internal int PastedItemCount => _pastedContext.Count;
 
     public HoverAiWindow() : this(AppConfig.Load()) { }
@@ -78,12 +82,17 @@ public partial class HoverAiWindow : Window
         config.HoverAiResponseBackground ??= config.HoverAiBackground;
         config.HoverAiResponseForeground ??= config.HoverAiForeground;
         InitializeComponent();
+        _buttonDwell = new HoverDwellController(this, button => _modeActive &&
+            (button == CompactRevealButton || _config.HoverAiDwellButtons));
+        SourceInitialized += (_, _) => RefreshCompactBar();
         QuestionInput.TextChanged += (_, _) => ++_questionRevision;
         WindowInterop.HideFromAltTab(this);
         InitializeCodexControls();
         ScreenshotAutoSendCheck.IsChecked = config.HoverAiScreenshotAutoSend;
         ScreenshotPromptInput.Text = config.HoverAiScreenshotPrompt;
         QuickerCheck.IsChecked = config.HoverAiQuicker;
+        CompactBarCheck.IsChecked = config.HoverAiCompactBar;
+        DwellButtonsCheck.IsChecked = config.HoverAiDwellButtons;
         try { ScreenshotFolderInput.Text = HoverAiScreenshotStore.ResolveFolder(config.HoverAiScreenshotFolder); }
         catch (ArgumentException) { config.HoverAiScreenshotFolder = ""; ScreenshotFolderInput.Text = HoverAiScreenshotStore.DefaultFolder; }
         _screenshotFlashTimer.Tick += (_, _) => FinishScreenshotFlash();
@@ -125,7 +134,11 @@ public partial class HoverAiWindow : Window
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SavePreferences(); };
         Closing += (_, _) => { _panelSettings?.Dispose(); CloseCodexBackend(); _modeActive = false; _screenshotFlashTimer.Stop(); _statusWindow?.Hide(); _responseWindow?.Hide(); _inputWindow?.Hide(); };
         Closed += (_, _) => { _saveTimer.Stop(); _screenshotFlashTimer.Stop(); _screenshots.Clear(); _statusWindow?.Close(); _responseWindow?.Close(); _inputWindow?.Close(); if (_ready) SavePreferences(); };
-        IsVisibleChanged += (_, _) => RefreshFloatingPanels();
+        IsVisibleChanged += (_, _) =>
+        {
+            if (!IsVisible) { _compactExpanded = false; _buttonDwell?.Cancel(); }
+            RefreshFloatingPanels();
+        };
         _ready = true;
         ApplyAppearance();
         ApplyColors(false);
@@ -244,6 +257,7 @@ public partial class HoverAiWindow : Window
     {
         if (!_ready) return;
         EnsureFloatingPanels();
+        RefreshCompactBar();
         BarSettingsButton.Visibility = EditingLayout ? Visibility.Visible : Visibility.Collapsed;
         if (!EditingLayout) _panelSettings?.Hide();
         _statusWindow!.SetScreenshotFlash(_screenshotFlash);
@@ -268,6 +282,7 @@ public partial class HoverAiWindow : Window
         {
             AppearancePanel.Children.Remove(PanelAppearanceControls);
             _panelSettings = new HoverPanelSettingsWindow(this, PanelAppearanceControls, Resources);
+            _ = new HoverDwellController(_panelSettings, _ => _modeActive && _config.HoverAiDwellButtons);
         }
         BarAppearanceGroup.Visibility = kind == "Bar" ? Visibility.Visible : Visibility.Collapsed;
         DotAppearanceGroup.Visibility = kind == "Dot" ? Visibility.Visible : Visibility.Collapsed;
@@ -282,8 +297,8 @@ public partial class HoverAiWindow : Window
         };
         foreach (var button in PanelColorTargets.Children.OfType<Button>()) button.Visibility = targets.Contains((string)button.Tag) ? Visibility.Visible : Visibility.Collapsed;
         _colorTarget = targets[0]; LoadWheel();
-        ApplyLocalTheme(PanelAppearanceControls, ((SolidColorBrush)Foreground).Color, ((SolidColorBrush)Chrome.Background).Color, ((SolidColorBrush)Resources["HoverIcons"]).Color);
-        _panelSettings.RefreshTheme(Chrome.Background, Foreground);
+        ApplyLocalTheme(PanelAppearanceControls, ((SolidColorBrush)Foreground).Color, ((SolidColorBrush)Resources["HoverPanel"]).Color, ((SolidColorBrush)Resources["HoverIcons"]).Color);
+        _panelSettings.RefreshTheme((Brush)Resources["HoverPanel"], Foreground);
         Window anchor = kind == "Response" ? _responseWindow! : kind == "Add input" ? _inputWindow! : kind == "Dot" ? _statusWindow! : this;
         _panelSettings.Open(kind + " settings", anchor);
     }
@@ -461,6 +476,8 @@ public partial class HoverAiWindow : Window
         try
         {
             _config.HoverAiQuicker = QuickerCheck.IsChecked == true;
+            _config.HoverAiCompactBar = CompactBarCheck.IsChecked == true;
+            _config.HoverAiDwellButtons = DwellButtonsCheck.IsChecked == true;
             _config.HoverAiMinimal = MinimalCheck.IsChecked == true;
             _config.HoverAiOpacity = OpacitySlider.Value;
             _config.HoverAiStatusOpacity = StatusOpacitySlider.Value;
@@ -477,15 +494,14 @@ public partial class HoverAiWindow : Window
             Opacity = _config.HoverAiOpacity;
             Chrome.Padding = new Thickness(_config.HoverAiMinimal ? 7 : 12);
             foreach (var button in ActionBar.Children.OfType<Button>())
-                button.FontSize = button == PasteButton ? BarTextSlider.Value : BarIconSlider.Value;
+                button.FontSize = BarIconSlider.Value;
             MainDragHandle.FontSize = BarIconSlider.Value;
             MainDragHandle.Width = Math.Max(18, BarIconSlider.Value + 8);
             var label = new TextBlock { Text = "Paste", FontFamily = PasteButton.FontFamily, FontSize = BarTextSlider.Value };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            MinWidth = Math.Max(250, Math.Ceiling(label.DesiredSize.Width + 16 + (EditingLayout ? 6 : 5) * (BarIconSlider.Value + 14) + 20 + MainDragHandle.Width + 4 + Chrome.Padding.Left * 2));
-            WidthSlider.Minimum = MinWidth;
+            _expandedMinimumWidth = Math.Max(250, Math.Ceiling(label.DesiredSize.Width + 16 + (EditingLayout ? 6 : 5) * (BarIconSlider.Value + 14) + 20 + MainDragHandle.Width + 4 + Chrome.Padding.Left * 2));
+            WidthSlider.Minimum = _expandedMinimumWidth;
             _config.HoverAiWidth = WidthSlider.Value;
-            Width = _config.HoverAiWidth;
             FollowUpPanel.Visibility = Visibility.Collapsed;
             ResponsePanel.Visibility = Visibility.Collapsed;
             RefreshFloatingPanels();
@@ -563,13 +579,35 @@ public partial class HoverAiWindow : Window
     {
         _followUpOpen = !_followUpOpen;
         RefreshFloatingPanels();
-        if (_inputWindow?.IsVisible == true) { _inputWindow.Activate(); QuestionInput.Focus(); }
+        if (_inputWindow?.IsVisible == true && !HoverDwellController.IsInvoking) { _inputWindow.Activate(); QuestionInput.Focus(); }
     }
-    internal void OpenPreferences() { _preferencesPinned = true; AppearancePanel.Visibility = Visibility.Visible; Activate(); }
+    private void CompactReveal_Click(object sender, RoutedEventArgs e)
+    {
+        _compactExpanded = true;
+        RefreshCompactBar();
+    }
+    private void RefreshCompactBar()
+    {
+        if (!_ready) return;
+        var collapsed = _config.HoverAiCompactBar && !_compactExpanded && !EditingLayout
+            && !_preferencesPinned && AppearancePanel.Visibility != Visibility.Visible;
+        ActionBar.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+        CompactRevealButton.Visibility = collapsed ? Visibility.Visible : Visibility.Collapsed;
+        CompactRevealButton.FontSize = _config.HoverAiBarIconSize;
+        MinWidth = collapsed ? 36 : _expandedMinimumWidth;
+        Width = collapsed ? 36 : Math.Max(_expandedMinimumWidth, _config.HoverAiWidth);
+        Chrome.Padding = new Thickness(collapsed ? 3 : _config.HoverAiMinimal ? 7 : 12);
+        Chrome.Background = AppearancePanel.Visibility == Visibility.Visible ? (Brush)Resources["HoverPanel"] : Brushes.Transparent;
+        WindowInterop.SetNoActivate(this, AppearancePanel.Visibility != Visibility.Visible && (_config.HoverAiCompactBar || _config.HoverAiDwellButtons));
+        foreach (var button in ActionBar.Children.OfType<Button>()) button.Background = Brushes.Transparent;
+        CompactRevealButton.Background = Brushes.Transparent;
+    }
+    internal void OpenPreferences() { _preferencesPinned = true; AppearancePanel.Visibility = Visibility.Visible; RefreshCompactBar(); Activate(); }
     private void Options_Click(object sender, RoutedEventArgs e)
     {
         AppearancePanel.Visibility = AppearancePanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
         if (AppearancePanel.Visibility == Visibility.Collapsed) { _preferencesPinned = false; EndLayoutEditing(); }
+        RefreshCompactBar();
     }
     private void Appearance_Changed(object sender, RoutedEventArgs e)
     { if (sender == MinimalCheck) _followUpOpen = MinimalCheck.IsChecked != true; ApplyAppearance(); }

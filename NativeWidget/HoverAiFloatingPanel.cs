@@ -38,6 +38,7 @@ internal sealed class HoverAiFloatingPanel : Window
     {
         _config = config; _status = status; _editor = editor;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
+        _ = new HoverDwellController(this, _ => config.HoverAiDwellButtons);
         Topmost = true; ShowInTaskbar = false; ShowActivated = false; Cursor = Cursors.Arrow; ForceCursor = true;
         ResizeMode = ResizeMode.NoResize;
         Width = status ? 28 : Math.Clamp(IsInput ? config.HoverAiFollowUpWidth : config.HoverAiResponseWidth, 12, 32000);
@@ -131,6 +132,7 @@ internal sealed class HoverAiFloatingPanel : Window
     public void SetAnswer(string label, string text) { _label.Text = label; _answer.Text = text; ReflowText(); }
     public void RefreshTheme(bool editing = false)
     {
+        WindowInterop.SetNoActivate(this, !IsInput && (_config.HoverAiCompactBar || _config.HoverAiDwellButtons));
         _editing = editing;
         _chrome.BorderThickness = new Thickness(0);
         SettingsButton.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;

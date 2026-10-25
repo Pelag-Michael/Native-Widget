@@ -21,7 +21,6 @@ public partial class MainWindow
     private bool _copyShortcutBusy;
     private bool _copyShortcutAvailable;
     private bool _screenshotShortcutAvailable;
-    private RightControlShortcut? _rightControlShortcut;
     private string? _aiInputShortcutError;
     private int _hoverModeGeneration;
     private Point _hoverAnchor;
@@ -285,7 +284,7 @@ public partial class MainWindow
                 _hoverSettingsOpen = true;
                 var settings = GetOrCreateWidget("Settings");
                 settings.Show();
-                settings.Activate();
+                if (!HoverDwellController.IsInvoking) settings.Activate();
             };
             _hoverAi.DismissRequested += () => { _hoverAi.Hide(); _hoverSuppressed = true; };
         }
@@ -321,39 +320,29 @@ public partial class MainWindow
         foreach (var (id, modifiers, key, name) in new[] {
             (NewSessionHotkeyId, ModControl, 0x26u, "Ctrl+Up"),
             (PasteInputHotkeyId, ModControl, 0x28u, "Ctrl+Down"),
+            (SendInputHotkeyId, ModControl, 0x27u, "Ctrl+Right"),
             (ClearInputHotkeyId, ModControl | ModAlt, 0x28u, "Ctrl+Alt+Down") })
         {
             var registered = RegisterHotKey(hwnd, id, modifiers | 0x4000, key);
             status.AppendLine($"{name} registered={registered}");
             if (!registered) _aiInputShortcutError = name + " is in use by another app.";
         }
-        var generation = _hoverModeGeneration;
-        try
-        {
-            _rightControlShortcut = new RightControlShortcut(() => Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (!_hoverModeActive || generation != _hoverModeGeneration) return;
-                EnsureHoverAiPanel(); _hoverAi!.SubmitQuestion();
-            })));
-            status.AppendLine("Right Ctrl hook enabled=True");
-        }
-        catch (System.ComponentModel.Win32Exception) { _aiInputShortcutError = "Right Ctrl shortcut could not be enabled."; }
         try { System.IO.File.AppendAllText(AppConfig.TokenPath("hotkey-status.log"), status.ToString()); }
         catch (System.IO.IOException) { }
     }
 
     private void UnregisterAiInputShortcuts(IntPtr hwnd)
     {
-        foreach (var id in new[] { NewSessionHotkeyId, PasteInputHotkeyId, ClearInputHotkeyId }) UnregisterHotKey(hwnd, id);
-        _rightControlShortcut?.Dispose(); _rightControlShortcut = null;
+        foreach (var id in new[] { NewSessionHotkeyId, PasteInputHotkeyId, ClearInputHotkeyId, SendInputHotkeyId }) UnregisterHotKey(hwnd, id);
     }
 
     internal bool HandleAiInputShortcut(int id)
     {
-        if (!_hoverModeActive || id is not (NewSessionHotkeyId or PasteInputHotkeyId or ClearInputHotkeyId)) return false;
+        if (!_hoverModeActive || id is not (NewSessionHotkeyId or PasteInputHotkeyId or ClearInputHotkeyId or SendInputHotkeyId)) return false;
         EnsureHoverAiPanel();
         if (id == NewSessionHotkeyId) _hoverAi!.NewSessionFromShortcut();
         else if (id == PasteInputHotkeyId) _hoverAi!.PasteInputFromShortcut();
+        else if (id == SendInputHotkeyId) _hoverAi!.SubmitQuestion();
         else _hoverAi!.ClearInputFromShortcut();
         return true;
     }

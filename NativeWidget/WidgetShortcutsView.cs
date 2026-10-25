@@ -19,7 +19,7 @@ public sealed class WidgetShortcutsView : UserControl
             ("Ctrl + ,", "Capture current area; Screenshot to AI sends automatically (Invisible hover on)"),
             ("Ctrl + \u2191", "Start a new AI session"),
             ("Ctrl + \u2193", "Paste clipboard into AI input"),
-            ("Right Ctrl", "Send AI input (press and release by itself)"),
+            ("Ctrl + \u2192", "Send AI input"),
             ("Ctrl + Alt + \u2193", "Empty AI input; keep the response and configured prompts"),
             ("Ctrl + Enter", "Send AI input (bar or Add text focused)"),
             ("Ctrl + V", "Paste into AI input, without showing pasted content"),

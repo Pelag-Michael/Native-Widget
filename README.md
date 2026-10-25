@@ -85,7 +85,7 @@ Reset and settings actions. Copy-answer stays dimmed without an answer.
 panel, with no extra Send button; the main send arrow submits its text with the draft. Clipboard images and screenshots append as PNG attachments
 in `%TEMP%/NativeWidget/QuickAI` by default. In Quick AI settings, choose another folder
 inside Temp. Existing queued images retain their paths if the folder changes.
-The send arrow, a bare Right Ctrl press/release, or Ctrl+Enter submits all queued text, the follow-up and all image
+The send arrow, Ctrl+Right, or Ctrl+Enter submits all queued text, the follow-up and all image
 attachments together. Image paths are sent separately as Codex local-image attachments; a path string alone
 in the prompt is not an AI image upload.
 A successful answer clears the old draft and generated PNGs, keeping the answer and configured prompts.
@@ -107,8 +107,7 @@ on the next Send. The send arrow becomes **Stop** while answering.
 **Reset** clears input and cancels the active request while retaining conversation context;
 **New chat** clears input and conversation context together. Restarting the app starts a new
 conversation. Ctrl+Up also starts a new session; Ctrl+Down pastes text or an image from the clipboard.
-These global shortcuts are active only in Invisible hover mode. Right Ctrl used with another
-key, mouse click or wheel keeps its ordinary modifier behavior and does not send. Quicker input
+These global shortcuts are active only in Invisible hover mode. Quicker input
 received during an answer is queued as the next complete draft. Only one turn runs at once.
 Images are copied privately for the active request, so Reset cannot remove a file while
 Codex reads it; those copies are removed when the request finishes. Codex uses full access (`danger-full-access`)
@@ -141,6 +140,15 @@ capture area, screenshot prompt, Quicker and Edit layout toggles. These are grou
 collapsed Layout, Codex, Quick modes and Capture sections. A Shortcuts section lists the
 only Quick AI keys, including copy/capture/send and layout controls. The main Settings
 window also groups its sections and includes the complete widget shortcut reference.
+
+The main bar shows only icons, without a panel border or resting button frames. A frame
+appears only on the icon under the pointer. In **Quick modes**, **Compact bar** replaces
+the bar with one small reveal icon; holding over it for three seconds opens the bar.
+Leaving the widget collapses it again; settings and Edit layout keep the full bar available.
+**Hover buttons 3s to activate** adds a progress fill and invokes each button once per visit.
+Leaving cancels the progress; disabled buttons do not trigger. This calls the action directly,
+without generating mouse input or activating the main bar. Opening Add input by hover does
+not focus its editor; clicking the editor to type still uses normal keyboard focus.
 
 No response outline is drawn. Add input and Response default to text-only, without a
 background or title outside layout editing. Frames shrink to 12 pixels per axis; narrow
@@ -225,7 +233,7 @@ workspace-wide documentation map is [`docs/README.md`](docs/README.md).
 | `Ctrl+Alt+Left` | Briefly outline the launcher hover region |
 | `Ctrl+Up` | New Quick AI session (Invisible hover on) |
 | `Ctrl+Down` | Paste clipboard into Quick AI input (Invisible hover on) |
-| `Right Ctrl` | Send Quick AI input on release when pressed alone (Invisible hover on) |
+| `Ctrl+Right` | Send Quick AI input (Invisible hover on) |
 | `Ctrl+Alt+Down` | Empty Quick AI input; keep answer and prompts (Invisible hover on) |
 | `Ctrl+Alt+F` | Find the original launcher when Invisible hover is off |
 | `Ctrl+Alt+G` | Disable click-through mode on every widget |

@@ -15,7 +15,7 @@ internal sealed class HoverPanelSettingsWindow : Window, IDisposable
     {
         Owner = owner; Width = 260; SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
-        Topmost = true; ShowInTaskbar = false; Cursor = Cursors.Arrow; ForceCursor = true;
+        Topmost = true; ShowActivated = false; ShowInTaskbar = false; Cursor = Cursors.Arrow; ForceCursor = true;
         ResizeMode = ResizeMode.NoResize;
         Resources.MergedDictionaries.Add(resources);
         var body = new StackPanel();
@@ -39,7 +39,7 @@ internal sealed class HoverPanelSettingsWindow : Window, IDisposable
         Top = Math.Clamp(anchor.Top, SystemParameters.VirtualScreenTop, Math.Max(SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - 600));
         Show(); UpdateLayout();
         Top = Math.Clamp(anchor.Top, SystemParameters.VirtualScreenTop, Math.Max(SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - ActualHeight));
-        Activate();
+        if (!HoverDwellController.IsInvoking) Activate();
     }
     internal void RefreshTheme(Brush background, Brush foreground)
     { _chrome.Background = background; _title.Foreground = foreground; }

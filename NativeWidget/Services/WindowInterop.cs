@@ -12,6 +12,7 @@ public static class WindowInterop
     private const int WS_EX_TOOLWINDOW = 0x80;
     private const int WS_EX_APPWINDOW = 0x40000;
     private const int WS_EX_TRANSPARENT = 0x20;
+    private const int WS_EX_NOACTIVATE = 0x08000000;
     private static readonly IntPtr HwndTopmost = new(-1);
     private static readonly IntPtr HwndTop = IntPtr.Zero;
     private const uint SwpNoSize = 0x0001;
@@ -71,6 +72,14 @@ public static class WindowInterop
         var hwnd = new WindowInteropHelper(window).Handle;
         if (hwnd == IntPtr.Zero) return false;
         return (GetWindowLong(hwnd, GWL_EXSTYLE) & WS_EX_TRANSPARENT) != 0;
+    }
+
+    internal static void SetNoActivate(Window window, bool enabled)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd == IntPtr.Zero) return;
+        var style = GetWindowLong(hwnd, GWL_EXSTYLE);
+        SetWindowLong(hwnd, GWL_EXSTYLE, enabled ? style | WS_EX_NOACTIVATE : style & ~WS_EX_NOACTIVATE);
     }
 
     /// Force a normal taskbar button: APPWINDOW on, TOOLWINDOW off. Call after the HWND
