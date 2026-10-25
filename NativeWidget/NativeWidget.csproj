@@ -32,4 +32,8 @@
     <InternalsVisibleTo Include="NativeWidget.RoundTripTests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="1.4.2" />
+  </ItemGroup>
+
 </Project>

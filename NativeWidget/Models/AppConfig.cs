@@ -70,6 +70,7 @@ public class AppConfig
     public bool HoverAiQuicker { get; set; }
     public bool HoverAiCompactBar { get; set; }
     public bool HoverAiDwellButtons { get; set; }
+    public bool HoverAiCtrlHover { get; set; }
     public string HoverAiScreenshotFolder { get; set; } = "";
     public string HoverAiInputDotColor { get; set; } = "#4ADE80";
     public bool HoverAiResponseTextOnly { get; set; } = true;

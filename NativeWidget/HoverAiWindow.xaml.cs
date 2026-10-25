@@ -83,7 +83,7 @@ public partial class HoverAiWindow : Window
         config.HoverAiResponseForeground ??= config.HoverAiForeground;
         InitializeComponent();
         _buttonDwell = new HoverDwellController(this, button => _modeActive &&
-            (button == CompactRevealButton || _config.HoverAiDwellButtons));
+            (button == CompactRevealButton || _config.HoverAiDwellButtons), () => _modeActive && _config.HoverAiCtrlHover);
         SourceInitialized += (_, _) => RefreshCompactBar();
         QuestionInput.TextChanged += (_, _) => ++_questionRevision;
         WindowInterop.HideFromAltTab(this);
@@ -93,6 +93,7 @@ public partial class HoverAiWindow : Window
         QuickerCheck.IsChecked = config.HoverAiQuicker;
         CompactBarCheck.IsChecked = config.HoverAiCompactBar;
         DwellButtonsCheck.IsChecked = config.HoverAiDwellButtons;
+        CtrlHoverCheck.IsChecked = config.HoverAiCtrlHover;
         try { ScreenshotFolderInput.Text = HoverAiScreenshotStore.ResolveFolder(config.HoverAiScreenshotFolder); }
         catch (ArgumentException) { config.HoverAiScreenshotFolder = ""; ScreenshotFolderInput.Text = HoverAiScreenshotStore.DefaultFolder; }
         _screenshotFlashTimer.Tick += (_, _) => FinishScreenshotFlash();
@@ -282,7 +283,7 @@ public partial class HoverAiWindow : Window
         {
             AppearancePanel.Children.Remove(PanelAppearanceControls);
             _panelSettings = new HoverPanelSettingsWindow(this, PanelAppearanceControls, Resources);
-            _ = new HoverDwellController(_panelSettings, _ => _modeActive && _config.HoverAiDwellButtons);
+            _ = new HoverDwellController(_panelSettings, _ => _modeActive && _config.HoverAiDwellButtons, () => _modeActive && _config.HoverAiCtrlHover);
         }
         BarAppearanceGroup.Visibility = kind == "Bar" ? Visibility.Visible : Visibility.Collapsed;
         DotAppearanceGroup.Visibility = kind == "Dot" ? Visibility.Visible : Visibility.Collapsed;
@@ -478,6 +479,7 @@ public partial class HoverAiWindow : Window
             _config.HoverAiQuicker = QuickerCheck.IsChecked == true;
             _config.HoverAiCompactBar = CompactBarCheck.IsChecked == true;
             _config.HoverAiDwellButtons = DwellButtonsCheck.IsChecked == true;
+            _config.HoverAiCtrlHover = CtrlHoverCheck.IsChecked == true;
             _config.HoverAiMinimal = MinimalCheck.IsChecked == true;
             _config.HoverAiOpacity = OpacitySlider.Value;
             _config.HoverAiStatusOpacity = StatusOpacitySlider.Value;
@@ -598,7 +600,7 @@ public partial class HoverAiWindow : Window
         Width = collapsed ? 36 : Math.Max(_expandedMinimumWidth, _config.HoverAiWidth);
         Chrome.Padding = new Thickness(collapsed ? 3 : _config.HoverAiMinimal ? 7 : 12);
         Chrome.Background = AppearancePanel.Visibility == Visibility.Visible ? (Brush)Resources["HoverPanel"] : Brushes.Transparent;
-        WindowInterop.SetNoActivate(this, AppearancePanel.Visibility != Visibility.Visible && (_config.HoverAiCompactBar || _config.HoverAiDwellButtons));
+        WindowInterop.SetNoActivate(this, AppearancePanel.Visibility != Visibility.Visible && (_config.HoverAiCompactBar || _config.HoverAiDwellButtons || _config.HoverAiCtrlHover));
         foreach (var button in ActionBar.Children.OfType<Button>()) button.Background = Brushes.Transparent;
         CompactRevealButton.Background = Brushes.Transparent;
     }

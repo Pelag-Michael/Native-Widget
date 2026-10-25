@@ -222,6 +222,23 @@ internal static class HoverModeChecks
             }
             Require(((Button)panel.FindName("CopyResponseButton")).IsEnabled, "Demo answer enables copy.");
             var response = panel.ResponseWindowForTests!;
+            const string markdownAnswer = "# Heading\n\n**bold** and *italic* with `inline code`\n\n- first\n- second\n\n```txt\n**literal in code**\n```\n\n[link](https://example.invalid)\n\n| Key | Value |\n| --- | --- |\n| A | B |";
+            response.SetAnswer("Codex", markdownAnswer);
+            var renderedAnswer = response.AnswerForTests;
+            var renderedText = new System.Windows.Documents.TextRange(renderedAnswer.ContentStart, renderedAnswer.ContentEnd).Text;
+            Require(renderedText.Contains("Heading") && renderedText.Contains("bold and italic") && renderedText.Contains("\u2022 first")
+                && !renderedText.Contains("# Heading") && !renderedText.Contains("**bold**") && !renderedText.Contains("```"), "Response must render Markdown markers as native text formatting");
+            Require(renderedAnswer.Inlines.OfType<System.Windows.Documents.Bold>().Any() && renderedAnswer.Inlines.OfType<System.Windows.Documents.Italic>().Any()
+                && renderedText.Contains("**literal in code**") && renderedText.Contains("A  |  B"), "Markdown must preserve bold, italic, literal code and table content");
+            response.SetAnswer("Codex", "**streaming"); response.SetAnswer("Codex", "**streaming complete**");
+            Require(new System.Windows.Documents.TextRange(renderedAnswer.ContentStart, renderedAnswer.ContentEnd).Text == "streaming complete", "Streaming Markdown must complete without leftover delimiters");
+            response.SetAnswer("Codex", "![alt text](https://example.invalid/image.png) <script>alert(1)</script>");
+            Require(!renderedAnswer.Inlines.OfType<System.Windows.Documents.InlineUIContainer>().Any(), "Markdown must not fetch images or create active content");
+            response.SetAnswer("Codex", markdownAnswer); response.Show(); response.UpdateLayout();
+            var markdownPreview = new RenderTargetBitmap((int)response.ActualWidth, (int)response.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+            markdownPreview.Render((Visual)response.Content);
+            using (var file = File.Create(Path.Combine(data, "markdown-response.png"))) { var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(markdownPreview)); encoder.Save(file); }
+            panel.RefreshFloatingPanels();
             response.Show(); response.UpdateLayout();
             ((Slider)panel.FindName("StatusOpacitySlider")).Value = .22;
             ((Slider)panel.FindName("ResponseOpacitySlider")).Value = .43;
@@ -356,11 +373,12 @@ internal static class HoverModeChecks
         var clicks = 0;
         var nativeClickState = false;
         var enabled = true;
+        var ctrlHover = false;
         var button = new Button { Content = "\u2191", Width = 80, Height = 40, Foreground = Brushes.White, Style = iconStyle };
         var decorator = new System.Windows.Documents.AdornerDecorator { Child = button };
         var window = new Window { Title = "Dwell test", Content = decorator, Width = 180, Height = 100,
             Left = SystemParameters.WorkArea.Right - 260, Top = SystemParameters.WorkArea.Bottom - 160, Topmost = true, ShowInTaskbar = false };
-        var dwell = new HoverDwellController(window, _ => enabled);
+        var dwell = new HoverDwellController(window, _ => enabled, () => ctrlHover);
         window.ShowActivated = false;
         window.SourceInitialized += (_, _) => WindowInterop.SetNoActivate(window, true);
         var foreground = new Window { Title = "Dwell foreground", Width = 200, Height = 100, Left = 20, Top = 500, ShowInTaskbar = false };
@@ -374,20 +392,31 @@ internal static class HoverModeChecks
             var center = button.PointToScreen(new Point(button.ActualWidth / 2, button.ActualHeight / 2));
             void Enter() { SetCursorPos((int)center.X, (int)center.Y); Pump(100); }
             void Leave() { SetCursorPos((int)window.Left - 20, (int)window.Top - 20); Pump(100); }
-            Leave(); Enter(); Pump(1300);
+            Leave(); Enter(); Pump(600);
             GetCursorPos(out var currentCursor);
-            Require(dwell.IsActive && dwell.Progress > .3 && clicks == 0, $"Dwell must show progress before its 3s trigger: active={dwell.IsActive}, progress={dwell.Progress}, clicks={clicks}, over={button.IsMouseOver}, target={System.Windows.Input.Mouse.DirectlyOver}, center={center}, cursor={currentCursor.X},{currentCursor.Y}");
+            Require(dwell.IsActive && dwell.Progress > .3 && clicks == 0, $"Dwell must show progress before its 1.5s trigger: active={dwell.IsActive}, progress={dwell.Progress}, clicks={clicks}, over={button.IsMouseOver}, target={System.Windows.Input.Mouse.DirectlyOver}, center={center}, cursor={currentCursor.X},{currentCursor.Y}");
             Require(System.Windows.Documents.AdornerLayer.GetAdornerLayer(button)?.GetAdorners(button)?.Length == 1, "Hovered button must have a visible progress adorner");
             var render = new RenderTargetBitmap((int)decorator.ActualWidth, (int)decorator.ActualHeight, 96, 96, PixelFormats.Pbgra32);
             render.Render(decorator);
             using (var file = File.Create(Path.Combine(data, "dwell-progress.png"))) { var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(render)); encoder.Save(file); }
             Leave(); Require(!dwell.IsActive && dwell.Progress == 0, "Leaving a button cancels and resets its fill");
-            Enter(); Pump(3100); Require(clicks == 1 && !dwell.IsActive, "Holding for 3s invokes exactly one action");
+            Enter(); Pump(1550); Require(clicks == 1 && !dwell.IsActive, "Holding for 1.5s invokes exactly one action");
             Require(!nativeClickState && !window.IsActive && GetForegroundWindow() == activeWindow,
                 "Dwell must invoke directly without pressing/focusing the button or changing the foreground window");
-            Pump(3100); Require(clicks == 1, "Holding after activation must not repeat or trigger Stop");
+            Pump(1600); Require(clicks == 1, "Holding after activation must not repeat or trigger Stop");
             Leave(); enabled = false; Enter(); Require(!dwell.IsActive, "Disabled hover setting must preserve click-only behavior");
             Leave(); enabled = true; button.IsEnabled = false; Enter(); Require(!dwell.IsActive, "Disabled buttons must never dwell-trigger");
+            Leave(); enabled = false; button.IsEnabled = true; ctrlHover = true;
+            var ctrlWasHeld = (GetAsyncKeyState(0x11) & 0x8000) != 0;
+            try
+            {
+                if (!ctrlWasHeld) keybd_event(0x11, 0, 0, UIntPtr.Zero);
+                Enter();
+                Require(clicks == 2 && !dwell.IsActive && GetForegroundWindow() == activeWindow && !nativeClickState,
+                    "Ctrl+hover invokes immediately without a click/focus change, even when dwell is disabled");
+                Pump(1600); Require(clicks == 2, "Ctrl+hover stays latched until leaving the icon");
+            }
+            finally { if (!ctrlWasHeld) keybd_event(0x11, 0, 2, UIntPtr.Zero); }
         }
         finally { window.Close(); foreground.Close(); SetCursorPos(originalCursor.X, originalCursor.Y); }
     }
@@ -403,6 +432,8 @@ internal static class HoverModeChecks
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetCursorPos(out CursorPoint point);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);

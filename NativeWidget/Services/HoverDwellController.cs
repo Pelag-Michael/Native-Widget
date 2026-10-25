@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -15,6 +16,7 @@ internal sealed class HoverDwellController
     internal static bool IsInvoking => _invoking;
     private readonly FrameworkElement _root;
     private readonly Func<Button, bool> _enabled;
+    private readonly Func<bool>? _ctrlHover;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(25) };
     private readonly Stopwatch _watch = new();
     private Button? _button;
@@ -22,11 +24,11 @@ internal sealed class HoverDwellController
     private AdornerLayer? _layer;
     private bool _fired;
     internal bool IsActive => _timer.IsEnabled;
-    internal double Progress => Math.Clamp(_watch.Elapsed.TotalSeconds / 3, 0, 1);
+    internal double Progress => Math.Clamp(_watch.Elapsed.TotalSeconds / 1.5, 0, 1);
 
-    internal HoverDwellController(FrameworkElement root, Func<Button, bool> enabled)
+    internal HoverDwellController(FrameworkElement root, Func<Button, bool> enabled, Func<bool>? ctrlHover = null)
     {
-        _root = root; _enabled = enabled;
+        _root = root; _enabled = enabled; _ctrlHover = ctrlHover;
         root.AddHandler(Mouse.MouseMoveEvent, new MouseEventHandler(OnMove), true);
         root.AddHandler(Mouse.PreviewMouseDownEvent, new MouseButtonEventHandler((_, _) => Cancel(latch: true)), true);
         root.MouseLeave += (_, _) => Cancel();
@@ -44,8 +46,12 @@ internal sealed class HoverDwellController
         var button = current as Button;
         if (button == _button) return;
         Cancel();
-        if (button == null || !button.IsEnabled || !_enabled(button)) return;
+        if (button == null || !button.IsEnabled) return;
+        var immediate = _ctrlHover?.Invoke() == true && (GetAsyncKeyState(0x11) & 0x8000) != 0
+            && (GetAsyncKeyState(0x12) & 0x8000) == 0 && (GetAsyncKeyState(0x10) & 0x8000) == 0;
+        if (!immediate && !_enabled(button)) return;
         _button = button;
+        if (immediate) { InvokeAction(button); return; }
         _layer = AdornerLayer.GetAdornerLayer(button);
         if (_layer != null) { _progress = new ProgressAdorner(button); _layer.Add(_progress); }
         _watch.Restart(); _timer.Start();
@@ -57,6 +63,11 @@ internal sealed class HoverDwellController
         if (button == null || !button.IsVisible || !button.IsEnabled || !button.IsMouseOver || !_enabled(button)) { Cancel(); return; }
         if (_progress != null) { _progress.Progress = Progress; _progress.InvalidateVisual(); }
         if (_fired || Progress < 1) return;
+        InvokeAction(button);
+    }
+
+    private void InvokeAction(Button button)
+    {
         _fired = true; _timer.Stop(); RemoveProgress();
         // Latch before invoking: Send becoming Stop must not trigger again while
         // the pointer remains on the same button. A physical click still works.
@@ -87,6 +98,8 @@ internal sealed class HoverDwellController
         if (_progress != null) _layer?.Remove(_progress);
         _progress = null; _layer = null;
     }
+
+    [DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
 
     private sealed class ProgressAdorner : Adorner
     {

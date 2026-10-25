@@ -28,6 +28,9 @@ internal sealed class HoverAiFloatingPanel : Window
     public void SetScreenshotFlash(bool flash) => _screenshotFlash = flash;
     private readonly TextBlock _label = new() { FontSize = 10, Opacity = .65 };
     private readonly TextBlock _answer = new() { TextWrapping = TextWrapping.Wrap };
+    private string _answerMarkdown = "";
+    private double _renderedFontSize;
+    internal TextBlock AnswerForTests => _answer;
     private readonly Ellipse _dot = new() { Width = 6, Height = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     private readonly List<Thumb> _corners = new();
     internal Button SettingsButton { get; }
@@ -38,7 +41,7 @@ internal sealed class HoverAiFloatingPanel : Window
     {
         _config = config; _status = status; _editor = editor;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
-        _ = new HoverDwellController(this, _ => config.HoverAiDwellButtons);
+        _ = new HoverDwellController(this, _ => config.HoverAiDwellButtons, () => config.HoverAiCtrlHover);
         Topmost = true; ShowInTaskbar = false; ShowActivated = false; Cursor = Cursors.Arrow; ForceCursor = true;
         ResizeMode = ResizeMode.NoResize;
         Width = status ? 28 : Math.Clamp(IsInput ? config.HoverAiFollowUpWidth : config.HoverAiResponseWidth, 12, 32000);
@@ -129,10 +132,25 @@ internal sealed class HoverAiFloatingPanel : Window
         else { _config.HoverAiResponseLeft = Left; _config.HoverAiResponseTop = Top; _config.HoverAiResponseWidth = Width; _config.HoverAiResponseHeight = _frameHeight; }
         BoundsSaved?.Invoke();
     }
-    public void SetAnswer(string label, string text) { _label.Text = label; _answer.Text = text; ReflowText(); }
+    public void SetAnswer(string label, string text)
+    {
+        _label.Text = label;
+        if (_answerMarkdown != text || _renderedFontSize != _answer.FontSize)
+        {
+            _answerMarkdown = text;
+            RenderAnswer();
+        }
+        ReflowText();
+    }
+    private void RenderAnswer()
+    {
+        if (_status || IsInput) return;
+        HoverAiMarkdownRenderer.Render(_answer, _answerMarkdown);
+        _renderedFontSize = _answer.FontSize;
+    }
     public void RefreshTheme(bool editing = false)
     {
-        WindowInterop.SetNoActivate(this, !IsInput && (_config.HoverAiCompactBar || _config.HoverAiDwellButtons));
+        WindowInterop.SetNoActivate(this, !IsInput && (_config.HoverAiCompactBar || _config.HoverAiDwellButtons || _config.HoverAiCtrlHover));
         _editing = editing;
         _chrome.BorderThickness = new Thickness(0);
         SettingsButton.Visibility = editing ? Visibility.Visible : Visibility.Collapsed;
@@ -151,6 +169,7 @@ internal sealed class HoverAiFloatingPanel : Window
         _dot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_screenshotFlash ? "#FACC15" : _config.HoverAiInputDotColor));
         var fontSize = IsInput ? _config.HoverAiFollowUpFontSize ?? _config.HoverAiFontSize : _config.HoverAiFontSize;
         _answer.FontSize = fontSize;
+        if (_renderedFontSize != fontSize) RenderAnswer();
         if (_editor != null)
         {
             _editor.FontSize = fontSize; _editor.Foreground = textBrush; _editor.CaretBrush = textBrush;

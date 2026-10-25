@@ -160,8 +160,9 @@
                 <TextBlock x:Name="CodexStatus" Text="Codex connects on first Send" TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,10"/>
                 </StackPanel></Expander>
                 <Expander x:Name="ModesSection" Header="Quick modes" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
-                <CheckBox x:Name="CompactBarCheck" Content="Compact bar: hover 3s to reveal" Click="Appearance_Changed" Margin="0,0,0,8"/>
-                <CheckBox x:Name="DwellButtonsCheck" Content="Hover buttons 3s to activate" Click="Appearance_Changed" Margin="0,0,0,8"/>
+                <CheckBox x:Name="CompactBarCheck" Content="Compact bar: hover 1.5s to reveal" Click="Appearance_Changed" Margin="0,0,0,8"/>
+                <CheckBox x:Name="DwellButtonsCheck" Content="Hover buttons 1.5s to activate" Click="Appearance_Changed" Margin="0,0,0,8"/>
+                <CheckBox x:Name="CtrlHoverCheck" Content="Ctrl + hover: trigger immediately" Click="Appearance_Changed" Margin="0,0,0,8"/>
                 <CheckBox x:Name="QuickerCheck" Content="Quicker: copy and send" Click="Appearance_Changed" Margin="0,0,0,8"/>
                 <TextBlock Text="Ctrl + Left copies the selection, adds it to input and sends." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
                 <CheckBox x:Name="ScreenshotAutoSendCheck" Content="Screenshot to AI" Click="ScreenshotMode_Changed" Margin="0,0,0,6"/>

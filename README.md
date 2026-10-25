@@ -143,12 +143,19 @@ window also groups its sections and includes the complete widget shortcut refere
 
 The main bar shows only icons, without a panel border or resting button frames. A frame
 appears only on the icon under the pointer. In **Quick modes**, **Compact bar** replaces
-the bar with one small reveal icon; holding over it for three seconds opens the bar.
+the bar with one small reveal icon; holding over it for 1.5 seconds opens the bar.
 Leaving the widget collapses it again; settings and Edit layout keep the full bar available.
-**Hover buttons 3s to activate** adds a progress fill and invokes each button once per visit.
+**Hover buttons 1.5s to activate** adds a progress fill and invokes each button once per visit.
 Leaving cancels the progress; disabled buttons do not trigger. This calls the action directly,
 without generating mouse input or activating the main bar. Opening Add input by hover does
 not focus its editor; clicking the editor to type still uses normal keyboard focus.
+Optional **Ctrl + hover: trigger immediately** invokes an icon as you enter it while
+already holding Ctrl, without waiting or clicking. Pressing Ctrl while parked on an icon
+does not trigger it, so using the existing Ctrl+arrow shortcuts does not accidentally send.
+AI responses render Markdown as native formatted text, including emphasis, headings, lists,
+inline/fenced code, quotes and wrapping table rows. The same opacity, colors, narrow wrapping
+and manual height limits apply. Links and image alt text render without external navigation
+or image downloads; Copy response retains the original Markdown text.
 
 No response outline is drawn. Add input and Response default to text-only, without a
 background or title outside layout editing. Frames shrink to 12 pixels per axis; narrow
