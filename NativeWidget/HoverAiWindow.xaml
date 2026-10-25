@@ -162,7 +162,7 @@
                 <TextBox x:Name="ScreenshotFolderInput" Style="{StaticResource InputStyle}" IsReadOnly="True" Padding="6,4" Margin="0,4,0,4"/>
                 <Button Content="Choose temp folder..." Click="ScreenshotFolder_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="6,4" Margin="0,0,0,8"/>
                 </StackPanel></Expander>
-                <Expander x:Name="ShortcutsSection" Header="Shortcuts" Style="{StaticResource CompactSettingsExpander}"><local:WidgetShortcutsView/></Expander>
+                <Expander x:Name="ShortcutsSection" Header="Shortcuts" Style="{StaticResource CompactSettingsExpander}"><local:WidgetShortcutsView QuickAiOnly="True"/></Expander>
                 <StackPanel x:Name="PanelAppearanceControls" Visibility="Collapsed">
                     <StackPanel x:Name="BarAppearanceGroup">
                         <CheckBox x:Name="MinimalCheck" Content="Minimal" Click="Appearance_Changed"/>

@@ -578,12 +578,22 @@ public partial class HoverAiWindow : Window
     private void Paste_Click(object sender, RoutedEventArgs e) => PasteClipboard();
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
+        ClearInputFromShortcut();
+        AnswerText.Text = ""; ResponsePanel.Visibility = Visibility.Collapsed; _showingResponse = false;
+        _responseText = ""; CopyResponseButton.IsEnabled = false; RefreshFloatingPanels();
+    }
+    internal void PasteInputFromShortcut() => PasteClipboard();
+    internal void NewSessionFromShortcut()
+    {
+        if (!_changingChat) NewChat_Click(this, new RoutedEventArgs());
+    }
+    internal void ClearInputFromShortcut()
+    {
         ResetCodexDraft();
         _screenshots.Clear(); _screenshotFlashTimer.Stop(); _screenshotFlash = false;
         _pastedContext.Clear(); LastQuestion = ""; QuestionInput.Clear(); LastScreenshot = null;
         PasteDot.Visibility = Visibility.Collapsed;
-        AnswerText.Text = ""; ResponsePanel.Visibility = Visibility.Collapsed; _showingResponse = false;
-        _responseText = ""; CopyResponseButton.IsEnabled = false; RefreshFloatingPanels();
+        RefreshFloatingPanels();
     }
     private void Ask_Click(object sender, RoutedEventArgs e)
     {

@@ -38,10 +38,37 @@ internal static class HoverModeChecks
             launcher.UpdateInvisibleHoverPointer(false, false);
             launcher.UpdateInvisibleHoverPointer(true, false);
             var panel = launcher.HoverPanelForTests!;
+            var shortcuts = (WidgetShortcutsView)((Expander)panel.FindName("ShortcutsSection")).Content;
+            var shortcutText = string.Join(" ", ((StackPanel)shortcuts.Content).Children.Cast<Border>()
+                .SelectMany(row => ((Grid)row.Child).Children.OfType<TextBlock>()).Select(text => text.Text));
+            Require(shortcuts.QuickAiOnly && shortcutText.Contains("Right Ctrl") && shortcutText.Contains("Ctrl + \u2191")
+                && !shortcutText.Contains("Ctrl + Alt + K") && !shortcutText.Contains("Notion"), "Quick AI shortcut reference must exclude original widget shortcuts");
+            using (var rightCtrl = new RightControlShortcut(() => { }))
+            {
+                Require(!rightCtrl.ProcessKey(0xA3, true, false) && !rightCtrl.ProcessKey(0xA3, true, false)
+                    && rightCtrl.ProcessKey(0xA3, false, false) && !rightCtrl.ProcessKey(0xA3, false, false), "Bare Right Ctrl sends once on release, ignoring repeat");
+                rightCtrl.ProcessKey(0xA3, true, false); rightCtrl.ProcessKey(0x43, true, false);
+                Require(!rightCtrl.ProcessKey(0xA3, false, false), "Right Ctrl+C must not send");
+                rightCtrl.ProcessKey(0xA3, true, false, otherModifier: true);
+                Require(!rightCtrl.ProcessKey(0xA3, false, false), "Right Ctrl with another modifier must not send");
+                Require(!rightCtrl.ProcessKey(0xA3, true, true) && !rightCtrl.ProcessKey(0xA3, false, true), "Injected Ctrl keys must not trigger Send");
+            }
             Require(panel.IsVisible, "Hovering the anchor must reveal AI panel.");
             launcher.UpdateInvisibleHoverPointer(false, true);
             Require(panel.IsVisible, "Moving into the panel must keep it open.");
             var input = (TextBox)panel.FindName("QuestionInput");
+            var clipboardBackup = Clipboard.GetDataObject();
+            try
+            {
+                Clipboard.SetText("shortcut paste");
+                Require(launcher.HandleAiInputShortcut(0xB007) && panel.PastedItemCount == 1, "Ctrl+Down pastes into Quick AI");
+                panel.ShowDemoResponse();
+                Require(launcher.HandleAiInputShortcut(0xB008) && !panel.HasInput
+                    && ((Button)panel.FindName("CopyResponseButton")).IsEnabled, "Ctrl+Alt+Down empties input but keeps response");
+                Require(launcher.HandleAiInputShortcut(0xB006) && !panel.HasInput
+                    && !((Button)panel.FindName("CopyResponseButton")).IsEnabled, "Ctrl+Up resets into a new session");
+            }
+            finally { if (clipboardBackup != null) Clipboard.SetDataObject(clipboardBackup, true); else Clipboard.Clear(); }
             Require(Window.GetWindow(input) == panel.InputWindowForTests && Window.GetWindow(input) != panel,
                 "Follow-up editor must live in its own floating window.");
             FindButton((FrameworkElement)panel.Content, "+").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

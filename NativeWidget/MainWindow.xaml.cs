@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     private const int SearchHotkeyId = 0xB003;
     private const int CopyHotkeyId = 0xB004;
     private const int ScreenshotHotkeyId = 0xB005;
+    private const int NewSessionHotkeyId = 0xB006, PasteInputHotkeyId = 0xB007, ClearInputHotkeyId = 0xB008;
     private const uint ModAlt = 0x1, ModControl = 0x2;
     private const uint VkG = 0x47;
     private const uint VkLeft = 0x25;
@@ -179,6 +180,7 @@ public partial class MainWindow : Window
             UnregisterHotKey(hwnd, SearchHotkeyId);
             UnregisterHotKey(hwnd, CopyHotkeyId);
             UnregisterHotKey(hwnd, ScreenshotHotkeyId);
+            UnregisterAiInputShortcuts(hwnd);
         };
         Closing += (_, _) => WindowSessionService.CaptureForShutdown();
         // Isolated end-to-end tests can open Translate without trying to automate the
@@ -230,6 +232,7 @@ public partial class MainWindow : Window
             CaptureInvisibleScreenshot();
             handled = true;
         }
+        else if (msg == WmHotkey && _hoverModeActive && HandleAiInputShortcut(wParam.ToInt32())) handled = true;
         return IntPtr.Zero;
     }
 

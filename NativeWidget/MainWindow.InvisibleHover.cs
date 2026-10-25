@@ -21,6 +21,8 @@ public partial class MainWindow
     private bool _copyShortcutBusy;
     private bool _copyShortcutAvailable;
     private bool _screenshotShortcutAvailable;
+    private RightControlShortcut? _rightControlShortcut;
+    private string? _aiInputShortcutError;
     private int _hoverModeGeneration;
     private Point _hoverAnchor;
     internal Point HoverAnchorForTests => _hoverAnchor;
@@ -179,6 +181,7 @@ public partial class MainWindow
         {
             _copyShortcutAvailable = RegisterHotKey(hwnd, CopyHotkeyId, ModControl | 0x4000, 0x25);
             _screenshotShortcutAvailable = RegisterHotKey(hwnd, ScreenshotHotkeyId, ModControl | 0x4000, 0xBC);
+            RegisterAiInputShortcuts(hwnd);
             try
             {
                 System.IO.File.AppendAllText(AppConfig.TokenPath("hotkey-status.log"),
@@ -208,6 +211,7 @@ public partial class MainWindow
         {
             UnregisterHotKey(hwnd, CopyHotkeyId);
             UnregisterHotKey(hwnd, ScreenshotHotkeyId);
+            UnregisterAiInputShortcuts(hwnd);
             _hoverWatch.Stop();
             _hoverAi?.SetModeActive(false);
             _hoverAi?.EndLayoutEditing();
@@ -304,8 +308,53 @@ public partial class MainWindow
             _hoverAi.ShowStatus("Ctrl+Left is in use by another app. Ctrl+C still works.");
         else if (!_screenshotShortcutAvailable)
             _hoverAi.ShowStatus("Ctrl+, screenshot shortcut is in use by another app.");
+        else if (_aiInputShortcutError != null) _hoverAi.ShowStatus(_aiInputShortcutError);
         WindowInterop.EnsureTopmost(_hoverAi);
     }
 
     internal HoverAiWindow? HoverPanelForTests => _hoverAi;
+
+    private void RegisterAiInputShortcuts(IntPtr hwnd)
+    {
+        _aiInputShortcutError = null;
+        var status = new System.Text.StringBuilder();
+        foreach (var (id, modifiers, key, name) in new[] {
+            (NewSessionHotkeyId, ModControl, 0x26u, "Ctrl+Up"),
+            (PasteInputHotkeyId, ModControl, 0x28u, "Ctrl+Down"),
+            (ClearInputHotkeyId, ModControl | ModAlt, 0x28u, "Ctrl+Alt+Down") })
+        {
+            var registered = RegisterHotKey(hwnd, id, modifiers | 0x4000, key);
+            status.AppendLine($"{name} registered={registered}");
+            if (!registered) _aiInputShortcutError = name + " is in use by another app.";
+        }
+        var generation = _hoverModeGeneration;
+        try
+        {
+            _rightControlShortcut = new RightControlShortcut(() => Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!_hoverModeActive || generation != _hoverModeGeneration) return;
+                EnsureHoverAiPanel(); _hoverAi!.SubmitQuestion();
+            })));
+            status.AppendLine("Right Ctrl hook enabled=True");
+        }
+        catch (System.ComponentModel.Win32Exception) { _aiInputShortcutError = "Right Ctrl shortcut could not be enabled."; }
+        try { System.IO.File.AppendAllText(AppConfig.TokenPath("hotkey-status.log"), status.ToString()); }
+        catch (System.IO.IOException) { }
+    }
+
+    private void UnregisterAiInputShortcuts(IntPtr hwnd)
+    {
+        foreach (var id in new[] { NewSessionHotkeyId, PasteInputHotkeyId, ClearInputHotkeyId }) UnregisterHotKey(hwnd, id);
+        _rightControlShortcut?.Dispose(); _rightControlShortcut = null;
+    }
+
+    internal bool HandleAiInputShortcut(int id)
+    {
+        if (!_hoverModeActive || id is not (NewSessionHotkeyId or PasteInputHotkeyId or ClearInputHotkeyId)) return false;
+        EnsureHoverAiPanel();
+        if (id == NewSessionHotkeyId) _hoverAi!.NewSessionFromShortcut();
+        else if (id == PasteInputHotkeyId) _hoverAi!.PasteInputFromShortcut();
+        else _hoverAi!.ClearInputFromShortcut();
+        return true;
+    }
 }
