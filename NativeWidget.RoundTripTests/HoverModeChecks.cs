@@ -373,12 +373,11 @@ internal static class HoverModeChecks
         var clicks = 0;
         var nativeClickState = false;
         var enabled = true;
-        var ctrlHover = false;
         var button = new Button { Content = "\u2191", Width = 80, Height = 40, Foreground = Brushes.White, Style = iconStyle };
         var decorator = new System.Windows.Documents.AdornerDecorator { Child = button };
         var window = new Window { Title = "Dwell test", Content = decorator, Width = 180, Height = 100,
             Left = SystemParameters.WorkArea.Right - 260, Top = SystemParameters.WorkArea.Bottom - 160, Topmost = true, ShowInTaskbar = false };
-        var dwell = new HoverDwellController(window, _ => enabled, () => ctrlHover);
+        var dwell = new HoverDwellController(window, _ => enabled);
         window.ShowActivated = false;
         window.SourceInitialized += (_, _) => WindowInterop.SetNoActivate(window, true);
         var foreground = new Window { Title = "Dwell foreground", Width = 200, Height = 100, Left = 20, Top = 500, ShowInTaskbar = false };
@@ -406,17 +405,6 @@ internal static class HoverModeChecks
             Pump(1600); Require(clicks == 1, "Holding after activation must not repeat or trigger Stop");
             Leave(); enabled = false; Enter(); Require(!dwell.IsActive, "Disabled hover setting must preserve click-only behavior");
             Leave(); enabled = true; button.IsEnabled = false; Enter(); Require(!dwell.IsActive, "Disabled buttons must never dwell-trigger");
-            Leave(); enabled = false; button.IsEnabled = true; ctrlHover = true;
-            var ctrlWasHeld = (GetAsyncKeyState(0x11) & 0x8000) != 0;
-            try
-            {
-                if (!ctrlWasHeld) keybd_event(0x11, 0, 0, UIntPtr.Zero);
-                Enter();
-                Require(clicks == 2 && !dwell.IsActive && GetForegroundWindow() == activeWindow && !nativeClickState,
-                    "Ctrl+hover invokes immediately without a click/focus change, even when dwell is disabled");
-                Pump(1600); Require(clicks == 2, "Ctrl+hover stays latched until leaving the icon");
-            }
-            finally { if (!ctrlWasHeld) keybd_event(0x11, 0, 2, UIntPtr.Zero); }
         }
         finally { window.Close(); foreground.Close(); SetCursorPos(originalCursor.X, originalCursor.Y); }
     }
@@ -432,8 +420,6 @@ internal static class HoverModeChecks
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetCursorPos(out CursorPoint point);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
-    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern short GetAsyncKeyState(int key);
-    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);

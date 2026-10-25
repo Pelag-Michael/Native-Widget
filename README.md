@@ -149,9 +149,6 @@ Leaving the widget collapses it again; settings and Edit layout keep the full ba
 Leaving cancels the progress; disabled buttons do not trigger. This calls the action directly,
 without generating mouse input or activating the main bar. Opening Add input by hover does
 not focus its editor; clicking the editor to type still uses normal keyboard focus.
-Optional **Ctrl + hover: trigger immediately** invokes an icon as you enter it while
-already holding Ctrl, without waiting or clicking. Pressing Ctrl while parked on an icon
-does not trigger it, so using the existing Ctrl+arrow shortcuts does not accidentally send.
 AI responses render Markdown as native formatted text, including emphasis, headings, lists,
 inline/fenced code, quotes and wrapping table rows. The same opacity, colors, narrow wrapping
 and manual height limits apply. Links and image alt text render without external navigation
