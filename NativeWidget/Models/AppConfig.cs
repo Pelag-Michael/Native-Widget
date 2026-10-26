@@ -72,6 +72,15 @@ public class AppConfig
     public string HoverAiScreenshotPrompt { get; set; } = "\u0110\u1ECDc \u1EA3nh v\u00E0 tr\u1EA3 l\u1EDDi ng\u1EAFn g\u1ECDn b\u1EB1ng ti\u1EBFng Vi\u1EC7t.";
     public bool HoverAiQuicker { get; set; }
     public bool HoverAiCompactBar { get; set; }
+    public double? HoverAiShortcutsLeft { get; set; }
+    public double? HoverAiShortcutsTop { get; set; }
+    public double HoverAiShortcutsWidth { get; set; } = 360;
+    public double HoverAiShortcutsHeight { get; set; } = 440;
+    public string? HoverAiShortcutsBackground { get; set; }
+    public string? HoverAiShortcutsForeground { get; set; }
+    public double? HoverAiShortcutsOpacity { get; set; }
+    public double HoverAiShortcutsFontSize { get; set; } = 10.5;
+    public bool HoverAiShortcutsTextOnly { get; set; }
     public string HoverAiLocateFirstColor { get; set; } = "#FFFFFF";
     public string HoverAiLocateSecondColor { get; set; } = "#F97316";
     public bool HoverAiDwellButtons { get; set; }

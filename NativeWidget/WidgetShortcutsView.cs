@@ -7,6 +7,8 @@ namespace NativeWidget;
 public sealed class WidgetShortcutsView : UserControl
 {
     private bool _quickAiOnly;
+    private double _shortcutFontSize = 10.5;
+    public double ShortcutFontSize { get => _shortcutFontSize; set { if (Math.Abs(_shortcutFontSize - value) < .01) return; _shortcutFontSize = value; Build(); } }
     public bool QuickAiOnly { get => _quickAiOnly; set { _quickAiOnly = value; Build(); } }
     public WidgetShortcutsView() => Build();
     private void Build()
@@ -14,20 +16,22 @@ public sealed class WidgetShortcutsView : UserControl
         var list = new StackPanel(); Content = list;
         var entries = new (string Key, string Action)[]
         {
-            ("Ctrl + Alt + \u2190", "Find the AI hover position (Invisible hover on)"),
-            ("Ctrl + move", "Enter the compact icon while holding Ctrl, move it, release Ctrl to save"),
-            ("Ctrl + \u2190", "Copy selection; Quicker also sends to AI (Invisible hover on)"),
-            ("Ctrl + ,", "Capture current area; Screenshot to AI sends automatically (Invisible hover on)"),
-            ("Ctrl + \u2191", "Start a new AI session"),
-            ("Ctrl + \u2193", "Paste clipboard into AI input"),
-            ("Ctrl + \u2192", "Send AI input"),
-            ("Ctrl + Alt + \u2193", "Empty AI input; keep the response and configured prompts"),
-            ("Ctrl + Enter", "Send AI input (bar or Add text focused)"),
-            ("Ctrl + V", "Paste into AI input, without showing pasted content"),
-            ("Enter", "New line in Add text"),
-            ("Esc", "Hide AI and leave Edit layout (input focused)"),
-            ("Shift + drag", "Move Add text / Response from a corner"),
-            ("Drag corner", "Resize Add text / Response"),
+            ("Ctrl + Alt + /", "Giữ để xem phím tắt"),
+            ("Ctrl + Alt + \u2190", "Tìm vị trí widget"),
+            ("Ctrl + rê", "Di chuyển icon compact"),
+            ("Ctrl + \u2190", "Copy; Quicker sẽ gửi luôn"),
+            ("Ctrl + ,", "Chụp ảnh"),
+            ("Ctrl + \u2191", "Session mới"),
+            ("Ctrl + \u2193", "Paste chữ / ảnh"),
+            ("Ctrl + \u2192", "Gửi AI"),
+            ("Ctrl + Alt + \u2193", "Xóa input"),
+            ("Ctrl + Enter", "Gửi trong ô nhập"),
+            ("Ctrl + V", "Paste vào input"),
+            ("Enter", "Xuống dòng"),
+            ("Esc", "Ẩn AI, thoát sửa layout"),
+            ("Shift + kéo góc", "Di chuyển panel"),
+            ("Kéo góc", "Đổi kích thước"),
+            ("Hover 1.5s", "Mở thanh / chạy nút"),
             ("Ctrl + Alt + F", "Find original launcher (Invisible hover off)"),
             ("Ctrl + Alt + K", "Open workspace / folder search"),
             ("Ctrl + Alt + G", "Restore clicking on ghosted widgets"),
@@ -39,10 +43,10 @@ public sealed class WidgetShortcutsView : UserControl
         foreach (var (key, action) in visibleEntries)
         {
             var row = new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(103) }); row.ColumnDefinitions.Add(new ColumnDefinition());
-            var keys = new TextBlock { Text = key, FontSize = 10.5, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,7,0) };
-            var description = new TextBlock { Text = action, FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Opacity = .8 };
+            var keys = new TextBlock { Text = key, FontSize = ShortcutFontSize, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,7,0) };
+            var description = new TextBlock { Text = action, FontSize = ShortcutFontSize, TextWrapping = TextWrapping.Wrap, Opacity = .8 };
             Grid.SetColumn(description,1); row.Children.Add(keys); row.Children.Add(description);
-            list.Children.Add(new Border { Child = row, Padding = new Thickness(6), Margin = new Thickness(0,0,0,4), CornerRadius = new CornerRadius(6), Background = new SolidColorBrush(Color.FromArgb(8,255,255,255)) });
+            list.Children.Add(new Border { Child = row, Padding = new Thickness(QuickAiOnly ? 4 : 6), Margin = new Thickness(0,0,0,QuickAiOnly ? 2 : 4), CornerRadius = new CornerRadius(6), Background = new SolidColorBrush(Color.FromArgb(8,255,255,255)) });
         }
     }
 }

@@ -242,6 +242,13 @@
                         <CheckBox x:Name="FollowUpTextOnlyCheck" Content="Text only" Click="Appearance_Changed" Margin="0,8,0,0"/>
                         <CheckBox x:Name="FollowUpAutoHeightCheck" Content="Auto height" Click="Appearance_Changed" Margin="0,6,0,0"/>
                     </StackPanel>
+                    <StackPanel x:Name="ShortcutsAppearanceGroup">
+                        <TextBlock Text="Cỡ chữ gốc" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="ShortcutsFontSlider" Minimum="6" Maximum="24" Value="10.5" ValueChanged="Appearance_ValueChanged"/>
+                        <TextBlock Text="Opacity" FontSize="11" Margin="0,8,0,2"/>
+                        <Slider x:Name="ShortcutsOpacitySlider" Minimum="0" Maximum="1" Value="1" ValueChanged="Appearance_ValueChanged"/>
+                        <CheckBox x:Name="ShortcutsTextOnlyCheck" Content="Chỉ hiện chữ" Click="Appearance_Changed" Margin="0,8,0,0"/>
+                    </StackPanel>
                     <WrapPanel x:Name="PanelColorTargets" Margin="0,10,0,6">
                         <Button Content="Panel" Tag="Panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
                         <Button Content="Text" Tag="Text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
@@ -252,6 +259,8 @@
                         <Button Content="AI text" Tag="AI text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
                         <Button Content="Add panel" Tag="Add panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
                         <Button Content="Add text" Tag="Add text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Nền phím tắt" Tag="Shortcuts panel" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
+                        <Button Content="Chữ phím tắt" Tag="Shortcuts text" Click="ColorTarget_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,5" FontSize="10" Margin="0,0,4,4"/>
                     </WrapPanel>
                     <TextBlock x:Name="ColorTargetLabel" FontSize="11" HorizontalAlignment="Center"/>
                     <local:ColorWheel x:Name="Wheel" HorizontalAlignment="Center"/>

@@ -42,6 +42,31 @@ internal static class HoverModeChecks
             launcher.UpdateInvisibleHoverPointer(false, false);
             launcher.UpdateInvisibleHoverPointer(true, false);
             var panel = launcher.HoverPanelForTests!;
+            var foregroundBeforeHelp = GetForegroundWindow();
+            Require(launcher.HandleAiInputShortcut(0xB00A), "Shortcut must route to the independent help panel");
+            var shortcutsPanel = panel.ShortcutsWindowForTests!;
+            var helpHeld = true;
+            shortcutsPanel.ShortcutHeld = () => helpHeld;
+            Require(shortcutsPanel.IsVisible && shortcutsPanel.Owner == null && !shortcutsPanel.IsActive
+                && GetForegroundWindow() == foregroundBeforeHelp, "Opening shortcuts must not activate a window or attach its visibility to the main bar");
+            launcher.UpdateInvisibleHoverPointer(false, false);
+            Pump(150);
+            Require(shortcutsPanel.IsVisible && !panel.IsVisible, "Shortcuts stay visible after leaving the main bar");
+            shortcutsPanel.Left += 20; shortcutsPanel.Top += 10; shortcutsPanel.Width = 410; shortcutsPanel.Height = 380;
+            shortcutsPanel.UpdateLayout(); var helpScale = shortcutsPanel.ContentScaleForTests;
+            shortcutsPanel.Width *= 1.25; shortcutsPanel.Height *= 1.25; shortcutsPanel.UpdateLayout();
+            Require(shortcutsPanel.ContentScaleForTests > helpScale * 1.2, "Shortcut text scales proportionally with the panel");
+            shortcutsPanel.Width = 410; shortcutsPanel.Height = 380;
+            shortcutsPanel.UpdateLayout(); Pump(450);
+            var helpConfig = new AppConfig(); HoverAiAppearanceStore.LoadInto(helpConfig);
+            Require(Math.Abs(helpConfig.HoverAiShortcutsWidth - 410) < 1 && Math.Abs(helpConfig.HoverAiShortcutsWidth - shortcutsPanel.Width) < .01 && helpConfig.HoverAiShortcutsHeight == 380
+                && helpConfig.HoverAiShortcutsLeft == shortcutsPanel.Left, $"Help panel bounds save independently: saved={helpConfig.HoverAiShortcutsWidth}x{helpConfig.HoverAiShortcutsHeight}@{helpConfig.HoverAiShortcutsLeft}, actual={shortcutsPanel.Width}x{shortcutsPanel.Height}@{shortcutsPanel.Left}");
+            var helpPreview = new RenderTargetBitmap((int)shortcutsPanel.ActualWidth, (int)shortcutsPanel.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+            helpPreview.Render((Visual)shortcutsPanel.Content);
+            using (var file = File.Create(Path.Combine(data, "shortcuts-panel.png"))) { var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(helpPreview)); encoder.Save(file); }
+            helpHeld = false; shortcutsPanel.PollHold(); Require(!shortcutsPanel.IsVisible, "Releasing any help chord key hides the panel immediately");
+            launcher.UpdateInvisibleHoverPointer(false, false); launcher.UpdateInvisibleHoverPointer(true, false);
+            Require(!shortcutsPanel.IsVisible, "Hovering the main bar must not reopen shortcuts");
             var compactToggle = (CheckBox)panel.FindName("CompactBarCheck");
             compactToggle.IsChecked = true; compactToggle.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             Require(panel.CompactBarCollapsed && panel.Width == 36 && ((Grid)panel.FindName("ActionBar")).Visibility == Visibility.Collapsed,
@@ -191,6 +216,17 @@ internal static class HoverModeChecks
             panel.SelectColor(true, "#202030");
             var layoutForSettings = (CheckBox)panel.FindName("EditLayoutCheck");
             layoutForSettings.IsChecked = true; layoutForSettings.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            Require(shortcutsPanel.IsVisible && shortcutsPanel.SettingsButton.IsVisible, "Edit layout exposes the independent shortcut panel preview and gear");
+            shortcutsPanel.SettingsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(((FrameworkElement)panel.FindName("ShortcutsAppearanceGroup")).Visibility == Visibility.Visible
+                && ((FrameworkElement)panel.FindName("ResponseAppearanceGroup")).Visibility == Visibility.Collapsed, "Shortcut gear exposes only its own appearance controls");
+            ((Slider)panel.FindName("ShortcutsOpacitySlider")).Value = .4;
+            ((Slider)panel.FindName("ShortcutsFontSlider")).Value = 12;
+            Require(Math.Abs(shortcutsPanel.Opacity - .4) < .01 && Math.Abs(panel.Opacity - .65) < .01, "Shortcut panel opacity is independent");
+            FindButton(appearance, "Nền phím tắt").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var helpColorWheel = (ColorWheel)panel.FindName("Wheel"); helpColorWheel.SetColor(Colors.Blue); helpColorWheel.Brightness = 1;
+            Require(((SolidColorBrush)((Border)((Grid)shortcutsPanel.Content).Children[0]).Background).Color == Colors.Blue
+                && ((SolidColorBrush)((Border)panel.Content).Background).Color != Colors.Blue, "Shortcut color changes do not alter the main bar");
             ((Button)panel.FindName("BarSettingsButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Require(panel.PanelSettingsForTests?.IsVisible == true && panel.InputWindowForTests!.VisibleCornerCount == 4 && panel.ResponseWindowForTests!.SettingsButton.IsVisible,
                 "Edit layout exposes per-panel settings and all four corners.");
@@ -386,7 +422,9 @@ internal static class HoverModeChecks
             Require(queuedImages.All(path => !File.Exists(path)) && File.Exists(sibling), "Reset deletes only this draft's image files.");
             Require(panel.StatusWindowForTests?.IsVisible == false, "An empty reset draft hides the dot.");
             File.Delete(sibling);
+            launcher.HandleAiInputShortcut(0xB00A);
             launcher.SetInvisibleHoverMode(false);
+            Require(!shortcutsPanel.IsVisible && !launcher.HandleAiInputShortcut(0xB00A), "Disabling the mode hides help and releases its shortcut action");
             Require(launcher.Opacity == 1 && peer.IsVisible, "Disabling must restore launcher and peer.");
             var config = new AppConfig { InvisibleHoverEnabled = true };
             config.Save();

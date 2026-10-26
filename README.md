@@ -153,6 +153,11 @@ capture area, screenshot prompt, Quicker and Edit layout toggles. These are grou
 collapsed Layout, Codex, Quick modes and Capture sections. A Shortcuts section lists the
 only Quick AI keys, including copy/capture/send and layout controls. The main Settings
 window also groups its sections and includes the complete widget shortcut reference.
+Hold Ctrl+Alt+/ to show the independent Quick AI shortcuts panel while Invisible hover is enabled;
+releasing any chord key hides it immediately. Hovering the main bar does not open it.
+Text scales uniformly with the panel. In Edit layout, a persistent preview and its gear
+allow changing position, size, base text size, text/background colors, opacity and text-only
+mode independently of the other panels. Leaving Edit layout hides the preview.
 
 The main bar shows only icons, without a panel border or resting button frames. A frame
 appears only on the icon under the pointer. In **Quick modes**, **Compact bar** replaces
@@ -252,6 +257,7 @@ workspace-wide documentation map is [`docs/README.md`](docs/README.md).
 | Shortcut | Action |
 |---|---|
 | `Ctrl+Alt+Left` | Briefly outline the launcher hover region |
+| Hold `Ctrl+Alt+/` | Show shortcuts; release to hide |
 | `Ctrl + pointer move` | Move the compact icon; release Ctrl to save |
 | `Ctrl+Up` | New Quick AI session (Invisible hover on) |
 | `Ctrl+Down` | Paste clipboard into Quick AI input (Invisible hover on) |

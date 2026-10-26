@@ -332,6 +332,7 @@ public partial class MainWindow
             (NewSessionHotkeyId, ModControl, 0x26u, "Ctrl+Up"),
             (PasteInputHotkeyId, ModControl, 0x28u, "Ctrl+Down"),
             (SendInputHotkeyId, ModControl, 0x27u, "Ctrl+Right"),
+            (ShortcutsPanelHotkeyId, ModControl | ModAlt, 0xBFu, "Ctrl+Alt+/"),
             (ClearInputHotkeyId, ModControl | ModAlt, 0x28u, "Ctrl+Alt+Down") })
         {
             var registered = RegisterHotKey(hwnd, id, modifiers | 0x4000, key);
@@ -344,16 +345,17 @@ public partial class MainWindow
 
     private void UnregisterAiInputShortcuts(IntPtr hwnd)
     {
-        foreach (var id in new[] { NewSessionHotkeyId, PasteInputHotkeyId, ClearInputHotkeyId, SendInputHotkeyId }) UnregisterHotKey(hwnd, id);
+        foreach (var id in new[] { NewSessionHotkeyId, PasteInputHotkeyId, ClearInputHotkeyId, SendInputHotkeyId, ShortcutsPanelHotkeyId }) UnregisterHotKey(hwnd, id);
     }
 
     internal bool HandleAiInputShortcut(int id)
     {
-        if (!_hoverModeActive || id is not (NewSessionHotkeyId or PasteInputHotkeyId or ClearInputHotkeyId or SendInputHotkeyId)) return false;
+        if (!_hoverModeActive || id is not (NewSessionHotkeyId or PasteInputHotkeyId or ClearInputHotkeyId or SendInputHotkeyId or ShortcutsPanelHotkeyId)) return false;
         EnsureHoverAiPanel();
         if (id == NewSessionHotkeyId) _hoverAi!.NewSessionFromShortcut();
         else if (id == PasteInputHotkeyId) _hoverAi!.PasteInputFromShortcut();
         else if (id == SendInputHotkeyId) _hoverAi!.SubmitQuestion();
+        else if (id == ShortcutsPanelHotkeyId) _hoverAi!.ShowShortcutsPanel();
         else _hoverAi!.ClearInputFromShortcut();
         return true;
     }

@@ -48,6 +48,8 @@ public partial class HoverAiWindow : Window
     private HoverAiFloatingPanel? _statusWindow, _responseWindow, _inputWindow;
     private bool _followUpOpen, _applyingAppearance;
     private HoverPanelSettingsWindow? _panelSettings;
+    private HoverAiShortcutsWindow? _shortcutsWindow;
+    internal HoverAiShortcutsWindow? ShortcutsWindowForTests => _shortcutsWindow;
     private string _responseText = "";
     private bool _selectingCapture;
     private bool _preferencesPinned;
@@ -55,7 +57,7 @@ public partial class HoverAiWindow : Window
     internal HoverAiFloatingPanel? ResponseWindowForTests => _responseWindow;
     internal HoverAiFloatingPanel? StatusWindowForTests => _statusWindow;
     internal HoverAiFloatingPanel? InputWindowForTests => _inputWindow;
-    internal bool OwnsAuxiliaryWindow(Window window) => window == _statusWindow || window == _responseWindow || window == _inputWindow || window == _panelSettings || (_selectingCapture && window is ScreenRegionOverlay);
+    internal bool OwnsAuxiliaryWindow(Window window) => window == _statusWindow || window == _responseWindow || window == _inputWindow || window == _panelSettings || window == _shortcutsWindow || (_selectingCapture && window is ScreenRegionOverlay);
     internal bool IsOverAuxiliary(Point screen) => new[] { _statusWindow, _responseWindow, _inputWindow }.Any(w => w?.IsVisible == true && new Rect(new Point(), w.RenderSize).Contains(w.PointFromScreen(screen)));
 
     internal BitmapSource? LastScreenshot { get; private set; }
@@ -74,6 +76,9 @@ public partial class HoverAiWindow : Window
     {
         _config = config;
         HoverAiAppearanceStore.LoadInto(config);
+        config.HoverAiShortcutsBackground ??= config.HoverAiBackground;
+        config.HoverAiShortcutsForeground ??= config.HoverAiForeground;
+        config.HoverAiShortcutsOpacity ??= config.HoverAiOpacity;
         config.HoverAiBarTextSize ??= config.HoverAiFontSize;
         config.HoverAiFollowUpFontSize ??= config.HoverAiFontSize;
         config.HoverAiFollowUpOpacity ??= config.HoverAiOpacity;
@@ -111,6 +116,9 @@ public partial class HoverAiWindow : Window
         OpacitySlider.Value = Safe(config.HoverAiOpacity, .15, 1, 1);
         StatusOpacitySlider.Value = Safe(config.HoverAiStatusOpacity.Value, 0, 1, 1);
         ResponseOpacitySlider.Value = Safe(config.HoverAiResponseOpacity.Value, 0, 1, 1);
+        ShortcutsOpacitySlider.Value = Safe(config.HoverAiShortcutsOpacity.Value, 0, 1, 1);
+        ShortcutsFontSlider.Value = Safe(config.HoverAiShortcutsFontSize, 6, 24, 10.5);
+        ShortcutsTextOnlyCheck.IsChecked = config.HoverAiShortcutsTextOnly;
         TextOnlyCheck.IsChecked = config.HoverAiResponseTextOnly;
         AutoHeightCheck.IsChecked = config.HoverAiResponseAutoHeight;
         WidthSlider.Value = Safe(config.HoverAiWidth, 250, 600, 260);
@@ -141,7 +149,7 @@ public partial class HoverAiWindow : Window
         });
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SavePreferences(); };
         Closing += (_, _) => { _panelSettings?.Dispose(); CloseCodexBackend(); _modeActive = false; _screenshotFlashTimer.Stop(); _statusWindow?.Hide(); _responseWindow?.Hide(); _inputWindow?.Hide(); };
-        Closed += (_, _) => { _saveTimer.Stop(); _screenshotFlashTimer.Stop(); _screenshots.Clear(); _statusWindow?.Close(); _responseWindow?.Close(); _inputWindow?.Close(); if (_ready) SavePreferences(); };
+        Closed += (_, _) => { _saveTimer.Stop(); _screenshotFlashTimer.Stop(); _screenshots.Clear(); _statusWindow?.Close(); _responseWindow?.Close(); _inputWindow?.Close(); _shortcutsWindow?.Dispose(); if (_ready) SavePreferences(); };
         IsVisibleChanged += (_, _) =>
         {
             if (!IsVisible) { _compactExpanded = false; _buttonDwell?.Cancel(); }
@@ -199,7 +207,20 @@ public partial class HoverAiWindow : Window
     {
         _screenshotFlashTimer.Stop(); _screenshotFlash = false; RefreshFloatingPanels();
     }
-    internal void SetModeActive(bool active) { _modeActive = active; RefreshFloatingPanels(); }
+    internal void SetModeActive(bool active) { _modeActive = active; if (!active) _shortcutsWindow?.Hide(); RefreshFloatingPanels(); }
+    private Point ShortcutsAnchor => _config.HoverAiLeft is double x && _config.HoverAiTop is double y
+        ? new Point(x, y) : new Point(SystemParameters.WorkArea.Left + 30, SystemParameters.WorkArea.Top + 30);
+    private HoverAiShortcutsWindow EnsureShortcutsPanel()
+    {
+        if (_shortcutsWindow == null)
+        {
+            _shortcutsWindow = new HoverAiShortcutsWindow(_config);
+            _shortcutsWindow.BoundsChanged += () => { _saveTimer.Stop(); _saveTimer.Start(); };
+            _shortcutsWindow.SettingsRequested += () => OpenPanelAppearance("Shortcuts");
+        }
+        return _shortcutsWindow;
+    }
+    internal void ShowShortcutsPanel() { if (_modeActive) EnsureShortcutsPanel().ShowWhileHeld(ShortcutsAnchor); }
     private void Question_Changed(object sender, TextChangedEventArgs e) { if (_ready) RefreshFloatingPanels(); }
     private void ScreenshotFolder_Click(object sender, RoutedEventArgs e)
     {
@@ -265,6 +286,8 @@ public partial class HoverAiWindow : Window
     {
         if (!_ready) return;
         EnsureFloatingPanels();
+        if (_modeActive && EditingLayout) EnsureShortcutsPanel();
+        _shortcutsWindow?.SetEditing(_modeActive && EditingLayout, ShortcutsAnchor);
         RefreshCompactBar();
         BarSettingsButton.Visibility = EditingLayout ? Visibility.Visible : Visibility.Collapsed;
         if (!EditingLayout) _panelSettings?.Hide();
@@ -296,18 +319,20 @@ public partial class HoverAiWindow : Window
         DotAppearanceGroup.Visibility = kind == "Dot" ? Visibility.Visible : Visibility.Collapsed;
         ResponseAppearanceGroup.Visibility = kind == "Response" ? Visibility.Visible : Visibility.Collapsed;
         AddAppearanceGroup.Visibility = kind == "Add input" ? Visibility.Visible : Visibility.Collapsed;
+        ShortcutsAppearanceGroup.Visibility = kind == "Shortcuts" ? Visibility.Visible : Visibility.Collapsed;
         var targets = kind switch
         {
             "Bar" => new[] { "Panel", "Text", "Icons" },
             "Dot" => new[] { "Dot", "Dot panel" },
             "Response" => new[] { "AI panel", "AI text" },
+            "Shortcuts" => new[] { "Shortcuts panel", "Shortcuts text" },
             _ => new[] { "Add panel", "Add text" }
         };
         foreach (var button in PanelColorTargets.Children.OfType<Button>()) button.Visibility = targets.Contains((string)button.Tag) ? Visibility.Visible : Visibility.Collapsed;
         _colorTarget = targets[0]; LoadWheel();
         ApplyLocalTheme(PanelAppearanceControls, ((SolidColorBrush)Foreground).Color, ((SolidColorBrush)Resources["HoverPanel"]).Color, ((SolidColorBrush)Resources["HoverIcons"]).Color);
         _panelSettings.RefreshTheme((Brush)Resources["HoverPanel"], Foreground);
-        Window anchor = kind == "Response" ? _responseWindow! : kind == "Add input" ? _inputWindow! : kind == "Dot" ? _statusWindow! : this;
+        Window anchor = kind == "Shortcuts" ? _shortcutsWindow! : kind == "Response" ? _responseWindow! : kind == "Add input" ? _inputWindow! : kind == "Dot" ? _statusWindow! : this;
         _panelSettings.Open(kind + " settings", anchor);
     }
     internal Window? PanelSettingsForTests => _panelSettings;
@@ -369,6 +394,8 @@ public partial class HoverAiWindow : Window
                 "AI text" => _config.HoverAiResponseForeground!,
                 "Add panel" => _config.HoverAiFollowUpBackground!,
                 "Add text" => _config.HoverAiFollowUpForeground!,
+                "Shortcuts panel" => _config.HoverAiShortcutsBackground!,
+                "Shortcuts text" => _config.HoverAiShortcutsForeground!,
                 _ => _config.HoverAiIconColor
             };
             Wheel.SetColor((Color)ColorConverter.ConvertFromString(hex));
@@ -394,6 +421,8 @@ public partial class HoverAiWindow : Window
         else if (_colorTarget == "AI text") _config.HoverAiResponseForeground = hex;
         else if (_colorTarget == "Add panel") _config.HoverAiFollowUpBackground = hex;
         else if (_colorTarget == "Add text") _config.HoverAiFollowUpForeground = hex;
+        else if (_colorTarget == "Shortcuts panel") _config.HoverAiShortcutsBackground = hex;
+        else if (_colorTarget == "Shortcuts text") _config.HoverAiShortcutsForeground = hex;
         else _config.HoverAiIconColor = hex;
         ApplyColors(false);
         _saveTimer.Stop(); _saveTimer.Start();
@@ -495,6 +524,9 @@ public partial class HoverAiWindow : Window
             _config.HoverAiOpacity = OpacitySlider.Value;
             _config.HoverAiStatusOpacity = StatusOpacitySlider.Value;
             _config.HoverAiResponseOpacity = ResponseOpacitySlider.Value;
+            _config.HoverAiShortcutsOpacity = ShortcutsOpacitySlider.Value;
+            _config.HoverAiShortcutsFontSize = ShortcutsFontSlider.Value;
+            _config.HoverAiShortcutsTextOnly = ShortcutsTextOnlyCheck.IsChecked == true;
             _config.HoverAiResponseTextOnly = TextOnlyCheck.IsChecked == true;
             _config.HoverAiResponseAutoHeight = AutoHeightCheck.IsChecked == true;
             _config.HoverAiFontSize = FontSlider.Value;

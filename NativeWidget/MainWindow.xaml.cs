@@ -51,6 +51,7 @@ public partial class MainWindow : Window
     private const int CopyHotkeyId = 0xB004;
     private const int ScreenshotHotkeyId = 0xB005;
     private const int NewSessionHotkeyId = 0xB006, PasteInputHotkeyId = 0xB007, ClearInputHotkeyId = 0xB008, SendInputHotkeyId = 0xB009;
+    private const int ShortcutsPanelHotkeyId = 0xB00A;
     private const uint ModAlt = 0x1, ModControl = 0x2;
     private const uint VkG = 0x47;
     private const uint VkLeft = 0x25;
