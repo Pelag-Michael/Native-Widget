@@ -110,6 +110,15 @@ internal static class CodexBackendChecks
             var app = new App(); app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var panel = new HoverAiWindow(new NativeWidget.Models.AppConfig()); panel.EnableCodexBackend(); panel.Show();
             SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(panel.Dispatcher));
+            var originalSystemPrompt = ((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text;
+            ((System.Windows.Controls.Button)panel.FindName("PromptPresetNewButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            ((System.Windows.Controls.TextBox)panel.FindName("PromptPresetNameInput")).Text = "Fixture format";
+            ((System.Windows.Controls.TextBox)panel.FindName("PromptPresetTextInput")).Text = "fixture-preset-rule: use a list";
+            ((System.Windows.Controls.Button)panel.FindName("PromptPresetSaveButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            var promptEnabled = (System.Windows.Controls.CheckBox)panel.FindName("PromptPresetsEnabledCheck");
+            promptEnabled.IsChecked = true; promptEnabled.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
+            var promptConfig = new NativeWidget.Models.AppConfig(); HoverAiAppearanceStore.LoadInto(promptConfig);
+            Require(promptConfig.HoverAiPromptPresetsEnabled && promptConfig.HoverAiPromptPresets.Single(p => p.Id == promptConfig.HoverAiSelectedPromptPresetId).Prompt == "fixture-preset-rule: use a list", "Prompt library and selection persist separately");
             panel.ReceivePaste("question");
             var bitmap = BitmapSource.Create(2, 2, 96, 96, PixelFormats.Bgr32, null, new byte[16], 8);
             panel.ReceiveScreenshot(bitmap);
@@ -117,6 +126,9 @@ internal static class CodexBackendChecks
             ((System.Windows.Controls.Button)panel.FindName("SendButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             PumpUntil(() => !panel.IsCodexBusy, "UI first response");
             Require(((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "Hello image" && ((System.Windows.Controls.Button)panel.FindName("CopyResponseButton")).IsEnabled, "Send wires response and enables copy");
+            Require(File.ReadAllText(tracePath).Split("fixture-preset-rule: use a list").Length == 2
+                && ((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text == originalSystemPrompt, "Selected preset reaches Codex without modifying system prompt");
+            promptEnabled.IsChecked = false; promptEnabled.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
             Require(!panel.HasInput && firstImages.All(path => !File.Exists(path)), "Success clears old text and screenshot files while keeping response");
             panel.ReceivePaste("slow"); panel.SubmitQuestion();
             panel.ReceivePaste("next question"); panel.ReceiveScreenshot(bitmap);
@@ -164,7 +176,12 @@ internal static class CodexBackendChecks
             Require(!panel.HasInput && images.All(path => !File.Exists(path)) && ((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "", "Reset cancels and prevents stale response from reappearing");
             var sending = Path.Combine(Path.GetTempPath(), "NativeWidget", "QuickAI", "Sending");
             Require(!Directory.Exists(sending) || !Directory.EnumerateFiles(sending).Any(), "Pinned image copies must be released after cancellation");
-            panel.Close(); app.Shutdown();
+            panel.Close();
+            var reopened = new HoverAiWindow(new NativeWidget.Models.AppConfig());
+            Require(((NativeWidget.Models.HoverAiPromptPreset)((System.Windows.Controls.ComboBox)reopened.FindName("PromptPresetPicker")).SelectedItem).Name == "Fixture format"
+                && ((System.Windows.Controls.TextBox)reopened.FindName("PromptPresetTextInput")).Text == "fixture-preset-rule: use a list",
+                "Reopening restores the selected saved prompt after Reset and New chat");
+            reopened.Close(); app.Shutdown();
             Console.WriteLine("PASS Codex UI: success clears draft and temp images, preserves response/prompts/new input/queued images; failures and Stop retain drafts; rapid screenshots, New chat and Reset.");
         }
         finally

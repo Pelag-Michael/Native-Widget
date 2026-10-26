@@ -1,6 +1,8 @@
 # Đề xuất định dạng câu trả lời Quick AI
 
-Đây là bản thiết kế, chưa đổi system prompt hay cách gửi yêu cầu hiện tại.
+Phiên bản đầu đã có trong **Settings → Prompt presets**: bật/tắt, chọn bộ prompt,
+tạo, nhân bản, sửa và lưu. Bộ “Theo dạng câu hỏi” dùng các mẫu bên dưới.
+Preset gửi kèm từng lượt, không thay system prompt. Phần dữ liệu có cấu trúc dưới đây vẫn là đề xuất tiếp theo.
 
 ## Các dạng cần nhận diện
 

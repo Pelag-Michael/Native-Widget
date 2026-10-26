@@ -104,6 +104,14 @@ effort in Quick AI settings; a blank model uses Codex's default. **Load models**
 catalog from the installed CLI. **System prompt** saves custom response instructions,
 with a brief 1-3 sentence answer style by default. Changing it starts a new conversation
 on the next Send. The send arrow becomes **Stop** while answering.
+Under **Prompt presets**, enable **Use selected prompt with each Send** and select a saved
+format. **New**, **Duplicate**, **Save** and **Delete** manage the library; names and prompt
+text also save automatically. Two starting presets provide question-specific formatting
+and brief replies. The library, toggle and selection persist in Quick AI's own settings.
+The selected instructions are attached to each manual, quick-copy or quick-screenshot
+submission without replacing the system prompt. Queued submissions keep the preset from
+when they were submitted. Reset and New chat preserve saved presets. An empty draft still
+does not send merely because a preset is enabled; an empty preset adds no instructions.
 **Reset** clears input and cancels the active request while retaining conversation context;
 **New chat** clears input and conversation context together. Restarting the app starts a new
 conversation. Ctrl+Up also starts a new session; Ctrl+Down pastes text or an image from the clipboard.

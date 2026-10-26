@@ -41,7 +41,7 @@
                 <Grid>
                     <Border Background="{DynamicResource HoverPanel}" CornerRadius="7" BorderBrush="#35FFFFFF" BorderThickness="1"/>
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="25"/></Grid.ColumnDefinitions>
-                        <ContentPresenter x:Name="Selection" Content="{TemplateBinding SelectionBoxItem}" Margin="7,5" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                        <ContentPresenter x:Name="Selection" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" Margin="7,5" VerticalAlignment="Center" IsHitTestVisible="False"/>
                         <TextBox x:Name="PART_EditableTextBox" Style="{x:Null}" Visibility="Collapsed" Background="Transparent" BorderThickness="0" Padding="7,5" Foreground="{TemplateBinding Foreground}" CaretBrush="{TemplateBinding Foreground}" IsReadOnly="{TemplateBinding IsReadOnly}"/>
                         <ToggleButton Grid.Column="1" Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" Foreground="{DynamicResource HoverIcons}">
                             <ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="Transparent"><TextBlock Text="&#x2304;" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></ControlTemplate></ToggleButton.Template>
@@ -171,6 +171,21 @@
                     <Button x:Name="NewChatButton" Content="New chat" Click="NewChat_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" FontSize="10" Margin="4,0,0,0"/>
                 </WrapPanel>
                 <TextBlock x:Name="CodexStatus" Text="Codex connects on first Send" TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,10"/>
+                </StackPanel></Expander>
+                <Expander Header="Prompt presets" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
+                    <CheckBox x:Name="PromptPresetsEnabledCheck" Content="Use selected prompt with each Send" Click="PromptPresetsEnabled_Click" Margin="0,0,0,6"/>
+                    <ComboBox x:Name="PromptPresetPicker" Style="{StaticResource HoverCodexCombo}" DisplayMemberPath="Name" SelectionChanged="PromptPreset_SelectionChanged" Margin="0,0,0,6"/>
+                    <TextBlock Text="Name" FontSize="10" Margin="0,0,0,3"/>
+                    <TextBox x:Name="PromptPresetNameInput" Style="{StaticResource InputStyle}" TextChanged="PromptPreset_Changed" Margin="0,0,0,6"/>
+                    <TextBlock Text="Prompt" FontSize="10" Margin="0,0,0,3"/>
+                    <TextBox x:Name="PromptPresetTextInput" Style="{StaticResource InputStyle}" TextChanged="PromptPreset_Changed" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="240" VerticalScrollBarVisibility="Auto" Margin="0,0,0,6"/>
+                    <WrapPanel>
+                        <Button x:Name="PromptPresetNewButton" Content="New" Click="PromptPresetNew_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4"/>
+                        <Button x:Name="PromptPresetDuplicateButton" Content="Duplicate" Click="PromptPresetDuplicate_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" Margin="4,0,0,0"/>
+                        <Button x:Name="PromptPresetSaveButton" Content="Save" Click="PromptPresetSave_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" Margin="4,0,0,0"/>
+                        <Button x:Name="PromptPresetDeleteButton" Content="Delete" Click="PromptPresetDelete_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" Margin="4,0,0,0"/>
+                    </WrapPanel>
+                    <TextBlock x:Name="PromptPresetStatus" Text="Edits save automatically. System prompt stays separate." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,6,0,8"/>
                 </StackPanel></Expander>
                 <Expander x:Name="ModesSection" Header="Quick modes" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
                 <CheckBox x:Name="CompactBarCheck" Content="Compact bar: hover 1.5s to reveal" Click="Appearance_Changed" Margin="0,0,0,8"/>

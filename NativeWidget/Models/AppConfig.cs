@@ -65,6 +65,9 @@ public class AppConfig
     public string HoverAiSystemPrompt { get; set; } = DefaultHoverAiSystemPrompt;
     public string HoverAiCodexModel { get; set; } = "";
     public string HoverAiCodexEffort { get; set; } = "low";
+    public bool HoverAiPromptPresetsEnabled { get; set; }
+    public string HoverAiSelectedPromptPresetId { get; set; } = "question-format";
+    public List<HoverAiPromptPreset> HoverAiPromptPresets { get; set; } = HoverAiPromptPreset.Defaults();
     public bool HoverAiScreenshotAutoSend { get; set; }
     public string HoverAiScreenshotPrompt { get; set; } = "\u0110\u1ECDc \u1EA3nh v\u00E0 tr\u1EA3 l\u1EDDi ng\u1EAFn g\u1ECDn b\u1EB1ng ti\u1EBFng Vi\u1EC7t.";
     public bool HoverAiQuicker { get; set; }

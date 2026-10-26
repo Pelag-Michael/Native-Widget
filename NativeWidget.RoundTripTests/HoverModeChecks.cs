@@ -351,6 +351,32 @@ internal static class HoverModeChecks
             panel.ReceiveScreenshot(syntheticScreenshot, fromCapture: true);
             Require(submissions == beforeCapture + 1 && captureRequest?.Text == "Read this screenshot only" && captureRequest.ImagePaths.Count == 1 && captureRequest.ImagePaths[0] == panel.ScreenshotPaths.Last() && captureRequest.QueueIndividually,
                 "Capture mode sends only the new image with its configured prompt, independently of queued draft text.");
+            ((Button)panel.FindName("PromptPresetNewButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((TextBox)panel.FindName("PromptPresetNameInput")).Text = "Format A";
+            ((TextBox)panel.FindName("PromptPresetTextInput")).Text = "preset-A-rule";
+            ((Button)panel.FindName("PromptPresetSaveButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var presetPicker = (ComboBox)panel.FindName("PromptPresetPicker");
+            var presetA = (HoverAiPromptPreset)presetPicker.SelectedItem;
+            ((Button)panel.FindName("PromptPresetDuplicateButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((TextBox)panel.FindName("PromptPresetTextInput")).Text = "preset-B-rule";
+            Require(((HoverAiPromptPreset)presetPicker.SelectedItem).Id != presetA.Id && presetA.Prompt == "preset-A-rule", "Duplicated prompt must be independent");
+            presetPicker.SelectedItem = presetA;
+            var presetEnabled = (CheckBox)panel.FindName("PromptPresetsEnabledCheck");
+            presetEnabled.IsChecked = true; presetEnabled.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            panel.ReceiveScreenshot(syntheticScreenshot, fromCapture: true);
+            var capturedPresetRequest = captureRequest!;
+            Require(capturedPresetRequest.Text.Contains("preset-A-rule") && capturedPresetRequest.Text.Contains("Read this screenshot only")
+                && capturedPresetRequest.ImagePaths.Count == 1, "Quick screenshot combines selected preset and capture prompt without changing attachments");
+            ((TextBox)panel.FindName("PromptPresetTextInput")).Text = "changed-after-send";
+            Require(capturedPresetRequest.Text.Contains("preset-A-rule") && !capturedPresetRequest.Text.Contains("changed-after-send"), "Submitted turns snapshot the preset, including while queued");
+            quicker.IsChecked = true; quicker.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            panel.ReceiveQuickCopy("prompted quick copy");
+            Require(captureRequest!.Text.Contains("changed-after-send") && captureRequest.Text.Contains("prompted quick copy"), "Quick copy uses the latest selected prompt");
+            quicker.IsChecked = false; quicker.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            presetEnabled.IsChecked = false; presetEnabled.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+            panel.SubmitQuestion(); Require(!captureRequest!.Text.Contains("changed-after-send"), "Disabling presets sends the original draft");
+            ((Button)panel.FindName("PromptPresetDeleteButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Require(!presetPicker.Items.Cast<HoverAiPromptPreset>().Any(p => p.Id == presetA.Id), "Delete removes only the selected prompt");
             shotMode.IsChecked = false; shotMode.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
             var sibling = Path.Combine(Path.GetDirectoryName(queuedImages[0])!, "unowned-" + Guid.NewGuid().ToString("N") + ".txt");
             File.WriteAllText(sibling, "keep");

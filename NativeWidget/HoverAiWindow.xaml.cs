@@ -86,6 +86,7 @@ public partial class HoverAiWindow : Window
             !_compactMoving && (button == CompactRevealButton || _config.HoverAiDwellButtons));
         InitializeCompactMove();
         InitializeLocateColors();
+        InitializePromptPresets();
         SourceInitialized += (_, _) => RefreshCompactBar();
         QuestionInput.TextChanged += (_, _) => ++_questionRevision;
         WindowInterop.HideFromAltTab(this);
@@ -415,7 +416,7 @@ public partial class HoverAiWindow : Window
     private void DispatchSubmission(HoverAiSubmission request)
     {
         request = request with { DraftPasteThrough = _pasteSequence, DraftQuestionRevision = _questionRevision,
-            DraftImages = _screenshots.Files.ToArray() };
+            DraftImages = _screenshots.Files.ToArray(), Text = WithSelectedPromptPreset(request.Text) };
         LastQuestion = request.Text;
         if (request.ImagePaths.Count > 0) LastQuestion += $"\n\n[{request.ImagePaths.Count} image attachment(s)]";
         SubmissionRequested?.Invoke(request); QuestionSubmitted?.Invoke(LastQuestion);
