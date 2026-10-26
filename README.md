@@ -153,7 +153,7 @@ capture area, screenshot prompt, Quicker and Edit layout toggles. These are grou
 collapsed Layout, Codex, Quick modes and Capture sections. A Shortcuts section lists the
 only Quick AI keys, including copy/capture/send and layout controls. The main Settings
 window also groups its sections and includes the complete widget shortcut reference.
-Hold Ctrl+Alt+/ to show the independent Quick AI shortcuts panel while Invisible hover is enabled;
+Hold Ctrl+Alt+/ to show the independent Quick AI shortcuts panel whenever the widget is running;
 releasing any chord key hides it immediately. Hovering the main bar does not open it.
 Text scales uniformly with the panel. In Edit layout, a persistent preview and its gear
 allow changing position, size, base text size, text/background colors, opacity and text-only

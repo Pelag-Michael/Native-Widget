@@ -157,6 +157,7 @@ public partial class MainWindow : Window
             // intercept the real Alt+Tab keystroke and still let Windows' own switcher work).
             RegisterLocateShortcut();
             RegisterHotKey(hwnd, SearchHotkeyId, ModControl | ModAlt, VkK);
+            RegisterShortcutsPanelHotkey(hwnd);
             HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
             EnsureLauncherTopmost();
         };
@@ -181,6 +182,7 @@ public partial class MainWindow : Window
             UnregisterHotKey(hwnd, SearchHotkeyId);
             UnregisterHotKey(hwnd, CopyHotkeyId);
             UnregisterHotKey(hwnd, ScreenshotHotkeyId);
+            UnregisterHotKey(hwnd, ShortcutsPanelHotkeyId);
             UnregisterAiInputShortcuts(hwnd);
         };
         Closing += (_, _) => WindowSessionService.CaptureForShutdown();
@@ -233,7 +235,7 @@ public partial class MainWindow : Window
             CaptureInvisibleScreenshot();
             handled = true;
         }
-        else if (msg == WmHotkey && _hoverModeActive && HandleAiInputShortcut(wParam.ToInt32())) handled = true;
+        else if (msg == WmHotkey && (wParam.ToInt32() == ShortcutsPanelHotkeyId || _hoverModeActive) && HandleAiInputShortcut(wParam.ToInt32())) handled = true;
         return IntPtr.Zero;
     }
 

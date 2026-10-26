@@ -220,7 +220,7 @@ public partial class HoverAiWindow : Window
         }
         return _shortcutsWindow;
     }
-    internal void ShowShortcutsPanel() { if (_modeActive) EnsureShortcutsPanel().ShowWhileHeld(ShortcutsAnchor); }
+    internal void ShowShortcutsPanel() => EnsureShortcutsPanel().ShowWhileHeld(ShortcutsAnchor);
     private void Question_Changed(object sender, TextChangedEventArgs e) { if (_ready) RefreshFloatingPanels(); }
     private void ScreenshotFolder_Click(object sender, RoutedEventArgs e)
     {

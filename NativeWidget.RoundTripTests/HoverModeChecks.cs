@@ -424,7 +424,11 @@ internal static class HoverModeChecks
             File.Delete(sibling);
             launcher.HandleAiInputShortcut(0xB00A);
             launcher.SetInvisibleHoverMode(false);
-            Require(!shortcutsPanel.IsVisible && !launcher.HandleAiInputShortcut(0xB00A), "Disabling the mode hides help and releases its shortcut action");
+            Require(!shortcutsPanel.IsVisible, "Disabling the mode hides the shortcut preview");
+            helpHeld = true;
+            Require(launcher.HandleAiInputShortcut(0xB00A) && shortcutsPanel.IsVisible && !panel.IsVisible && launcher.Opacity == 1,
+                "Global shortcut works outside hover mode without enabling it or showing the main AI bar");
+            helpHeld = false; shortcutsPanel.PollHold();
             Require(launcher.Opacity == 1 && peer.IsVisible, "Disabling must restore launcher and peer.");
             var config = new AppConfig { InvisibleHoverEnabled = true };
             config.Save();
