@@ -35,10 +35,17 @@ internal static class CodexBackendChecks
                 if (p.GetProperty("approvalPolicy").GetString() != "never" || p.GetProperty("sandboxPolicy").GetProperty("type").GetString() != "dangerFullAccess") throw new Exception("Full-access turn configuration missing");
                 var turn = "turn-" + ++count; var input = p.GetProperty("input");
                 var text = input.EnumerateArray().Where(x => x.GetProperty("type").GetString() == "text").Select(x => x.GetProperty("text").GetString()).FirstOrDefault() ?? "";
-                if (Environment.GetEnvironmentVariable("NATIVEWIDGET_CODEX_TEST_TRACE") is { Length: > 0 } trace) File.AppendAllText(trace, text + "\n");
+                if (Environment.GetEnvironmentVariable("NATIVEWIDGET_CODEX_TEST_TRACE") is { Length: > 0 } trace)
+                {
+                    File.AppendAllText(trace, text + "\n");
+                    File.AppendAllText(trace + ".jsonl", JsonSerializer.Serialize(new { text, instructions,
+                        model = p.GetProperty("model").GetString(), effort = p.GetProperty("effort").GetString(),
+                        images = input.EnumerateArray().Count(x => x.GetProperty("type").GetString() == "localImage") }) + "\n");
+                }
                 Reply(new { turn = new { id = turn } }); Event("turn/started", new { threadId = thread, turn = new { id = turn } });
                 if (text == "wait") { pendingTurn = turn; continue; }
-                if (text == "slow") Thread.Sleep(250);
+                if (text == "slow") Thread.Sleep(500);
+                if (text == "empty") { Event("turn/completed", new { threadId = thread, turn = new { id = turn, status = "completed" } }); continue; }
                 if (text == "crash") return;
                 if (text == "fail")
                 { Event("turn/completed", new { threadId = thread, turn = new { id = turn, status = "failed", error = new { message = "fixture failure" } } }); continue; }
@@ -142,9 +149,12 @@ internal static class CodexBackendChecks
             panel.ReceivePaste("slow"); panel.ReceiveScreenshot(bitmap); panel.SubmitQuestion();
             panel.ReceivePaste("queued follow-up"); panel.SubmitQuestion();
             PumpUntil(() => !panel.IsCodexBusy, "Queued manual request sharing images");
-            Require(!panel.HasInput && ((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "Hello image", "Clearing completed draft must preserve images needed by queued requests");
+            Require(!panel.HasInput && ((System.Windows.Controls.TextBlock)panel.FindName("AnswerText")).Text == "Hello text", "Queued follow-up must not resend already answered text or images");
             panel.ReceivePaste("fail"); panel.SubmitQuestion(); PumpUntil(() => !panel.IsCodexBusy, "Failed request");
             Require(panel.HasInput, "Failed answer preserves input for retry");
+            ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            panel.ReceivePaste("empty"); panel.SubmitQuestion(); PumpUntil(() => !panel.IsCodexBusy, "Empty response");
+            Require(panel.HasInput, "Empty response must preserve input for retry");
             ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             panel.SubmitQuestion(); Require(!panel.IsCodexBusy, "Duplicate Send must not start another turn");
             ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
@@ -168,6 +178,60 @@ internal static class CodexBackendChecks
             Require(shotRequests.SequenceEqual(new[] { "shot-one", "shot-two", "shot-three" }), "Rapid captures must send every screenshot in order");
             Require(!panel.HasInput && ((System.Windows.Controls.TextBox)panel.FindName("ScreenshotPromptInput")).Text == "shot-three"
                 && !string.IsNullOrWhiteSpace(((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text), "Quick screenshots clear draft and retain configured prompts");
+            panel.ReceivePaste("unsent draft");
+            ((System.Windows.Controls.TextBox)panel.FindName("QuestionInput")).Text = "unsent typed";
+            panel.ReceiveScreenshot(bitmap); var unsentImage = panel.ScreenshotPaths.Single();
+            ((System.Windows.Controls.TextBox)panel.FindName("ScreenshotPromptInput")).Text = "shot-isolated";
+            panel.ReceiveScreenshot(bitmap, fromCapture: true);
+            PumpUntil(() => !panel.IsCodexBusy, "Screenshot preserving other draft input");
+            Require(panel.PastedItemCount == 1 && ((System.Windows.Controls.TextBox)panel.FindName("QuestionInput")).Text == "unsent typed"
+                && panel.ScreenshotPaths.SequenceEqual(new[] { unsentImage }) && File.Exists(unsentImage),
+                "Quick screenshot must clear only its own image, preserving unrelated unsent text, typed input and images");
+            ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+            var detailOffset = File.ReadAllLines(tracePath + ".jsonl").Length;
+            panel.ReceivePaste("slow"); panel.SubmitQuestion();
+            var quickCopy = (System.Windows.Controls.CheckBox)panel.FindName("QuickerCheck");
+            quickCopy.IsChecked = true; quickCopy.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
+            panel.ReceiveQuickCopy("copy-first");
+            ((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text = "system-A";
+            ((System.Windows.Controls.ComboBox)panel.FindName("CodexModelPicker")).Text = "model-A";
+            ((System.Windows.Controls.ComboBox)panel.FindName("CodexEffortPicker")).SelectedIndex = 2;
+            ((System.Windows.Controls.TextBox)panel.FindName("PromptPresetTextInput")).Text = "preset-A";
+            promptEnabled.IsChecked = true; promptEnabled.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
+            ((System.Windows.Controls.TextBox)panel.FindName("ScreenshotPromptInput")).Text = "shot-mixed";
+            panel.ReceiveScreenshot(bitmap, fromCapture: true);
+            ((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text = "system-B";
+            ((System.Windows.Controls.ComboBox)panel.FindName("CodexModelPicker")).Text = "model-B";
+            ((System.Windows.Controls.ComboBox)panel.FindName("CodexEffortPicker")).SelectedIndex = 3;
+            ((System.Windows.Controls.TextBox)panel.FindName("PromptPresetTextInput")).Text = "preset-B";
+            panel.ReceiveQuickCopy("copy-last");
+            ((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text = "system-unsent";
+            ((System.Windows.Controls.ComboBox)panel.FindName("CodexModelPicker")).Text = "model-unsent";
+            ((System.Windows.Controls.ComboBox)panel.FindName("CodexEffortPicker")).SelectedIndex = 0;
+            ((System.Windows.Controls.TextBox)panel.FindName("PromptPresetTextInput")).Text = "preset-unsent";
+            PumpUntil(() => !panel.IsCodexBusy, "Mixed quick modes queue");
+            var mixed = File.ReadAllLines(tracePath + ".jsonl").Skip(detailOffset)
+                .Select(line => JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+            Require(mixed.Length == 4 && mixed[0].GetProperty("text").GetString() == "slow"
+                && mixed[1].GetProperty("text").GetString() == "copy-first"
+                && mixed[2].GetProperty("text").GetString()!.Contains("shot-mixed")
+                && mixed[3].GetProperty("text").GetString()!.Contains("copy-last"), "Mixed copy and screenshot requests must run FIFO without replacing turns");
+            Require(mixed[2].GetProperty("text").GetString()!.Contains("preset-A")
+                && mixed[2].GetProperty("instructions").GetString()!.Contains("system-A")
+                && mixed[2].GetProperty("model").GetString() == "model-A"
+                && mixed[2].GetProperty("effort").GetString() == "high"
+                && mixed[3].GetProperty("text").GetString()!.Contains("preset-B")
+                && mixed[3].GetProperty("instructions").GetString()!.Contains("system-B")
+                && mixed[3].GetProperty("model").GetString() == "model-B"
+                && mixed[3].GetProperty("effort").GetString() == "xhigh", "Queued turns retain their preset, system prompt, model and effort snapshots");
+            Require(!mixed[3].GetProperty("text").GetString()!.Contains("copy-first")
+                && mixed.Select(item => item.GetProperty("images").GetInt32()).SequenceEqual(new[] { 0, 0, 1, 0 }) && !panel.HasInput,
+                "Mixed queues must not resend already answered draft text or screenshot attachments");
+            promptEnabled.IsChecked = false; promptEnabled.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
+            ((System.Windows.Controls.TextBox)panel.FindName("PromptPresetTextInput")).Text = "fixture-preset-rule: use a list";
+            ((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text = originalSystemPrompt;
+            ((System.Windows.Controls.ComboBox)panel.FindName("CodexModelPicker")).Text = "";
+            quickCopy.IsChecked = false; quickCopy.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
             shotMode.IsChecked = false; shotMode.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.CheckBox.ClickEvent));
             ((System.Windows.Controls.Button)panel.FindName("ResetButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             panel.ReceivePaste("wait"); panel.ReceiveScreenshot(bitmap); var images = panel.ScreenshotPaths.ToArray(); panel.SubmitQuestion();

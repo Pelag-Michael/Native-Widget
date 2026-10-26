@@ -16,6 +16,11 @@ public sealed record HoverAiSubmission(string Text, IReadOnlyList<string> ImageP
     internal long DraftPasteThrough { get; init; }
     internal long DraftQuestionRevision { get; init; }
     internal string[] DraftImages { get; init; } = Array.Empty<string>();
+    internal string DraftQuestionText { get; init; } = "";
+    internal string? PresetText { get; init; }
+    internal string? SystemPrompt { get; init; }
+    internal string? Model { get; init; }
+    internal string? Effort { get; init; }
 }
 
 public partial class HoverAiWindow : Window
@@ -415,8 +420,13 @@ public partial class HoverAiWindow : Window
 
     private void DispatchSubmission(HoverAiSubmission request)
     {
-        request = request with { DraftPasteThrough = _pasteSequence, DraftQuestionRevision = _questionRevision,
-            DraftImages = _screenshots.Files.ToArray(), Text = WithSelectedPromptPreset(request.Text) };
+        var preset = SelectedPromptPresetText();
+        request = request with { DraftPasteThrough = request.QueueIndividually ? 0 : _pasteSequence,
+            DraftQuestionRevision = request.QueueIndividually ? -1 : _questionRevision,
+            DraftQuestionText = request.QueueIndividually ? "" : QuestionInput.Text.Trim(),
+            DraftImages = request.ImagePaths.ToArray(), Text = ApplyPromptPreset(request.Text, preset), PresetText = preset,
+            SystemPrompt = SystemPromptInput.Text, Model = CodexModelPicker.Text.Trim(),
+            Effort = (CodexEffortPicker.SelectedItem as ComboBoxItem)?.Content as string ?? "low" };
         LastQuestion = request.Text;
         if (request.ImagePaths.Count > 0) LastQuestion += $"\n\n[{request.ImagePaths.Count} image attachment(s)]";
         SubmissionRequested?.Invoke(request); QuestionSubmitted?.Invoke(LastQuestion);
@@ -424,11 +434,11 @@ public partial class HoverAiWindow : Window
 
     private void ClearCompletedDraft(HoverAiSubmission request)
     {
+        if (request.DraftQuestionText.Length > 0) _completedQuestionRevision = Math.Max(_completedQuestionRevision, request.DraftQuestionRevision);
         _pastedContext.RemoveAll(item => item.Id <= request.DraftPasteThrough);
         if (_questionRevision == request.DraftQuestionRevision) QuestionInput.Clear();
         // Queued turns still need their original files, even after they leave the draft.
-        var retained = _queuedScreenshots.SelectMany(item => item.ImagePaths)
-            .Concat(_queuedSubmission?.ImagePaths ?? Array.Empty<string>()).ToHashSet();
+        var retained = _queuedSubmissions.SelectMany(item => item.ImagePaths).ToHashSet();
         _screenshots.Remove(request.DraftImages, retained);
         if (_screenshots.Files.Count == 0)
         {

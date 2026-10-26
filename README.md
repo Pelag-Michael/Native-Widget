@@ -88,7 +88,7 @@ inside Temp. Existing queued images retain their paths if the folder changes.
 The send arrow, Ctrl+Right, or Ctrl+Enter submits all queued text, the follow-up and all image
 attachments together. Image paths are sent separately as Codex local-image attachments; a path string alone
 in the prompt is not an AI image upload.
-A successful answer clears the old draft and generated PNGs, keeping the answer and configured prompts.
+A successful nonempty answer clears only submitted draft content and its generated PNGs, keeping the answer and configured prompts.
 Input added while waiting is kept for the next turn; errors and Stop retain input for retry.
 Reset clears text, follow-up, attachments and the displayed answer. Ctrl+Alt+Down clears
 input and attachments while keeping the displayed answer. Normal close removes those images;
@@ -110,13 +110,16 @@ text also save automatically. Two starting presets provide question-specific for
 and brief replies. The library, toggle and selection persist in Quick AI's own settings.
 The selected instructions are attached to each manual, quick-copy or quick-screenshot
 submission without replacing the system prompt. Queued submissions keep the preset from
-when they were submitted. Reset and New chat preserve saved presets. An empty draft still
+when they were submitted, together with system prompt, model and effort snapshots. Reset and New chat preserve saved presets. An empty draft still
 does not send merely because a preset is enabled; an empty preset adds no instructions.
 **Reset** clears input and cancels the active request while retaining conversation context;
 **New chat** clears input and conversation context together. Restarting the app starts a new
 conversation. Ctrl+Up also starts a new session; Ctrl+Down pastes text or an image from the clipboard.
 These global shortcuts are active only in Invisible hover mode. Quicker input
-received during an answer is queued as the next complete draft. Only one turn runs at once.
+received during an answer joins the same FIFO queue as manual sends and quick screenshots.
+Only one turn runs at once. Before a queued draft runs, content already answered successfully
+by earlier turns is excluded; a redundant empty submission is skipped. Errors and empty replies
+preserve draft input for retry.
 Images are copied privately for the active request, so Reset cannot remove a file while
 Codex reads it; those copies are removed when the request finishes. Codex uses full access (`danger-full-access`)
 with no approval prompts, as configured for this local widget. No API key is stored by the widget.
@@ -137,6 +140,8 @@ under the pointer when fixed capture is off). Each request includes only its new
 this prompt, excluding earlier draft text and attachments. The default prompt asks for a
 brief answer in Vietnamese. Rapid captures queue in order while Codex is busy; Stop and
 Reset cancel the pending queue. Clipboard image paste remains a manual draft attachment.
+Completing a quick screenshot clears only that capture; earlier text, typed follow-up and
+other pending images remain available for manual Send. See [send-flow audit](docs/quick-ai-send-flows.md).
 
 **Edit layout** reveals the demo panels, their gear buttons, and four visible resize corners
 on Add input and Response. Outside edit mode, gears and corner markings disappear while

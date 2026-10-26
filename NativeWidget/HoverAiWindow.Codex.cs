@@ -12,8 +12,8 @@ public partial class HoverAiWindow
     private Task? _codexTask;
     private bool _codexEnabled, _codexClosing, _changingChat;
     private int _codexGeneration;
-    private HoverAiSubmission? _queuedSubmission;
-    private readonly Queue<HoverAiSubmission> _queuedScreenshots = new();
+    private readonly Queue<HoverAiSubmission> _queuedSubmissions = new();
+    private long _completedQuestionRevision = -1;
     internal bool IsCodexBusy => _codexCancellation != null;
     internal Task? CodexTaskForTests => _codexTask;
 
@@ -68,7 +68,7 @@ public partial class HoverAiWindow
     }
     private void QueueSubmission(HoverAiSubmission request)
     {
-        if (request.QueueIndividually) _queuedScreenshots.Enqueue(request); else _queuedSubmission = request;
+        _queuedSubmissions.Enqueue(request);
         CodexStatus.Text = "Next input queued";
     }
     private async Task RunCodexAsync(HoverAiSubmission request)
@@ -104,14 +104,15 @@ public partial class HoverAiWindow
                 RefreshFloatingPanels();
             }));
             var reply = await (_codex ??= new CodexAppServerClient()).SendAsync(
-                new HoverAiSubmission(request.Text, pinned), _config.HoverAiCodexModel, _config.HoverAiCodexEffort,
-                ReportProgress, cancellation.Token, _config.HoverAiSystemPrompt);
+                new HoverAiSubmission(request.Text, pinned), request.Model ?? _config.HoverAiCodexModel, request.Effort ?? _config.HoverAiCodexEffort,
+                ReportProgress, cancellation.Token, request.SystemPrompt ?? _config.HoverAiSystemPrompt);
             if (generation != _codexGeneration || _codexClosing) return;
             finished = true;
-            _responseText = reply.Text; AnswerText.Text = reply.Text.Length > 0 ? reply.Text : "No answer returned.";
-            CopyResponseButton.IsEnabled = reply.Text.Length > 0;
-            CodexStatus.Text = reply.Interrupted ? "Stopped" : "Ready";
-            if (!reply.Interrupted)
+            var hasAnswer = !string.IsNullOrWhiteSpace(reply.Text);
+            _responseText = hasAnswer ? reply.Text : ""; AnswerText.Text = hasAnswer ? reply.Text : "No answer returned.";
+            CopyResponseButton.IsEnabled = hasAnswer;
+            CodexStatus.Text = reply.Interrupted ? "Stopped" : hasAnswer ? "Ready" : "No answer returned";
+            if (!reply.Interrupted && hasAnswer)
             {
                 ClearCompletedDraft(request);
             }
@@ -135,19 +136,21 @@ public partial class HoverAiWindow
             {
                 SendButton.Content = "\u2191";
                 RefreshFloatingPanels();
-                var queued = _queuedScreenshots.Count > 0 ? _queuedScreenshots.Dequeue() : _queuedSubmission;
-                if (_queuedScreenshots.Count == 0 && ReferenceEquals(queued, _queuedSubmission)) _queuedSubmission = null;
+                HoverAiSubmission? queued = null;
+                while (_queuedSubmissions.Count > 0 && queued == null) queued = PrepareQueuedSubmission(_queuedSubmissions.Dequeue());
+                _screenshots.Remove(Array.Empty<string>(), _queuedSubmissions.SelectMany(item => item.ImagePaths)
+                    .Concat(queued?.ImagePaths ?? Array.Empty<string>()).ToHashSet());
                 if (queued != null && !_changingChat) _codexTask = RunCodexAsync(queued);
             }
         }
     }
     private void StopCodex()
     {
-        _queuedSubmission = null; _queuedScreenshots.Clear(); _codexCancellation?.Cancel(); CodexStatus.Text = "Stopping...";
+        _queuedSubmissions.Clear(); _codexCancellation?.Cancel(); CodexStatus.Text = "Stopping...";
     }
     private void ResetCodexDraft()
     {
-        ++_codexGeneration; _queuedSubmission = null; _queuedScreenshots.Clear();
+        ++_codexGeneration; _queuedSubmissions.Clear();
         _codexCancellation?.Cancel();
         CodexStatus.Text = "Input cleared";
     }
@@ -165,7 +168,22 @@ public partial class HoverAiWindow
     }
     private void CloseCodexBackend()
     {
-        _codexClosing = true; ++_codexGeneration; _queuedSubmission = null; _queuedScreenshots.Clear();
+        _codexClosing = true; ++_codexGeneration; _queuedSubmissions.Clear();
         _codexCancellation?.Cancel(); _codex?.Dispose();
+    }
+
+    private HoverAiSubmission? PrepareQueuedSubmission(HoverAiSubmission request)
+    {
+        var images = request.ImagePaths.Where(path => _screenshots.Files.Contains(path)).ToArray();
+        if (request.QueueIndividually)
+            return images.Length == 0 ? null : request with { ImagePaths = images, DraftImages = images };
+        // Rebase against the remaining draft, excluding input already answered by
+        // earlier turns. Keep the prompt and question as they were when submitted.
+        var parts = _pastedContext.Where(item => item.Id <= request.DraftPasteThrough).Select(item => item.Text).ToList();
+        var question = request.DraftQuestionRevision > _completedQuestionRevision ? request.DraftQuestionText : "";
+        if (question.Length > 0) parts.Add(question);
+        if (parts.Count == 0 && images.Length == 0) return null;
+        return request with { Text = ApplyPromptPreset(string.Join("\n\n", parts), request.PresetText), ImagePaths = images,
+            DraftImages = images, DraftQuestionText = question };
     }
 }

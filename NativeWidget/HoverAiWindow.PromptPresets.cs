@@ -100,11 +100,16 @@ public partial class HoverAiWindow
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { PromptPresetStatus.Text = "Could not save prompts. Try Save again."; }
     }
 
-    private string WithSelectedPromptPreset(string text)
+    private string? SelectedPromptPresetText()
     {
         var preset = _config.HoverAiPromptPresets.FirstOrDefault(p => p.Id == _config.HoverAiSelectedPromptPresetId);
-        if (!_config.HoverAiPromptPresetsEnabled || string.IsNullOrWhiteSpace(preset?.Prompt)) return text;
-        return "Áp dụng hướng dẫn sau chỉ cho câu trả lời của lượt này:\n" + preset.Prompt.Trim()
+        return _config.HoverAiPromptPresetsEnabled && !string.IsNullOrWhiteSpace(preset?.Prompt) ? preset.Prompt.Trim() : null;
+    }
+
+    private static string ApplyPromptPreset(string text, string? preset)
+    {
+        if (string.IsNullOrWhiteSpace(preset)) return text;
+        return "Áp dụng hướng dẫn sau chỉ cho câu trả lời của lượt này:\n" + preset
             + "\n\nNội dung cần xử lý (ảnh đính kèm nếu có):\n" + text;
     }
 }
