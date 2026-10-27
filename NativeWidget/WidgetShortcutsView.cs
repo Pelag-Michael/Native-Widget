@@ -17,6 +17,7 @@ public sealed class WidgetShortcutsView : UserControl
         var entries = new (string Key, string Action)[]
         {
             ("Ctrl + Alt + /", "Giữ để xem phím tắt"),
+            ("Ctrl + Alt + C", "Mở setting AI"),
             ("Ctrl + Alt + \u2190", "Tìm vị trí widget"),
             ("Ctrl + rê", "Di chuyển icon compact"),
             ("Ctrl + \u2190", "Copy; Quicker sẽ gửi luôn"),

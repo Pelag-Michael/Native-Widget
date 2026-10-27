@@ -52,6 +52,7 @@ public partial class MainWindow : Window
     private const int ScreenshotHotkeyId = 0xB005;
     private const int NewSessionHotkeyId = 0xB006, PasteInputHotkeyId = 0xB007, ClearInputHotkeyId = 0xB008, SendInputHotkeyId = 0xB009;
     private const int ShortcutsPanelHotkeyId = 0xB00A;
+    private const int QuickAiSettingsHotkeyId = 0xB00B;
     private const uint ModAlt = 0x1, ModControl = 0x2;
     private const uint VkG = 0x47;
     private const uint VkLeft = 0x25;
@@ -158,6 +159,9 @@ public partial class MainWindow : Window
             RegisterLocateShortcut();
             RegisterHotKey(hwnd, SearchHotkeyId, ModControl | ModAlt, VkK);
             RegisterShortcutsPanelHotkey(hwnd);
+            var settingsRegistered = RegisterHotKey(hwnd, QuickAiSettingsHotkeyId, ModControl | ModAlt | 0x4000, 0x43);
+            try { System.IO.File.AppendAllText(AppConfig.TokenPath("hotkey-status.log"), $"Ctrl+Alt+C settings registered={settingsRegistered}\n"); }
+            catch (System.IO.IOException) { }
             HwndSource.FromHwnd(hwnd)?.AddHook(HotkeyHook);
             EnsureLauncherTopmost();
         };
@@ -183,6 +187,7 @@ public partial class MainWindow : Window
             UnregisterHotKey(hwnd, CopyHotkeyId);
             UnregisterHotKey(hwnd, ScreenshotHotkeyId);
             UnregisterHotKey(hwnd, ShortcutsPanelHotkeyId);
+            UnregisterHotKey(hwnd, QuickAiSettingsHotkeyId);
             UnregisterAiInputShortcuts(hwnd);
         };
         Closing += (_, _) => WindowSessionService.CaptureForShutdown();
@@ -235,7 +240,7 @@ public partial class MainWindow : Window
             CaptureInvisibleScreenshot();
             handled = true;
         }
-        else if (msg == WmHotkey && (wParam.ToInt32() == ShortcutsPanelHotkeyId || _hoverModeActive) && HandleAiInputShortcut(wParam.ToInt32())) handled = true;
+        else if (msg == WmHotkey && (wParam.ToInt32() is ShortcutsPanelHotkeyId or QuickAiSettingsHotkeyId || _hoverModeActive) && HandleAiInputShortcut(wParam.ToInt32())) handled = true;
         return IntPtr.Zero;
     }
 

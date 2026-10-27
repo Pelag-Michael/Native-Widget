@@ -8,6 +8,20 @@ namespace NativeWidget;
 
 public partial class HoverAiWindow
 {
+    internal Rect CompactIconBounds
+    {
+        get
+        {
+            // Use the button's actual layout, including the chrome padding.
+            if (CompactBarCollapsed && CompactRevealButton.ActualWidth > 0)
+            {
+                var offset = CompactRevealButton.TranslatePoint(new Point(), this);
+                return new Rect(Left + offset.X, Top + offset.Y,
+                    CompactRevealButton.ActualWidth, CompactRevealButton.ActualHeight);
+            }
+            return new Rect(Left + 3, Top + 3, CompactRevealButton.Width, CompactRevealButton.Height);
+        }
+    }
     private readonly DispatcherTimer _compactMoveTimer = new() { Interval = TimeSpan.FromMilliseconds(20) };
     private bool _compactMoving;
     private Point _compactMoveCursor;

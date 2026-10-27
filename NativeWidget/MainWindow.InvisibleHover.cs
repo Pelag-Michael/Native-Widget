@@ -95,11 +95,20 @@ public partial class MainWindow
             SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - Height);
         _anchorFrame.Width = Width;
         _anchorFrame.Height = Height;
-        if (thirdPress)
+        if (_hoverModeActive)
         {
-            _anchorFrame.Left = _hoverAi?.Left ?? _config.HoverAiLeft ?? _hoverAnchor.X;
-            _anchorFrame.Top = _hoverAi?.Top ?? _config.HoverAiTop ?? _hoverAnchor.Y;
-            _anchorFrame.Width = 36; _anchorFrame.Height = 30;
+            var iconBounds = _hoverAi is { Left: var panelLeft, Top: var panelTop }
+                && double.IsFinite(panelLeft) && double.IsFinite(panelTop)
+                ? _hoverAi.CompactIconBounds
+                : new Rect((_config.HoverAiLeft ?? _hoverAnchor.X - 12) + 3,
+                    (_config.HoverAiTop ?? _hoverAnchor.Y - 12) + 3, 30, 24);
+            // Both outlines and the opaque icon share exactly the same center.
+            // Do not clamp the outline independently: that shifts it near screen edges.
+            if (!thirdPress) iconBounds.Inflate(6, 6);
+            _anchorFrame.Left = iconBounds.Left;
+            _anchorFrame.Top = iconBounds.Top;
+            _anchorFrame.Width = iconBounds.Width;
+            _anchorFrame.Height = iconBounds.Height;
         }
         _anchorFrame.Show();
         _anchorFrame.Opacity = 1;
@@ -113,6 +122,8 @@ public partial class MainWindow
     internal System.Windows.Media.Color? AnchorFrameColorForTests => (_anchorOutline?.Stroke as System.Windows.Media.SolidColorBrush)?.Color;
     internal bool AnchorIconVisibleForTests => _anchorFrame?.IsVisible == true && _anchorIcon?.Visibility == Visibility.Visible;
     internal double? AnchorOpacityForTests => _anchorFrame?.Opacity;
+    internal Rect AnchorBoundsForTests => _anchorFrame == null ? Rect.Empty
+        : new Rect(_anchorFrame.Left, _anchorFrame.Top, _anchorFrame.Width, _anchorFrame.Height);
     internal System.Windows.Media.Color? AnchorIconColorForTests => (_anchorIcon?.Foreground as System.Windows.Media.SolidColorBrush)?.Color;
 
     [DllImport("user32.dll")]
@@ -380,6 +391,15 @@ public partial class MainWindow
 
     internal bool HandleAiInputShortcut(int id)
     {
+        if (id == QuickAiSettingsHotkeyId)
+        {
+            EnsureHoverAiPanel();
+            if (!double.IsFinite(_hoverAi!.Left)) _hoverAi.Left = _config.HoverAiLeft ?? Left;
+            if (!double.IsFinite(_hoverAi.Top)) _hoverAi.Top = _config.HoverAiTop ?? Top;
+            _hoverAi.Show(); _hoverAi.OpenPreferences();
+            WindowInterop.EnsureTopmost(_hoverAi);
+            return true;
+        }
         if (id == ShortcutsPanelHotkeyId) { EnsureHoverAiPanel(); _hoverAi!.ShowShortcutsPanel(); return true; }
         if (!_hoverModeActive || id is not (NewSessionHotkeyId or PasteInputHotkeyId or ClearInputHotkeyId or SendInputHotkeyId or ShortcutsPanelHotkeyId)) return false;
         EnsureHoverAiPanel();

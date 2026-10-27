@@ -37,11 +37,16 @@ internal static class HoverModeChecks
                 "Locate must outline the hotspot without opening the AI panel.");
             Require(launcher.AnchorFrameColorForTests == Colors.White, "First locate uses its default white color");
             launcher.ShowHoverAnchorFrame();
+            var firstLocateBounds = launcher.AnchorBoundsForTests;
             Require(launcher.AnchorFrameColorForTests == (Color)ColorConverter.ConvertFromString("#F97316"), "Second locate within 2s uses the second color");
             Pump(220); Require(!launcher.AnchorFrameVisibleForTests, "Second locate flash hides promptly");
             launcher.ShowHoverAnchorFrame();
             Require(launcher.AnchorIconVisibleForTests && launcher.AnchorOpacityForTests == 1 && launcher.HoverPanelForTests?.IsVisible != true,
                 "Third locate shows only an opaque compact icon without opening the main bar");
+            var thirdLocateBounds = launcher.AnchorBoundsForTests;
+            Require(Math.Abs(firstLocateBounds.Left + firstLocateBounds.Width / 2 - thirdLocateBounds.Left - thirdLocateBounds.Width / 2) < .75
+                && Math.Abs(firstLocateBounds.Top + firstLocateBounds.Height / 2 - thirdLocateBounds.Top - thirdLocateBounds.Height / 2) < .75,
+                "Outline and opaque icon must share the same center before the bar has ever opened");
             Pump(1900); Require(!launcher.AnchorFrameVisibleForTests, "Third locate icon hides after its timeout");
             launcher.UpdateInvisibleHoverPointer(false, false);
             launcher.UpdateInvisibleHoverPointer(true, false);
@@ -81,6 +86,19 @@ internal static class HoverModeChecks
             panel.UpdateCompactMove(new Point(560, 530), false);
             Require(panel.Left > beforeMove.X && panel.Top > beforeMove.Y && panel.CompactBarCollapsed
                 && Math.Abs(launcher.HoverAnchorForTests.X - panel.Left - 12) < 1, "Ctrl move saves the compact icon and updates its hover anchor without opening it");
+            panel.UpdateLayout();
+            launcher.ShowHoverAnchorFrame();
+            var locateBounds = launcher.AnchorBoundsForTests;
+            var reveal = (Button)panel.FindName("CompactRevealButton");
+            var revealOffset = reveal.TranslatePoint(new Point(reveal.ActualWidth / 2, reveal.ActualHeight / 2), panel);
+            Require(Math.Abs(locateBounds.Left + locateBounds.Width / 2 - panel.Left - revealOffset.X) < .75
+                && Math.Abs(locateBounds.Top + locateBounds.Height / 2 - panel.Top - revealOffset.Y) < .75,
+                "Locate outline must stay centered on the actual compact button after moving");
+            launcher.ShowHoverAnchorFrame(); launcher.ShowHoverAnchorFrame();
+            var movedIconBounds = launcher.AnchorBoundsForTests;
+            Require(launcher.AnchorIconVisibleForTests && Math.Abs(movedIconBounds.Left + movedIconBounds.Width / 2 - panel.Left - revealOffset.X) < .75
+                && Math.Abs(movedIconBounds.Top + movedIconBounds.Height / 2 - panel.Top - revealOffset.Y) < .75,
+                "Third locate icon must also match the moved compact button center");
             ((Button)panel.FindName("CompactRevealButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Require(!panel.CompactBarCollapsed && panel.Width >= 250, "Reveal restores the action bar");
             panel.Hide(); panel.Show();
@@ -159,17 +177,21 @@ internal static class HoverModeChecks
                 "Receiving a screenshot must store it privately without showing a window or changing input text.");
             panel.ReceiveScreenshot(syntheticScreenshot);
             var status = panel.StatusWindowForTests!;
-            peer.Show();
-            WindowInterop.EnsureTopmost(peer);
+            // Use an AI sibling: hover mode intentionally hides unrelated windows,
+            // which would itself change focus during this assertion.
+            var competitor = panel.ResponseWindowForTests!;
+            var competitorWasVisible = competitor.IsVisible;
+            competitor.Show();
+            WindowInterop.EnsureTopmost(competitor);
             var foregroundBeforeDot = GetForegroundWindow();
             Pump(350);
             var statusHandle = new System.Windows.Interop.WindowInteropHelper(status).Handle;
-            var peerHandle = new System.Windows.Interop.WindowInteropHelper(peer).Handle;
+            var peerHandle = new System.Windows.Interop.WindowInteropHelper(competitor).Handle;
             var belowDot = GetWindow(statusHandle, 2); // GW_HWNDNEXT: walk down the z-order.
             while (belowDot != IntPtr.Zero && belowDot != peerHandle) belowDot = GetWindow(belowDot, 2);
             Require(belowDot == peerHandle && GetForegroundWindow() == foregroundBeforeDot,
-                "Visible dot must regain its place above another topmost window without changing focus.");
-            peer.Hide();
+                $"Visible dot must regain its place above another topmost window without changing focus: above={belowDot == peerHandle}, visible={status.IsVisible}, before={foregroundBeforeDot}, after={GetForegroundWindow()}.");
+            if (!competitorWasVisible) competitor.Hide();
             var statusChrome = (System.Windows.Controls.Border)((Grid)status.Content).Children[0];
             var dot = (System.Windows.Shapes.Ellipse)statusChrome.Child;
             Require(((SolidColorBrush)dot.Fill).Color == (Color)ColorConverter.ConvertFromString("#FACC15"), "A screenshot flashes yellow.");
@@ -451,6 +473,9 @@ internal static class HoverModeChecks
                 "Global shortcut works outside hover mode without enabling it or showing the main AI bar");
             helpHeld = false; shortcutsPanel.PollHold();
             Require(launcher.Opacity == 1 && peer.IsVisible, "Disabling must restore launcher and peer.");
+            Require(launcher.HandleAiInputShortcut(0xB00B) && panel.IsVisible
+                && ((FrameworkElement)panel.FindName("AppearancePanel")).Visibility == Visibility.Visible
+                && launcher.Opacity == 1, "Ctrl+Alt+C must open Quick AI settings directly without enabling hover mode");
             var config = new AppConfig { InvisibleHoverEnabled = true };
             config.Save();
             Require(AppConfig.Load().InvisibleHoverEnabled, "Mode preference must survive restart.");
