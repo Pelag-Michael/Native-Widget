@@ -5,6 +5,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using NativeWidget.Models;
 using NativeWidget.Services;
 
@@ -25,6 +26,7 @@ internal sealed class HoverAiFloatingPanel : Window
     private bool _editing;
     private double _frameHeight;
     private bool _screenshotFlash;
+    private readonly DispatcherTimer? _statusTopmostTimer;
     public void SetScreenshotFlash(bool flash) => _screenshotFlash = flash;
     private readonly TextBlock _label = new() { FontSize = 10, Opacity = .65 };
     private readonly TextBlock _answer = new() { TextWrapping = TextWrapping.Wrap };
@@ -43,6 +45,19 @@ internal sealed class HoverAiFloatingPanel : Window
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         _ = new HoverDwellController(this, _ => config.HoverAiDwellButtons);
         Topmost = true; ShowInTaskbar = false; ShowActivated = false; Cursor = Cursors.Arrow; ForceCursor = true;
+        if (status)
+        {
+            // The taskbar is also topmost and can move ahead of an already-visible dot.
+            // Reassert only while visible, without activating or moving the window.
+            _statusTopmostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _statusTopmostTimer.Tick += (_, _) => WindowInterop.EnsureTopmost(this);
+            IsVisibleChanged += (_, _) =>
+            {
+                if (IsVisible) { WindowInterop.EnsureTopmost(this); _statusTopmostTimer.Start(); }
+                else _statusTopmostTimer.Stop();
+            };
+            Closed += (_, _) => _statusTopmostTimer.Stop();
+        }
         ResizeMode = ResizeMode.NoResize;
         Width = status ? 28 : Math.Clamp(IsInput ? config.HoverAiFollowUpWidth : config.HoverAiResponseWidth, 12, 32000);
         Height = status ? 28 : Math.Clamp(IsInput ? config.HoverAiFollowUpHeight : config.HoverAiResponseHeight, 12, 32000);

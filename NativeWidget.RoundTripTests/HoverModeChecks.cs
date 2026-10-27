@@ -149,6 +149,17 @@ internal static class HoverModeChecks
                 "Receiving a screenshot must store it privately without showing a window or changing input text.");
             panel.ReceiveScreenshot(syntheticScreenshot);
             var status = panel.StatusWindowForTests!;
+            peer.Show();
+            WindowInterop.EnsureTopmost(peer);
+            var foregroundBeforeDot = GetForegroundWindow();
+            Pump(350);
+            var statusHandle = new System.Windows.Interop.WindowInteropHelper(status).Handle;
+            var peerHandle = new System.Windows.Interop.WindowInteropHelper(peer).Handle;
+            var belowDot = GetWindow(statusHandle, 2); // GW_HWNDNEXT: walk down the z-order.
+            while (belowDot != IntPtr.Zero && belowDot != peerHandle) belowDot = GetWindow(belowDot, 2);
+            Require(belowDot == peerHandle && GetForegroundWindow() == foregroundBeforeDot,
+                "Visible dot must regain its place above another topmost window without changing focus.");
+            peer.Hide();
             var statusChrome = (System.Windows.Controls.Border)((Grid)status.Content).Children[0];
             var dot = (System.Windows.Shapes.Ellipse)statusChrome.Child;
             Require(((SolidColorBrush)dot.Fill).Color == (Color)ColorConverter.ConvertFromString("#FACC15"), "A screenshot flashes yellow.");
@@ -508,6 +519,7 @@ internal static class HoverModeChecks
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool SetCursorPos(int x, int y);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool GetCursorPos(out CursorPoint point);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);
