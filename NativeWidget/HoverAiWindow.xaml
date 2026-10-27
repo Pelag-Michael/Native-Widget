@@ -144,11 +144,12 @@
                 <TextBlock Text="Drag corners to resize; Shift + drag a corner to move." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
                 <TextBlock Text="Compact icon: hold Ctrl, enter the icon and move; release Ctrl to save." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,8"/>
                 <Expander Header="Locate colors" Style="{StaticResource CompactSettingsExpander}"><StackPanel>
-                    <TextBlock Text="Press twice within 2s: flash the second color, then hide." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,6"/>
+                    <TextBlock Text="Bấm liên tiếp trong 2s: viền lần 1 → viền lần 2 → icon ba chấm sáng 100% trong 1.8s." TextWrapping="Wrap" FontSize="10" Opacity="0.65" Margin="0,0,0,6"/>
                     <WrapPanel>
                         <Button x:Name="LocateFirstColorButton" Tag="1" Click="LocateColor_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4"><StackPanel Orientation="Horizontal"><Border x:Name="LocateFirstSwatch" Width="13" Height="13" CornerRadius="6" Margin="0,0,6,0"/><TextBlock Text="First"/></StackPanel></Button>
                         <Button x:Name="LocateSecondColorButton" Tag="2" Click="LocateColor_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" Margin="5,0,0,0"><StackPanel Orientation="Horizontal"><Border x:Name="LocateSecondSwatch" Width="13" Height="13" CornerRadius="6" Margin="0,0,6,0"/><TextBlock Text="Second"/></StackPanel></Button>
                     </WrapPanel>
+                    <Button x:Name="CompactIconColorButton" Tag="3" Click="LocateColor_Click" Style="{StaticResource SecondaryBtnStyle}" Padding="7,4" HorizontalAlignment="Left" Margin="0,5,0,0"><StackPanel Orientation="Horizontal"><Border x:Name="CompactIconSwatch" Width="13" Height="13" CornerRadius="6" Margin="0,0,6,0"/><TextBlock Text="Icon ba chấm / lần 3"/></StackPanel></Button>
                     <StackPanel x:Name="LocatePicker" Visibility="Collapsed" Margin="0,8,0,0">
                         <local:ColorWheel x:Name="LocateWheel" HorizontalAlignment="Center"/>
                         <TextBlock Text="Brightness" FontSize="10" Margin="0,4,0,0"/>

@@ -574,6 +574,7 @@ public partial class HoverAiWindow : Window
             Chrome.Background = new SolidColorBrush(background);
             Foreground = new SolidColorBrush(foreground);
             ApplyLocalTheme(Chrome, foreground, background, icons);
+            CompactRevealButton.Foreground = LocateBrush(_config.HoverAiCompactIconColor, Colors.White);
             if (_panelSettings != null)
             {
                 ApplyLocalTheme(PanelAppearanceControls, foreground, background, icons);

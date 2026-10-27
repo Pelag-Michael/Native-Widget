@@ -16,7 +16,9 @@ public partial class HoverAiWindow
         {
             if (_loadingLocateColor) return;
             var value = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-            if (_locateColorPhase == 1) _config.HoverAiLocateFirstColor = value; else _config.HoverAiLocateSecondColor = value;
+            if (_locateColorPhase == 1) _config.HoverAiLocateFirstColor = value;
+            else if (_locateColorPhase == 2) _config.HoverAiLocateSecondColor = value;
+            else { _config.HoverAiCompactIconColor = value; CompactRevealButton.Foreground = LocateBrush(value, Colors.White); }
             UpdateLocateSwatches();
             _saveTimer.Stop(); _saveTimer.Start();
         };
@@ -26,6 +28,8 @@ public partial class HoverAiWindow
     {
         LocateFirstSwatch.Background = LocateBrush(_config.HoverAiLocateFirstColor, Colors.White);
         LocateSecondSwatch.Background = LocateBrush(_config.HoverAiLocateSecondColor, Colors.Orange);
+        CompactIconSwatch.Background = LocateBrush(_config.HoverAiCompactIconColor, Colors.White);
+        CompactRevealButton.Foreground = CompactIconSwatch.Background;
     }
 
     private static SolidColorBrush LocateBrush(string value, Color fallback)
@@ -36,12 +40,12 @@ public partial class HoverAiWindow
 
     private void LocateColor_Click(object sender, RoutedEventArgs e)
     {
-        _locateColorPhase = (string)((Button)sender).Tag == "1" ? 1 : 2;
+        _locateColorPhase = int.Parse((string)((Button)sender).Tag);
         _loadingLocateColor = true;
         try
         {
             LocatePicker.Visibility = Visibility.Visible;
-            LocateWheel.SetColor(LocateBrush(_locateColorPhase == 1 ? _config.HoverAiLocateFirstColor : _config.HoverAiLocateSecondColor, Colors.White).Color);
+            LocateWheel.SetColor(LocateBrush(_locateColorPhase == 1 ? _config.HoverAiLocateFirstColor : _locateColorPhase == 2 ? _config.HoverAiLocateSecondColor : _config.HoverAiCompactIconColor, Colors.White).Color);
             LocateBrightness.Value = LocateWheel.Brightness;
         }
         finally { _loadingLocateColor = false; }

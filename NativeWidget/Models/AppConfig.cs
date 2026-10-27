@@ -83,6 +83,7 @@ public class AppConfig
     public bool HoverAiShortcutsTextOnly { get; set; }
     public string HoverAiLocateFirstColor { get; set; } = "#FFFFFF";
     public string HoverAiLocateSecondColor { get; set; } = "#F97316";
+    public string HoverAiCompactIconColor { get; set; } = "#EEEEF2";
     public bool HoverAiDwellButtons { get; set; }
     public string HoverAiScreenshotFolder { get; set; } = "";
     public string HoverAiInputDotColor { get; set; } = "#4ADE80";

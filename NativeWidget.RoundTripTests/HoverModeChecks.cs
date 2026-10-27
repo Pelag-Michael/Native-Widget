@@ -39,6 +39,10 @@ internal static class HoverModeChecks
             launcher.ShowHoverAnchorFrame();
             Require(launcher.AnchorFrameColorForTests == (Color)ColorConverter.ConvertFromString("#F97316"), "Second locate within 2s uses the second color");
             Pump(220); Require(!launcher.AnchorFrameVisibleForTests, "Second locate flash hides promptly");
+            launcher.ShowHoverAnchorFrame();
+            Require(launcher.AnchorIconVisibleForTests && launcher.AnchorOpacityForTests == 1 && launcher.HoverPanelForTests?.IsVisible != true,
+                "Third locate shows only an opaque compact icon without opening the main bar");
+            Pump(1900); Require(!launcher.AnchorFrameVisibleForTests, "Third locate icon hides after its timeout");
             launcher.UpdateInvisibleHoverPointer(false, false);
             launcher.UpdateInvisibleHoverPointer(true, false);
             var panel = launcher.HoverPanelForTests!;
@@ -87,8 +91,14 @@ internal static class HoverModeChecks
             locateWheel.SetColor(Colors.Red); locateWheel.Brightness = 1;
             ((Button)panel.FindName("LocateSecondColorButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             locateWheel.SetColor(Colors.Cyan); locateWheel.Brightness = 1;
+            ((Button)panel.FindName("CompactIconColorButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            locateWheel.SetColor(Colors.Lime); locateWheel.Brightness = 1;
             launcher.ShowHoverAnchorFrame(); Require(launcher.AnchorFrameColorForTests == Colors.Red, "Locate uses the first color chosen in its color wheel");
             launcher.ShowHoverAnchorFrame(); Require(launcher.AnchorFrameColorForTests == Colors.Cyan, "Locate uses the independently chosen second color");
+            launcher.ShowHoverAnchorFrame(); Require(launcher.AnchorIconVisibleForTests && launcher.AnchorIconColorForTests == Colors.Lime,
+                "Third locate uses the separate compact icon color from its wheel");
+            Require(((SolidColorBrush)((Button)panel.FindName("CompactRevealButton")).Foreground).Color == Colors.Lime,
+                "Only the compact reveal icon receives its separate color");
             Pump(220);
             launcher.UpdateInvisibleHoverPointer(false, false);
             launcher.UpdateInvisibleHoverPointer(true, false);

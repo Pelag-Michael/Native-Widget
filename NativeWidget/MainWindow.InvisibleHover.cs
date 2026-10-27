@@ -19,6 +19,9 @@ public partial class MainWindow
     private Window? _anchorFrame;
     private readonly DispatcherTimer _anchorFrameTimer = new() { Interval = TimeSpan.FromMilliseconds(1800) };
     private DateTime _lastAnchorPress = DateTime.MinValue;
+    private int _anchorPressCount;
+    private System.Windows.Shapes.Rectangle? _anchorOutline;
+    private System.Windows.Controls.TextBlock? _anchorIcon;
     private bool _copyShortcutBusy;
     private bool _copyShortcutAvailable;
     private bool _screenshotShortcutAvailable;
@@ -45,8 +48,11 @@ public partial class MainWindow
     internal void ShowHoverAnchorFrame()
     {
         var now = DateTime.UtcNow;
-        var secondPress = _hoverModeActive && now - _lastAnchorPress <= TimeSpan.FromSeconds(2);
-        _lastAnchorPress = secondPress ? DateTime.MinValue : now;
+        _anchorPressCount = _hoverModeActive && now - _lastAnchorPress <= TimeSpan.FromSeconds(2)
+            ? _anchorPressCount % 3 + 1 : 1;
+        _lastAnchorPress = now;
+        var secondPress = _anchorPressCount == 2;
+        var thirdPress = _anchorPressCount == 3;
         if (_anchorFrame == null)
         {
             _anchorFrame = new Window
@@ -63,8 +69,23 @@ public partial class MainWindow
                 },
             };
             WindowInterop.HideFromAltTab(_anchorFrame);
+            _anchorOutline = (System.Windows.Shapes.Rectangle)_anchorFrame.Content;
+            _anchorFrame.Content = null;
+            _anchorIcon = new System.Windows.Controls.TextBlock
+            {
+                Text = "\u22EF", HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed,
+            };
+            var content = new System.Windows.Controls.Grid();
+            content.Children.Add(_anchorOutline); content.Children.Add(_anchorIcon);
+            _anchorFrame.Content = content;
         }
-        var outline = (System.Windows.Shapes.Rectangle)_anchorFrame.Content;
+        var outline = _anchorOutline!;
+        outline.Visibility = thirdPress ? Visibility.Collapsed : Visibility.Visible;
+        _anchorIcon!.Visibility = thirdPress ? Visibility.Visible : Visibility.Collapsed;
+        _anchorIcon.FontSize = _config.HoverAiBarIconSize;
+        try { _anchorIcon.Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_config.HoverAiCompactIconColor)); }
+        catch (FormatException) { _anchorIcon.Foreground = System.Windows.Media.Brushes.White; }
         var color = _hoverModeActive ? secondPress ? _config.HoverAiLocateSecondColor : _config.HoverAiLocateFirstColor : "#FFFFFF";
         try { outline.Stroke = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color)); }
         catch (FormatException) { outline.Stroke = System.Windows.Media.Brushes.White; }
@@ -74,6 +95,12 @@ public partial class MainWindow
             SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - Height);
         _anchorFrame.Width = Width;
         _anchorFrame.Height = Height;
+        if (thirdPress)
+        {
+            _anchorFrame.Left = _hoverAi?.Left ?? _config.HoverAiLeft ?? _hoverAnchor.X;
+            _anchorFrame.Top = _hoverAi?.Top ?? _config.HoverAiTop ?? _hoverAnchor.Y;
+            _anchorFrame.Width = 36; _anchorFrame.Height = 30;
+        }
         _anchorFrame.Show();
         _anchorFrame.Opacity = 1;
         WindowInterop.EnsureTopmost(_anchorFrame);
@@ -83,7 +110,10 @@ public partial class MainWindow
         _anchorFrameTimer.Start();
     }
     internal bool AnchorFrameVisibleForTests => _anchorFrame?.IsVisible == true;
-    internal System.Windows.Media.Color? AnchorFrameColorForTests => ((_anchorFrame?.Content as System.Windows.Shapes.Rectangle)?.Stroke as System.Windows.Media.SolidColorBrush)?.Color;
+    internal System.Windows.Media.Color? AnchorFrameColorForTests => (_anchorOutline?.Stroke as System.Windows.Media.SolidColorBrush)?.Color;
+    internal bool AnchorIconVisibleForTests => _anchorFrame?.IsVisible == true && _anchorIcon?.Visibility == Visibility.Visible;
+    internal double? AnchorOpacityForTests => _anchorFrame?.Opacity;
+    internal System.Windows.Media.Color? AnchorIconColorForTests => (_anchorIcon?.Foreground as System.Windows.Media.SolidColorBrush)?.Color;
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int key);
