@@ -117,6 +117,16 @@ internal static class CodexBackendChecks
             var app = new App(); app.InitializeComponent(); app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             var panel = new HoverAiWindow(new NativeWidget.Models.AppConfig()); panel.EnableCodexBackend(); panel.Show();
             SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(panel.Dispatcher));
+            var modelPicker = (System.Windows.Controls.ComboBox)panel.FindName("CodexModelPicker");
+            ((System.Windows.Controls.Expander)panel.FindName("CodexSection")).IsExpanded = true;
+            PumpUntil(() => modelPicker.Items.Count > 0, "Automatic model list");
+            Require(modelPicker.Items.Cast<string>().Contains("fixture-model"), "Opening Codex settings loads models without pressing Load models");
+            modelPicker.IsDropDownOpen = true; modelPicker.SelectedItem = "fixture-model"; modelPicker.IsDropDownOpen = false;
+            PumpUntil(() => { var saved = new NativeWidget.Models.AppConfig(); HoverAiAppearanceStore.LoadInto(saved); return saved.HoverAiCodexModel == "fixture-model"; }, "Model selection saved");
+            var selectedModelConfig = new NativeWidget.Models.AppConfig(); HoverAiAppearanceStore.LoadInto(selectedModelConfig);
+            Require(selectedModelConfig.HoverAiCodexModel == "fixture-model", "Closing the model dropdown saves the chosen model immediately");
+            modelPicker.IsDropDownOpen = true; modelPicker.Text = ""; modelPicker.IsDropDownOpen = false;
+            ((System.Windows.Controls.Expander)panel.FindName("CodexSection")).IsExpanded = false;
             var originalSystemPrompt = ((System.Windows.Controls.TextBox)panel.FindName("SystemPromptInput")).Text;
             ((System.Windows.Controls.Button)panel.FindName("PromptPresetNewButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
             ((System.Windows.Controls.TextBox)panel.FindName("PromptPresetNameInput")).Text = "Fixture format";

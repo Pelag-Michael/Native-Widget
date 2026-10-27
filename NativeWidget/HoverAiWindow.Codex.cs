@@ -11,6 +11,7 @@ public partial class HoverAiWindow
     private CancellationTokenSource? _codexCancellation;
     private Task? _codexTask;
     private bool _codexEnabled, _codexClosing, _changingChat;
+    private bool _modelsLoading;
     private int _codexGeneration;
     private readonly Queue<HoverAiSubmission> _queuedSubmissions = new();
     private long _completedQuestionRevision = -1;
@@ -24,6 +25,19 @@ public partial class HoverAiWindow
         foreach (var item in CodexEffortPicker.Items.OfType<ComboBoxItem>())
             if ((string)item.Content == _config.HoverAiCodexEffort) CodexEffortPicker.SelectedItem = item;
         CodexModelPicker.LostKeyboardFocus += (_, _) => SaveCodexSelection();
+        // Editable ComboBox.Text updates after SelectionChanged/DropDownClosed.
+        // Save on the next dispatcher turn so the new selection reaches storage.
+        CodexModelPicker.DropDownClosed += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (_ready && !_codexClosing) SaveCodexSelection(); }));
+        CodexModelPicker.SelectionChanged += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (_ready && !_codexClosing) SaveCodexSelection(); }));
+        CodexModelPicker.DropDownOpened += async (_, _) =>
+        {
+            if (_codexEnabled && CodexModelPicker.Items.Count == 0) await LoadModelsAsync();
+        };
+        CodexSection.Expanded += async (_, e) =>
+        {
+            if (e.OriginalSource == CodexSection && _codexEnabled && CodexModelPicker.Items.Count == 0)
+                await LoadModelsAsync();
+        };
         CodexEffortPicker.SelectionChanged += (_, _) => { if (_ready) SaveCodexSelection(); };
     }
     private void SystemPrompt_Changed(object sender, TextChangedEventArgs e)
@@ -51,20 +65,28 @@ public partial class HoverAiWindow
         if (_ready) SavePreferences();
     }
     private async void LoadModels_Click(object sender, RoutedEventArgs e)
+        => await LoadModelsAsync();
+    private async Task LoadModelsAsync()
     {
+        if (_modelsLoading || _codexClosing) return;
+        _modelsLoading = true;
         var generation = _codexGeneration;
         LoadModelsButton.IsEnabled = false;
+        CodexStatus.Text = "Đang tải danh sách model…";
         try
         {
-            var selected = CodexModelPicker.Text;
-            var models = await (_codex ??= new CodexAppServerClient()).GetModelsAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var models = await (_codex ??= new CodexAppServerClient()).GetModelsAsync(timeout.Token);
             if (_codexClosing || generation != _codexGeneration) return;
+            var selected = CodexModelPicker.Text; // Keep edits made while the request was loading.
             CodexModelPicker.ItemsSource = models.Select(model => model.Id).ToArray();
             CodexModelPicker.Text = selected;
-            CodexStatus.Text = "Ready · " + (models.FirstOrDefault(m => m.IsDefault)?.Id ?? "Codex");
+            CodexStatus.Text = models.Count == 0 ? "Chưa có model. Thử tải lại hoặc nhập tên model."
+                : "Mặc định: " + (models.FirstOrDefault(m => m.IsDefault)?.Id ?? "Codex");
         }
+        catch (OperationCanceledException) { if (!_codexClosing && generation == _codexGeneration) CodexStatus.Text = "Tải model quá lâu. Bấm Load models để thử lại."; }
         catch (Exception ex) { if (!_codexClosing && generation == _codexGeneration) CodexStatus.Text = ex.Message; }
-        finally { if (!_codexClosing) LoadModelsButton.IsEnabled = true; }
+        finally { _modelsLoading = false; if (!_codexClosing) LoadModelsButton.IsEnabled = true; }
     }
     private void QueueSubmission(HoverAiSubmission request)
     {
