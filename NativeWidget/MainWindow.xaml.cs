@@ -1000,4 +1000,13 @@ public partial class MainWindow : Window
             btn.Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x8A, 0x93));
         }
     }
+
+    private void GlobalEndTask_Click(object sender, RoutedEventArgs e)
+    {
+        WindowToolsPopup.IsOpen = false;
+        WindowSessionService.CaptureForShutdown();
+        // Normal WPF shutdown runs editor/preferences close handlers and disposes
+        // this app's AI worker. Close all deliberately only hides widget windows.
+        Application.Current.Shutdown();
+    }
 }

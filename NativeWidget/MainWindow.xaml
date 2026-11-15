@@ -127,6 +127,15 @@
                         </Grid>
                     </Border>
 
+                    <Button x:Name="GlobalEndTaskBtn" Click="GlobalEndTask_Click" Margin="0,8,0,0"
+                            Style="{StaticResource SecondaryBtnStyle}" Foreground="#F08B87" Padding="8,7"
+                            ToolTip="Save and exit NativeWidget completely">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="&#xE7E8;" FontFamily="Segoe MDL2 Assets" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="End task" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
                     <Grid Margin="2,10,2,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
                         <TextBlock Text="&#xE706;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource MutedBrush}"
