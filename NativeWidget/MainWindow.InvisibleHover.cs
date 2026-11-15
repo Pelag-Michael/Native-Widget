@@ -284,7 +284,7 @@ public partial class MainWindow
     {
         foreach (var window in Application.Current.Windows.Cast<Window>().ToArray())
         {
-            if (!window.IsVisible || window == this || window == _hoverAi || window == _anchorFrame || _hoverAi?.OwnsAuxiliaryWindow(window) == true ||
+            if (!window.IsVisible || window == this || window == _hoverAi || window == _anchorFrame || window == _routineWindow || (_routineWindow != null && window.Owner == _routineWindow) || _hoverAi?.OwnsAuxiliaryWindow(window) == true ||
                 (_hoverSettingsOpen && window == _settingsWindow)) continue;
             _hoverHiddenWindows.Add(window);
             WindowSessionService.SetTemporarilyHidden(window, true);

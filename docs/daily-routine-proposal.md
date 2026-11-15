@@ -1,6 +1,6 @@
 # Morning routine / What to do today
 
-Proposal only: this feature is not implemented yet.
+Original design proposal. See [native-routine.md](native-routine.md) for the implemented native controls and behavior.
 
 ## Daily experience
 
@@ -8,7 +8,7 @@ Proposal only: this feature is not implemented yet.
 - At that time, bring up one daily board over a dimmed desktop. Start NativeWidget if it is not running; reuse the existing instance if it is.
 - The board contains only the selected calendar day's routine. The default view is today, not a full seven-day table.
 - Left: a compact chronological timeline with start/end times and the existing WORK, GROW, PLAY, sinh hoạt and Swinburne colors. Highlight the current and next block.
-- Right: “What to do today”, with checkboxes grouped under the same routine blocks. Example: Tuesday's morning Swinburne block can contain “Mang laptop” and “Đọc tài liệu trước giờ học”.
+- Right: “What to do today”, with checkboxes grouped under the same routine blocks. For example, a study block can contain “Prepare materials” and “Review notes”.
 - Completed items stay checked for that date; tomorrow gets its own progress. Unfinished items do not silently migrate to another day.
 - Actions: “Bắt đầu ngày”, “Nhắc lại 10 phút”, “Bỏ qua hôm nay”. Esc dismisses immediately. The normal widget remains usable after dismissing.
 - Dim level and whether to dim all monitors are settings. Start with 55% black on the active monitor, without sound. Do not change Windows brightness or other apps' opacity.
@@ -32,13 +32,11 @@ Proposal only: this feature is not implemented yet.
 
 ## Source observations
 
-Source: `C:\Users\haivo\Downloads\routine-a3-tuan.html`.
+Personal routine data is stored only in the local application's data directory. Public demos and tests use generic examples.
 
-- `DEFAULT_SCHEDULE` has 45 blocks across seven weekdays, generally 06:00–23:00.
-- Tuesday: Swinburne 08:00–11:30 and 13:30–16:30. Wednesday's data: Swinburne 17:00–20:30. Friday: Swinburne 10:30–12:30.
-- The prose notes mention a Thursday evening class, which conflicts with Wednesday's actual schedule data. Import should flag the conflict, not silently choose a new time.
-- Browser edits are saved to localStorage key `mich_routine_a3_state_v6`; reading the HTML alone imports its embedded defaults, not necessarily the currently edited browser state. Offer JSON import/export or an explicit export from the browser before migration.
-- WORK/GROW blocks describe categories, not concrete tasks. The checklist editor is needed to supply actual work items; do not invent daily tasks from those labels.
+- An HTML source can contain a different default schedule from its browser's edited localStorage state. Offer JSON import/export or an explicit export from the browser before migration.
+- Category blocks alone are not concrete tasks. The checklist editor supplies actual work items.
+- Conflicts between a source's notes and its structured times should be flagged for the user.
 
 ## Suggested first version
 

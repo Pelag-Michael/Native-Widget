@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         ["BtnTranslate"] = ("Translate", null, null),
         ["BtnLabels"] = ("Labels", null, null),
         ["BtnSettings"] = ("Settings", null, null),
+        ["BtnRoutine"] = ("Daily routine", null, null),
         ["BtnWindowTools"] = ("Window tools", null, "Pin, ghost, shelf, opacity for open widgets"),
     };
 
@@ -53,6 +54,7 @@ public partial class MainWindow : Window
     private const int NewSessionHotkeyId = 0xB006, PasteInputHotkeyId = 0xB007, ClearInputHotkeyId = 0xB008, SendInputHotkeyId = 0xB009;
     private const int ShortcutsPanelHotkeyId = 0xB00A;
     private const int QuickAiSettingsHotkeyId = 0xB00B;
+    private const int RoutineHotkeyId = 0xB00C;
     private const uint ModAlt = 0x1, ModControl = 0x2;
     private const uint VkG = 0x47;
     private const uint VkLeft = 0x25;
@@ -159,6 +161,7 @@ public partial class MainWindow : Window
             RegisterLocateShortcut();
             RegisterHotKey(hwnd, SearchHotkeyId, ModControl | ModAlt, VkK);
             RegisterShortcutsPanelHotkey(hwnd);
+            RegisterHotKey(hwnd,RoutineHotkeyId,ModControl|ModAlt|0x4000,0x52);
             var settingsRegistered = RegisterHotKey(hwnd, QuickAiSettingsHotkeyId, ModControl | ModAlt | 0x4000, 0x43);
             try { System.IO.File.AppendAllText(AppConfig.TokenPath("hotkey-status.log"), $"Ctrl+Alt+C settings registered={settingsRegistered}\n"); }
             catch (System.IO.IOException) { }
@@ -177,6 +180,7 @@ public partial class MainWindow : Window
         };
         Closed += (_, _) =>
         {
+            _routineWindow?.Dispose();
             _windowToolsCloseTimer.Stop();
             _topmostGuardTimer.Stop();
             _shelf?.Clear();
@@ -188,6 +192,7 @@ public partial class MainWindow : Window
             UnregisterHotKey(hwnd, ScreenshotHotkeyId);
             UnregisterHotKey(hwnd, ShortcutsPanelHotkeyId);
             UnregisterHotKey(hwnd, QuickAiSettingsHotkeyId);
+            UnregisterHotKey(hwnd,RoutineHotkeyId);
             UnregisterAiInputShortcuts(hwnd);
         };
         Closing += (_, _) => WindowSessionService.CaptureForShutdown();
@@ -215,6 +220,7 @@ public partial class MainWindow : Window
 
     private IntPtr HotkeyHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if(msg==WmHotkey&&wParam.ToInt32()==RoutineHotkeyId){ShowRoutine();handled=true;return IntPtr.Zero;}
         if (msg == WmHotkey && wParam.ToInt32() == HotkeyId)
         {
             UnghostAll();

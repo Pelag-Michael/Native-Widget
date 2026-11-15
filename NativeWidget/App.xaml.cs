@@ -31,6 +31,8 @@ public partial class App : Application
         _instanceLock = new Mutex(true, mutexName, out var createdNew);
         if (!createdNew)
         {
+            if(e.Args.Contains("--daily-brief")||e.Args.Contains("--routine"))
+            {RoutineReminderService.Send(e.Args.Contains("--routine")?"show":"due");Shutdown();return;}
             // Another copy is already running - surface the launcher instead of stacking
             // a second one on top of it.
             var existing = FindWindow(null, "Widgets");
@@ -44,7 +46,13 @@ public partial class App : Application
         }
 
         TimerNotifier.Start();
+        RoutineReminderService.Start();
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle,new Action(()=>
+        {if(MainWindow is MainWindow main){if(e.Args.Contains("--routine"))main.ShowRoutine();else main.CheckRoutineReminder(DateTime.Now);}}));
     }
+
+    protected override void OnExit(ExitEventArgs e)
+    {RoutineReminderService.Stop();base.OnExit(e);}
 
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
     {

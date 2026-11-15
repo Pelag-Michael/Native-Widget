@@ -34,6 +34,7 @@ public sealed class WidgetShortcutsView : UserControl
             ("Kéo góc", "Đổi kích thước"),
             ("Hover 1.5s", "Mở thanh / chạy nút"),
             ("Ctrl + Alt + F", "Find original launcher (Invisible hover off)"),
+            ("Ctrl + Alt + R", "Open daily routine"),
             ("Ctrl + Alt + K", "Open workspace / folder search"),
             ("Ctrl + Alt + G", "Restore clicking on ghosted widgets"),
             ("Ctrl + S", "Save note and sync to Notion (Notes)"),
