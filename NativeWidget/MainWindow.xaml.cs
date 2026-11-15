@@ -499,6 +499,7 @@ public partial class MainWindow : Window
 
     private void HideLauncher()
     {
+        if(_routineMenuPinned&&_routineWindow?.IsVisible==true)return;
         _launcherCloseTimer.Stop();
         HideLauncherHint();
         if (WindowToolsPopup.IsOpen) return;

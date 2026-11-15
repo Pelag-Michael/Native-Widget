@@ -22,6 +22,10 @@ internal sealed partial class RoutineWindow : Window
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly DispatcherTimer _snoozeTimer = new();
     private DayOfWeek _day = DateTime.Today.DayOfWeek;
+    private IReadOnlyList<RoutineReminder>? _reminderView;
+    internal bool IsEditingSettings { get; private set; }
+    internal List<RoutineBlock> VisibleBlocks => _data.Week[_day].Where(b=>_reminderView==null||_reminderView.Any(r=>r.WholeDay||r.BlockIds.Contains(b.Id)||b.Tasks.Any(t=>r.TaskIds.Contains(t.Id)))).ToList();
+    internal List<RoutineTask> VisibleTasks(RoutineBlock block) => block.Tasks.Where(t=>_reminderView==null||_reminderView.Any(r=>r.WholeDay||r.BlockIds.Contains(block.Id)||r.TaskIds.Contains(t.Id))).ToList();
     private readonly Dictionary<string, BitmapImage> _imageCache = new();
     private bool _disposing;
     internal RoutineData DataForTests => _data;
@@ -35,21 +39,23 @@ internal sealed partial class RoutineWindow : Window
     internal RoutineWindow(RoutineData data)
     {
         foreach(var day in RoutineStore.Days)data.Week.TryAdd(day,new());
+        RoutineStore.UpgradeReminders(data);
         _data = data; Title = "Daily plan"; WindowStyle = WindowStyle.None; AllowsTransparency = true;
         Background = Brushes.Transparent; Topmost = true; ShowInTaskbar = false; ResizeMode = ResizeMode.NoResize;
         FontFamily = new FontFamily("Segoe UI"); Foreground = Text;
         _board.Background = Bg; _board.BorderBrush = Line; _view.Child = _board;
         _root.Children.Add(_dim); _root.Children.Add(_cards); _root.Children.Add(_view); Content = _root;
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); Flush(); };
-        _snoozeTimer.Tick += (_, _) => { _snoozeTimer.Stop(); ShowPlan(); };
+        _snoozeTimer.Tick += (_, _) => { _snoozeTimer.Stop(); ShowPlan(_reminderView); };
         Loaded += (_, _) => LayoutBoard(); SizeChanged += (_, _) => LayoutBoard();
         Closing += (_, e) => { Flush(); if (!_disposing) { e.Cancel = true; Hide(); } };
         Closed += (_, _) => { _saveTimer.Stop(); _snoozeTimer.Stop(); _imageCache.Clear(); };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { Hide(); e.Handled = true; } };
         WindowInterop.HideFromAltTab(this); BuildDay();
     }
-    internal void ShowPlan()
+    internal void ShowPlan(IReadOnlyList<RoutineReminder>? reminders=null)
     {
+        _reminderView=reminders;
         _snoozeTimer.Stop(); _day = DateTime.Today.DayOfWeek;
         Left = SystemParameters.VirtualScreenLeft; Top = SystemParameters.VirtualScreenTop;
         Width = SystemParameters.VirtualScreenWidth; Height = SystemParameters.VirtualScreenHeight;
@@ -84,30 +90,33 @@ internal sealed partial class RoutineWindow : Window
     }
     private void BuildDay()
     {
-        var grid = Shell(_day == DateTime.Today.DayOfWeek ? "Today" : _day.ToString(), Button("Week ↗",OpenWeek),Button("Settings",()=>BuildSettings()),Button("×",Hide));
+        IsEditingSettings=false;
+        var fullDay=Button("Full day",()=>{_reminderView=null;BuildDay();});fullDay.Visibility=_reminderView==null?Visibility.Collapsed:Visibility.Visible;
+        var grid = Shell(_reminderView!=null?"Selected tasks":_day == DateTime.Today.DayOfWeek ? "Today" : _day.ToString(),fullDay, Button("Week ↗",OpenWeek),Button("Settings",()=>BuildSettings()),Button("×",Hide));
         var body = new Grid(); body.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });body.RowDefinitions.Add(new RowDefinition());Grid.SetRow(body,1);grid.Children.Add(body);
         var daybar = new DockPanel { Margin = new Thickness(25,0,25,14) };
         var date=Label(SelectedDate.ToString("dddd, d MMMM",CultureInfo.GetCultureInfo("en-GB")),12,Muted);DockPanel.SetDock(date,Dock.Right);daybar.Children.Add(date);
         var days=Horizontal();foreach(var day in RoutineStore.Days){var selected=day;var b=Button(day.ToString()[..3],()=>{_day=selected;BuildDay();});if(day==_day)b.Foreground=Accent;days.Children.Add(b);}daybar.Children.Add(days);body.Children.Add(daybar);
         var columns=new Grid();columns.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(47,GridUnitType.Star) });columns.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(53,GridUnitType.Star) });Grid.SetRow(columns,1);body.Children.Add(columns);
-        var timeline=Timeline(_data.Week[_day],390,40);var schedule=Scroll(timeline);schedule.Margin=new Thickness(23,8,16,10);columns.Children.Add(schedule);
-        var tasks=new StackPanel { Margin=new Thickness(20,8,25,12) };var total=_data.Week[_day].Sum(b=>b.Tasks.Count);var done=_data.Week[_day].SelectMany(b=>b.Tasks).Count(t=>_data.Completed.GetValueOrDefault(TaskKey(t.Id)));
+        var blocks=VisibleBlocks;
+        var timeline=Timeline(blocks,390,40);var schedule=Scroll(timeline);schedule.Margin=new Thickness(23,8,16,10);columns.Children.Add(schedule);
+        var tasks=new StackPanel { Margin=new Thickness(20,8,25,12) };var total=blocks.Sum(b=>VisibleTasks(b).Count);var done=blocks.SelectMany(VisibleTasks).Count(t=>_data.Completed.GetValueOrDefault(TaskKey(t.Id)));
         var progress=Label($"{done} / {total}",11,Muted);var head=new DockPanel { Margin=new Thickness(0,0,0,20) };var edit=Button("Edit",()=>BuildSettings("Routine"));DockPanel.SetDock(edit,Dock.Right);head.Children.Add(edit);DockPanel.SetDock(progress,Dock.Right);head.Children.Add(progress);head.Children.Add(Label("To do",16));tasks.Children.Add(head);
-        if(_data.Week[_day].Count==0)tasks.Children.Add(Label("Add your routine in Settings → Routine.",14,Muted));
-        foreach(var block in _data.Week[_day])
+        if(blocks.Count==0)tasks.Children.Add(Label(_reminderView==null?"Add your routine in Settings → Routine.":"No selected tasks for this day.",14,Muted));
+        foreach(var block in blocks)
         {
             var group=new StackPanel { Margin=new Thickness(0,0,0,22) };group.Children.Add(Label(block.Start+"   "+block.Title,11,Brush(ColorFor(block.Category))));
-            foreach(var task in block.Tasks)
+            foreach(var task in VisibleTasks(block))
             {
                 var check=new CheckBox { Content=Label(task.Text,13),IsChecked=_data.Completed.GetValueOrDefault(TaskKey(task.Id)),Margin=new Thickness(0,9,0,0),Foreground=Text };
-                check.Click+=(_,_)=>{_data.Completed[TaskKey(task.Id)]=check.IsChecked==true;Save();var checks=_data.Week[_day].SelectMany(b=>b.Tasks);progress.Text=$"{checks.Count(t=>_data.Completed.GetValueOrDefault(TaskKey(t.Id)))} / {total}";};group.Children.Add(check);
+                check.Click+=(_,_)=>{_data.Completed[TaskKey(task.Id)]=check.IsChecked==true;Save();var checks=blocks.SelectMany(VisibleTasks);progress.Text=$"{checks.Count(t=>_data.Completed.GetValueOrDefault(TaskKey(t.Id)))} / {total}";};group.Children.Add(check);
             }
             var input=Input();input.Width=285;input.ToolTip="Add task";
             void Add(){if(string.IsNullOrWhiteSpace(input.Text))return;block.Tasks.Add(new RoutineTask { Text=input.Text.Trim() });Save();BuildDay();}
-            input.KeyDown+=(_,e)=>{if(e.Key==Key.Enter){Add();e.Handled=true;}};group.Children.Add(Horizontal(input,Button("+",Add)));tasks.Children.Add(group);
+            input.KeyDown+=(_,e)=>{if(e.Key==Key.Enter){Add();e.Handled=true;}};if(_reminderView==null)group.Children.Add(Horizontal(input,Button("+",Add)));tasks.Children.Add(group);
         }
         var taskScroll=Scroll(tasks);Grid.SetColumn(taskScroll,1);columns.Children.Add(taskScroll);
-        var footer=new DockPanel { Margin=new Thickness(22,12,22,15) };var actions=Horizontal(Button("Dismiss",Hide),Button("Snooze 10m",()=>{Hide();_snoozeTimer.Interval=TimeSpan.FromMinutes(10);_snoozeTimer.Start();}),Button("Start day ↗",Hide,true));DockPanel.SetDock(actions,Dock.Right);footer.Children.Add(actions);footer.Children.Add(Label(_data.ReminderTime,12,Muted));Grid.SetRow(footer,2);grid.Children.Add(footer);_board.Child=grid;
+        var footer=new DockPanel { Margin=new Thickness(22,12,22,15) };var actions=Horizontal(Button("Dismiss",Hide),Button("Snooze 10m",()=>{Hide();_snoozeTimer.Interval=TimeSpan.FromMinutes(10);_snoozeTimer.Start();}),Button("Start day ↗",Hide,true));DockPanel.SetDock(actions,Dock.Right);footer.Children.Add(actions);footer.Children.Add(Label(string.Join(" · ",_data.Reminders!.Where(r=>r.Enabled).Select(r=>r.Time)),12,Muted));Grid.SetRow(footer,2);grid.Children.Add(footer);_board.Child=grid;
     }
     private Canvas Timeline(List<RoutineBlock> blocks,double width,double hour,bool week=false)
     {
@@ -148,24 +157,28 @@ internal sealed partial class RoutineWindow : Window
     }
     private void RenderCards()
     {
-        _cards.Children.Clear();var placements=RoutineCardLayout.Place(new Size(Math.Max(1,ActualWidth),Math.Max(1,ActualHeight)),BoardBoundsForTests,_data.Cards.Count,_data.LayoutSeed);
+        _cards.Children.Clear();
         var random=new Random(_data.LayoutSeed);var ordered=_data.Cards.OrderBy(_=>random.Next()).ToArray();
+        var aspects=ordered.Select(card=>{try{if(!string.IsNullOrEmpty(card.ImageFile)){var image=Image(card.ImageFile);return 1/(.92/(image.PixelWidth/(double)image.PixelHeight)+.30);}}catch{}return 1.1;}).ToArray();
+        var placements=RoutineCardLayout.Place(new Size(Math.Max(1,ActualWidth),Math.Max(1,ActualHeight)),BoardBoundsForTests,_data.Cards.Count,_data.LayoutSeed,aspects);
         for(var i=0;i<placements.Count;i++)
         {
-            var card=ordered[i];var p=placements[i];var content=new Grid();content.RowDefinitions.Add(new RowDefinition());
-            var captionHeight=string.IsNullOrEmpty(card.ImageFile)?0:Math.Max(12,p.Bounds.Height*.23);content.RowDefinitions.Add(new RowDefinition { Height=new GridLength(captionHeight) });
+            var card=ordered[i];var p=placements[i];var bounds=p.Bounds;BitmapImage? photo=null;
+            if(!string.IsNullOrEmpty(card.ImageFile))try{photo=Image(card.ImageFile);bounds=RoutineCardLayout.FitPhoto(bounds,photo.PixelWidth/(double)photo.PixelHeight);}catch{}
+            var content=new Grid();content.RowDefinitions.Add(new RowDefinition());
+            var captionHeight=string.IsNullOrEmpty(card.ImageFile)?0:bounds.Width*.22;content.RowDefinitions.Add(new RowDefinition { Height=new GridLength(captionHeight) });
             if(!string.IsNullOrEmpty(card.ImageFile))
             {
-                try{content.Children.Add(new System.Windows.Controls.Image { Source=Image(card.ImageFile),Stretch=Stretch.Uniform });}
-                catch{content.Children.Add(Label("Image unavailable",10,Bg));}
+                if(photo!=null)content.Children.Add(new System.Windows.Controls.Image { Source=photo,Stretch=Stretch.Uniform });
+                else content.Children.Add(Label("Image unavailable",10,Bg));
                 var caption=Label(card.Caption,18,Brush(card.CaptionColor));caption.FontFamily=new FontFamily(card.CaptionFont);caption.TextAlignment=TextAlignment.Center;caption.Margin=new Thickness(2,3,2,0);var fit=new Viewbox { Child=caption,Stretch=Stretch.Uniform,StretchDirection=StretchDirection.DownOnly };Grid.SetRow(fit,1);content.Children.Add(fit);
             }
             else
             {
                 var text=Label(card.Text,18,Brush(card.CaptionColor));text.Width=210;text.FontFamily=new FontFamily(card.CaptionFont);content.Children.Add(new Viewbox { Child=text,Stretch=Stretch.Uniform,StretchDirection=StretchDirection.DownOnly });
             }
-            var border=new Border { Width=p.Bounds.Width,Height=p.Bounds.Height,Background=Brush(card.FrameColor),Padding=new Thickness(Math.Max(1,p.Bounds.Width*.04)),Child=content,RenderTransformOrigin=new Point(.5,.5),RenderTransform=new RotateTransform(p.Angle),ClipToBounds=true };
-            Canvas.SetLeft(border,p.Bounds.Left);Canvas.SetTop(border,p.Bounds.Top);_cards.Children.Add(border);
+            var border=new Border { Width=bounds.Width,Height=bounds.Height,Background=Brush(card.FrameColor),Padding=new Thickness(bounds.Width*.04),Child=content,RenderTransformOrigin=new Point(.5,.5),RenderTransform=new RotateTransform(p.Angle),ClipToBounds=true };
+            Canvas.SetLeft(border,bounds.Left);Canvas.SetTop(border,bounds.Top);_cards.Children.Add(border);
         }
         _cards.Measure(new Size(ActualWidth,ActualHeight));
         _cards.Arrange(new Rect(0,0,ActualWidth,ActualHeight));

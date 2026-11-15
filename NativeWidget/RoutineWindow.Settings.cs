@@ -14,6 +14,7 @@ internal sealed partial class RoutineWindow
 {
     private void BuildSettings(string selected = "General")
     {
+        IsEditingSettings=true;
         var grid=Shell("Settings",Button("Back",BuildDay));var tabs=new TabControl { Margin=new Thickness(22,0,22,18),Background=Bg,Foreground=Text,BorderBrush=Line };Grid.SetRow(tabs,1);grid.Children.Add(tabs);
         var tabStyle=new Style(typeof(TabItem));var border=new FrameworkElementFactory(typeof(Border));border.Name="TabChrome";border.SetValue(Border.BackgroundProperty,Bg);border.SetValue(Border.BorderBrushProperty,Line);border.SetValue(Border.BorderThicknessProperty,new Thickness(0,0,0,2));border.SetValue(Border.PaddingProperty,new Thickness(13,8,13,8));
         var presenter=new FrameworkElementFactory(typeof(ContentPresenter));presenter.SetValue(ContentPresenter.ContentSourceProperty,"Header");border.AppendChild(presenter);var template=new ControlTemplate(typeof(TabItem)){VisualTree=border};var trigger=new Trigger{Property=TabItem.IsSelectedProperty,Value=true};trigger.Setters.Add(new Setter(Border.BorderBrushProperty,Accent,"TabChrome"));template.Triggers.Add(trigger);tabStyle.Setters.Add(new Setter(Control.TemplateProperty,template));tabs.Resources[typeof(TabItem)]=tabStyle;
@@ -21,17 +22,7 @@ internal sealed partial class RoutineWindow
         general.Children.Add(Label("Table scale",14));var scale=new Slider { Minimum=.35,Maximum=1.4,Value=_data.Scale,TickFrequency=.05,IsSnapToTickEnabled=true,Margin=new Thickness(0,10,0,5) };var scaleLabel=Label($"{_data.Scale:P0}",12,Muted);
         scale.ValueChanged+=(_,_)=>{SetTableScale(scale.Value);scaleLabel.Text=$"{scale.Value:P0}";};general.Children.Add(scale);general.Children.Add(scaleLabel);general.Children.Add(Label("Fits to the display so the background cards stay visible.",11,Muted));
         general.Children.Add(Label("Background dimming",14));var dim=new Slider { Minimum=0,Maximum=.9,Value=_data.Dim,Margin=new Thickness(0,10,0,20) };dim.ValueChanged+=(_,_)=>{_data.Dim=dim.Value;LayoutBoard();Save();};general.Children.Add(dim);
-        var enabled=new CheckBox { Content="Morning reminder",IsChecked=_data.ReminderEnabled,Foreground=Text,Margin=new Thickness(0,16,0,5) };var time=Input(_data.ReminderTime,100);general.Children.Add(enabled);
-        general.Children.Add(Horizontal(time,Button("Save reminder",()=>
-        {
-            try
-            {
-                if(RoutineStore.Minute(time.Text)>=1440)throw new InvalidDataException("Use a time before midnight.");
-                RoutineReminderService.Configure(enabled.IsChecked==true,time.Text);
-                _data.ReminderEnabled=enabled.IsChecked==true;_data.ReminderTime=time.Text;Flush();MessageBox.Show(this,"Reminder saved.","Routine");
-            }
-            catch(Exception ex){MessageBox.Show(this,ex.Message,"Reminder could not be saved");}
-        })));
+        general.Children.Add(ReminderSettings());
         general.Children.Add(Label("Starts the widget at the chosen local time while you are signed in. Missed reminders appear after unlock within four hours. A powered-off PC cannot show a reminder.",12,Muted));
         general.Children.Add(Button("Import routine JSON",()=>
         {
@@ -59,14 +50,14 @@ internal sealed partial class RoutineWindow
                 entry.Children.Add(Horizontal(start,end,title,Button("Remove",()=>{working.Remove(block);Render();})));
                 var cat=new ComboBox { ItemsSource=new[]{"work","grow","play","frame","study"},SelectedItem=block.Category,Width=140,HorizontalAlignment=HorizontalAlignment.Left,Margin=new Thickness(3) };cat.SelectionChanged+=(_,_)=>block.Category=(string)cat.SelectedItem;entry.Children.Add(cat);
                 var tasks=Input(string.Join("\n",block.Tasks.Select(t=>t.Text)));tasks.AcceptsReturn=true;tasks.TextWrapping=TextWrapping.Wrap;tasks.MinHeight=62;tasks.ToolTip="One task per line";
-                tasks.TextChanged+=(_,_)=>{var previous=block.Tasks;block.Tasks=tasks.Text.Split('\n').Select(t=>t.Trim()).Where(t=>t.Length>0).Select(text=>new RoutineTask { Id=previous.FirstOrDefault(t=>t.Text==text)?.Id??Guid.NewGuid().ToString("N"),Text=text }).ToList();};entry.Children.Add(tasks);rows.Children.Add(entry);
+                tasks.TextChanged+=(_,_)=>block.Tasks=RoutineStore.EditTaskLines(block.Tasks,tasks.Text);entry.Children.Add(tasks);rows.Children.Add(entry);
             }
         }
         dayPicker.SelectionChanged+=(_,_)=>LoadDay();panel.Children.Add(dayPicker);panel.Children.Add(Label("Start · End · Title. Checklist: one task per line. Save before switching days.",11,Muted));panel.Children.Add(rows);
         panel.Children.Add(Horizontal(Button("+ Add block",()=>{working.Add(new RoutineBlock());Render();}),Button("Save routine",()=>
         {
-            var day=(DayOfWeek)dayPicker.SelectedItem;var old=_data.Week[day];_data.Week[day]=working;
-            try{RoutineStore.Validate(_data);_data.Week[day]=working.OrderBy(b=>RoutineStore.Minute(b.Start)).ToList();Flush();MessageBox.Show(this,"Routine saved.","Routine");}
+            var day=(DayOfWeek)dayPicker.SelectedItem;var old=_data.Week[day];_data.Week[day]=JsonSerializer.Deserialize<List<RoutineBlock>>(JsonSerializer.Serialize(working))!;
+            try{RoutineStore.Validate(_data);_data.Week[day]=_data.Week[day].OrderBy(b=>RoutineStore.Minute(b.Start)).ToList();Flush();MessageBox.Show(this,"Routine saved.","Routine");}
             catch(Exception ex){_data.Week[day]=old;MessageBox.Show(this,ex.Message,"Check routine");}
         },true)));
         LoadDay();return Scroll(panel);

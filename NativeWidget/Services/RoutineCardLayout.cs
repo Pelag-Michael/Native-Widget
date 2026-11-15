@@ -5,8 +5,17 @@ namespace NativeWidget.Services;
 internal sealed record RoutineCardPlacement(Rect Bounds, double Angle);
 internal static class RoutineCardLayout
 {
+    internal static Rect FitPhoto(Rect slot,double imageAspect)
+    {
+        if(!double.IsFinite(imageAspect)||imageAspect<=0)imageAspect=1;
+        // Image width is 92% of the frame. Two thin borders use 8% of its
+        // width vertically, with a further 22% for the caption strip.
+        var heightPerWidth=.92/imageAspect+.30;
+        var width=Math.Min(slot.Width,slot.Height/heightPerWidth);var height=width*heightPerWidth;
+        return new Rect(slot.Left+(slot.Width-width)/2,slot.Top+(slot.Height-height)/2,width,height);
+    }
     // Allocate cards into disjoint bands, then fit their rotated bounding boxes into cells.
-    internal static List<RoutineCardPlacement> Place(Size screen, Rect board, int count, int seed)
+    internal static List<RoutineCardPlacement> Place(Size screen, Rect board, int count, int seed,IReadOnlyList<double>? aspects=null)
     {
         var result = new List<RoutineCardPlacement>(); if (count <= 0) return result;
         const double p = 12, gap = 16;
@@ -32,7 +41,8 @@ internal static class RoutineCardLayout
             for(var j=0;j<n;j++)
             {
                 var angle=(random.NextDouble()-.5)*12;var theta=angle*Math.PI/180;var cos=Math.Abs(Math.Cos(theta));var sin=Math.Abs(Math.Sin(theta));
-                var w=Math.Min(260,cw*.88);var h=w/1.1;var scale=Math.Min(1,Math.Min(cw*.9/(w*cos+h*sin),ch*.9/(w*sin+h*cos)));w*=scale;h*=scale;
+                var aspect=aspects!=null&&result.Count<aspects.Count?aspects[result.Count]:1.1;if(!double.IsFinite(aspect)||aspect<=0)aspect=1.1;
+                var w=Math.Min(260,cw*.88);var h=w/aspect;var scale=Math.Min(1,Math.Min(cw*.9/(w*cos+h*sin),ch*.9/(w*sin+h*cos)));w*=scale;h*=scale;
                 var bw=w*cos+h*sin;var bh=w*sin+h*cos;
                 var cx=r.Left+(j%cols+.5)*cw+(random.NextDouble()-.5)*(cw-bw)*.4;
                 var cy=r.Top+(j/cols+.5)*ch+(random.NextDouble()-.5)*(ch-bh)*.4;

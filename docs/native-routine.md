@@ -3,12 +3,12 @@
 Open **Daily routine** in the launcher, press **Ctrl+Alt+R**, or run `NativeWidget.exe --routine`.
 
 - **Week** opens the full weekly timetable in its own window.
-- **Settings → General** controls table scale, dimming and the daily reminder. Scale fits within the display so background cards remain visible.
+- **Settings → General** controls table scale, dimming and reminders. Add/remove times, then **Save reminders**. Each reminder can show the **Whole day** or selected blocks/checklist tasks. Selected items appear only on their routine weekday. Scale fits within the display so background cards remain visible.
 - **Settings → Routine** edits each weekday's time blocks and tasks. Save before changing days. Tasks repeat with the weekly template; completion state belongs to a specific date.
-- **Settings → Cards** adds text or photos. Photos have a Polaroid frame, caption, frame/text color wheels and serif/handwriting font choices. Images are copied into the widget's private data folder.
+- **Settings → Cards** adds text or photos. Polaroid frames follow the photo's aspect ratio, with a caption strip, frame/text color wheels and serif/handwriting font choices. Images are copied into the widget's private data folder.
 - **Snooze 10m** works while the process remains open. **Dismiss**, **Start day**, and Escape close the overlay.
 
-The reminder is off until explicitly enabled and saved. Enabling it creates a per-user Windows scheduled task named `NativeWidget Morning Routine`; disabling it removes that task. The task can start a closed widget, or hand off to the running instance. It does not power on a shut-down PC. Late startup/unlock catches up within four hours; the daily board is shown at most once per local date. Exiting the application does not disable an enabled scheduled reminder.
+Reminders are off until explicitly enabled and saved. Enabled times become triggers in a per-user Windows scheduled task named `NativeWidget Morning Routine`; removing/disabling all times removes that task. The task can start a closed widget, or hand off to the running instance. It does not power on a shut-down PC. Late startup/unlock catches up within four hours; each reminder is shown at most once per local date. Due reminders at the same time combine their selected items into one view. Exiting the application does not disable enabled reminders. The original single reminder is migrated without losing its enabled state or today's shown state.
 
 ## Local data
 

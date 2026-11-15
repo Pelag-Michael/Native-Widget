@@ -10,7 +10,18 @@ public sealed class RoutineData
     public bool ReminderEnabled { get; set; }
     public string ReminderTime { get; set; } = "06:45";
     public string LastShownDate { get; set; } = "";
+    public List<RoutineReminder>? Reminders { get; set; }
     public int LayoutSeed { get; set; } = 1;
+}
+public sealed class RoutineReminder
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Time { get; set; } = "06:45";
+    public bool Enabled { get; set; } = true;
+    public bool WholeDay { get; set; } = true;
+    public List<string> BlockIds { get; set; } = new();
+    public List<string> TaskIds { get; set; } = new();
+    public string LastShownDate { get; set; } = "";
 }
 public sealed class RoutineBlock
 {

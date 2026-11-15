@@ -44,31 +44,42 @@ internal static class RoutineReminderService
     internal static void Stop(){_timer?.Stop();_stop?.Cancel();_stop?.Dispose();_stop=null;}
     internal static bool IsDue(RoutineData data,DateTime now)
     {
-        if(!data.ReminderEnabled||data.LastShownDate==now.ToString("yyyy-MM-dd"))return false;
-        var due=now.Date.AddMinutes(RoutineStore.Minute(data.ReminderTime));
-        return now>=due&&now<due.AddHours(4);
+        if(data.Reminders!=null)return DueReminders(data,now).Count>0;
+        return Due(new RoutineReminder { Enabled=data.ReminderEnabled,Time=data.ReminderTime,LastShownDate=data.LastShownDate },now);
+    }
+    private static bool Due(RoutineReminder row,DateTime now)
+    {var due=now.Date.AddMinutes(RoutineStore.Minute(row.Time));return row.Enabled&&row.LastShownDate!=now.ToString("yyyy-MM-dd")&&now>=due&&now<due.AddHours(4);}
+    internal static List<RoutineReminder> DueReminders(RoutineData data,DateTime now)
+    {
+        RoutineStore.UpgradeReminders(data);
+        return data.Reminders!.Where(r=>Due(r,now)&&(r.WholeDay||data.Week.GetValueOrDefault(now.DayOfWeek,new()).Any(b=>r.BlockIds.Contains(b.Id)||b.Tasks.Any(t=>r.TaskIds.Contains(t.Id))))).ToList();
     }
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern IntPtr OpenInputDesktop(uint flags,bool inherit,uint access);
     [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern bool CloseDesktop(IntPtr desktop);
     internal static bool IsUnlocked()
     {var desktop=OpenInputDesktop(0,false,0x0100);if(desktop==IntPtr.Zero)return false;CloseDesktop(desktop);return true;}
     internal static string TaskXml(string exe,string time,string user)
+        =>TaskXml(exe,new[]{new RoutineReminder{Time=time}},user);
+    internal static string TaskXml(string exe,IEnumerable<RoutineReminder> reminders,string user)
     {
-        var minutes=RoutineStore.Minute(time);if(minutes>=1440)throw new InvalidDataException("Use a time before midnight.");
+        var times=reminders.Where(r=>r.Enabled).Select(r=>RoutineStore.Minute(r.Time)).Distinct().Order().ToArray();if(times.Any(m=>m>=1440))throw new InvalidDataException("Use a time before midnight.");
         XNamespace ns="http://schemas.microsoft.com/windows/2004/02/mit/task";
         XElement E(string name,object? content)=>new(ns+name,content);
         return new XDocument(new XElement(ns+"Task",new XAttribute("version","1.2"),
-            E("Triggers",E("CalendarTrigger",new object[]{E("StartBoundary",DateTime.Today.AddMinutes(minutes).ToString("yyyy-MM-ddTHH:mm:ss")),E("Enabled","true"),E("ScheduleByDay",E("DaysInterval",1))})),
+            E("Triggers",times.Select(minutes=>E("CalendarTrigger",new object[]{E("StartBoundary",DateTime.Today.AddMinutes(minutes).ToString("yyyy-MM-ddTHH:mm:ss")),E("Enabled","true"),E("ScheduleByDay",E("DaysInterval",1))}))),
             E("Principals",new XElement(ns+"Principal",new XAttribute("id","User"),E("UserId",user),E("LogonType","InteractiveToken"),E("RunLevel","LeastPrivilege"))),
             E("Settings",new object[]{E("MultipleInstancesPolicy","Parallel"),E("DisallowStartIfOnBatteries","false"),E("StopIfGoingOnBatteries","false"),E("StartWhenAvailable","true"),E("ExecutionTimeLimit","PT0S")}),
             new XElement(ns+"Actions",new XAttribute("Context","User"),E("Exec",new object[]{E("Command",exe),E("Arguments","--daily-brief"),E("WorkingDirectory",Path.GetDirectoryName(exe))})))).ToString();
     }
     internal static void Configure(bool enabled,string time)
+        =>Configure(new[]{new RoutineReminder{Enabled=enabled,Time=time}});
+    internal static void Configure(IEnumerable<RoutineReminder> reminders)
     {
+        var rows=reminders.ToArray();
         var type=Type.GetTypeFromProgID("Schedule.Service")??throw new InvalidOperationException("Windows Task Scheduler is unavailable.");
         dynamic service=Activator.CreateInstance(type)!;service.Connect();dynamic folder=service.GetFolder("\\");
-        if(!enabled){try{folder.DeleteTask(TaskName,0);}catch(System.Runtime.InteropServices.COMException ex)when((uint)ex.HResult==0x80070002){}return;}
-        var xml=TaskXml(Environment.ProcessPath!,time,WindowsIdentity.GetCurrent().User!.Value);
+        if(!rows.Any(r=>r.Enabled)){try{folder.DeleteTask(TaskName,0);}catch(System.Runtime.InteropServices.COMException ex)when((uint)ex.HResult==0x80070002){}return;}
+        var xml=TaskXml(Environment.ProcessPath!,rows,WindowsIdentity.GetCurrent().User!.Value);
         folder.RegisterTask(TaskName,xml,6,null,null,3,null);
     }
 }

@@ -19,6 +19,7 @@ internal static class RoutineStore
         else if (File.Exists(Path.Combine(Folder, "import-source.json"))) {data = Import(File.ReadAllText(Path.Combine(Folder, "import-source.json")));imported=true;}
         else data = new RoutineData();
         foreach (var day in Days) data.Week.TryAdd(day, new());
+        UpgradeReminders(data);
         data.Scale = double.IsFinite(data.Scale) ? Math.Clamp(data.Scale, .35, 1.4) : 1;
         data.Dim = double.IsFinite(data.Dim) ? Math.Clamp(data.Dim, 0, .9) : .6;
         Validate(data);
@@ -29,6 +30,18 @@ internal static class RoutineStore
     {
         Validate(data);
         AtomicFile.WriteText(FilePath, JsonSerializer.Serialize(data, Options));
+    }
+    internal static void UpgradeReminders(RoutineData data) => data.Reminders ??= new()
+    {new RoutineReminder { Id="original-daily",Time=data.ReminderTime,Enabled=data.ReminderEnabled,LastShownDate=data.LastShownDate }};
+    internal static List<RoutineTask> EditTaskLines(List<RoutineTask> previous,string text)
+    {
+        var lines=text.Split('\n').Select(t=>t.Trim()).Where(t=>t.Length>0).ToArray();
+        var result=new RoutineTask?[lines.Length];var used=new HashSet<string>();
+        for(var i=0;i<lines.Length;i++)
+        {var match=previous.FirstOrDefault(t=>t.Text==lines[i]&&!used.Contains(t.Id));if(match!=null){result[i]=new RoutineTask{Id=match.Id,Text=lines[i]};used.Add(match.Id);}}
+        for(var i=0;i<lines.Length;i++)if(result[i]==null)
+        {var id=i<previous.Count&&!used.Contains(previous[i].Id)?previous[i].Id:Guid.NewGuid().ToString("N");used.Add(id);result[i]=new RoutineTask{Id=id,Text=lines[i]};}
+        return result.Select(t=>t!).ToList();
     }
     internal static RoutineData Import(string json)
     {
@@ -65,6 +78,11 @@ internal static class RoutineStore
     {
         if (data.Week == null || data.Cards == null || data.Completed == null) throw new InvalidDataException("Invalid routine file.");
         if (Minute(data.ReminderTime) >= 1440) throw new InvalidDataException("Reminder time must be before midnight.");
+        if(data.Reminders!=null)foreach(var reminder in data.Reminders)
+        {
+            if(Minute(reminder.Time)>=1440)throw new InvalidDataException("Reminder time must be before midnight.");
+            if(!reminder.WholeDay&&reminder.Enabled&&reminder.BlockIds.Count==0&&reminder.TaskIds.Count==0)throw new InvalidDataException("Select at least one block or task for a selected-task reminder.");
+        }
         foreach (var blocks in data.Week.Values)
         {
             var sorted = blocks.OrderBy(b => Minute(b.Start)).ToArray();
